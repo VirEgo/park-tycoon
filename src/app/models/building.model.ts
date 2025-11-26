@@ -65,7 +65,7 @@ export const BUILDINGS: BuildingType[] = [
     { id: 'flowerbed', name: 'Клумба', category: 'decoration', price: 90, income: 0, color: '#22c55e', icon: '🌸', width: 1, height: 1, svgPath: '/assets/buildings/flowerbed.svg', description: 'Яркие цветы', satisfies: 'fun', statValue: 6, isAvailableForVisit: false },
 
     // Служебные элементы рельефа (не отображаются в магазине)
-    { id: 'toilet', name: 'Туалет', category: 'shop', price: 100, income: 0.1, color: '#ffffff', icon: '🚽', width: 1, height: 1, svgPath: '/assets/buildings/toilet.svg', description: 'Место для важных дел', satisfies: 'toilet', statValue: 100, isAvailableForVisit: true },
+    { id: 'toilet', name: 'Туалет', category: 'shop', price: 100, income: 0.5, color: '#ffffff', icon: '🚽', width: 1, height: 1, svgPath: '/assets/buildings/toilet.svg', description: 'Место для важных дел', satisfies: 'toilet', statValue: 100, isAvailableForVisit: true },
     { id: 'mountain', name: 'Гора', category: 'decoration', price: 0, income: 0, color: '#6b7280', icon: '⛰️', width: 7, height: 7, svgPath: '/assets/buildings/mountain.svg', description: 'Высокая гора', satisfies: 'fun', statValue: 2, hidden: true, isAvailableForVisit: false },
     { id: 'pond', name: 'Пруд', category: 'decoration', price: 0, income: 0, color: '#38bdf8', icon: '🌊', width: 7, height: 7, svgPath: '/assets/buildings/pond.svg', description: 'Водная гладь', satisfies: 'fun', statValue: 3, hidden: true, isAvailableForVisit: false },
 ];

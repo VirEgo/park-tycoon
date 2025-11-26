@@ -12,6 +12,7 @@ export interface GameSaveState {
     entranceIndex: number;
     casinoLastPayoutDay: number;
     casinoData?: string;
+    isParkClosed?: boolean;
 }
 
 export interface GuestStats {

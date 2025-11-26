@@ -3,8 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { AfterViewInit, Component, computed, effect, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { interval, Subscription } from 'rxjs';
-import { CasinoStatsComponent } from './components/casino-stats/casino-stats.component';
 import { UpgradePanelComponent } from './components/upgrade-panel/upgrade-panel.component';
+import { GuestDetailsComponent } from './components/guest-details/guest-details.component';
 import { BuildingType, ToolType } from './models/building.model';
 import { Cell } from './models/cell.model';
 import { ExpansionState, LandPlot } from './models/expansion.model';
@@ -39,7 +39,7 @@ export class AppComponent {
 @Component({
   selector: 'app-tycoon',
   standalone: true,
-  imports: [CommonModule, RouterModule, CasinoStatsComponent, UpgradePanelComponent],
+  imports: [CommonModule, RouterModule, UpgradePanelComponent, GuestDetailsComponent],
   templateUrl: './app.component.html',
   styleUrl: 'app.component.scss'
 })
@@ -68,6 +68,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   dayCount = signal<number>(1);
   notifications = signal<string[]>([]);
   isPaused = signal<boolean>(false);
+  isParkClosed = signal<boolean>(false);
 
   // Tool Selection
   selectedToolCategory = signal<ToolType | string>('none');
@@ -76,7 +77,6 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   // UI Signals
   showGuestStats = signal<boolean>(false);
   selectedGuestId = signal<number | null>(null);
-  private selectedCasinoCoords = signal<{ x: number, y: number } | null>(null);
   showExpansionPanel = signal<boolean>(false);
   showUpgradePanel = signal<boolean>(false);
 
@@ -93,12 +93,6 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
   // Canvas Interaction State
   private hoveredCell: Cell | null = null;
-
-  selectedCasino = computed(() => {
-    const coords = this.selectedCasinoCoords();
-    if (!coords) return null;
-    return this.casinoService.getCasinoStats(coords.x, coords.y) || null;
-  });
 
   // Modal State
   showConfirmModal = signal<boolean>(false);
@@ -141,11 +135,22 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   private isPanning = false;
   private panStart = { x: 0, y: 0, panX: 0, panY: 0 };
   private readonly dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+  private parkClosedEffectReady = false;
 
   constructor() {
     // Effect to resize canvas when grid dimensions or zoom change
     effect(() => {
       this.resizeCanvas();
+    });
+
+    // Persist park closure state changes
+    effect(() => {
+      const closed = this.isParkClosed();
+      if (!this.parkClosedEffectReady) {
+        this.parkClosedEffectReady = true;
+        return;
+      }
+      this.saveGame();
     });
   }
 
@@ -566,6 +571,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
     const gridX = Math.floor(x / TILE_SIZE);
     const gridY = Math.floor(y / TILE_SIZE);
+    const currentTool = this.selectedToolCategory();
 
     if (event.button === 1) {
       this.startPanning(event);
@@ -582,26 +588,22 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
-    const guests = this.guests();
-    for (let i = guests.length - 1; i >= 0; i--) {
-      const g = guests[i];
-      const gx = g.x * TILE_SIZE;
-      const gy = g.y * TILE_SIZE;
-      if (x >= gx && x <= gx + TILE_SIZE && y >= gy && y <= gy + TILE_SIZE) {
-        this.onGuestClick(event, g.id);
-        return;
+    // Only allow guest selection when no tool is active, so demolish/build always works
+    if (currentTool === 'none') {
+      const guests = this.guests();
+      for (let i = guests.length - 1; i >= 0; i--) {
+        const g = guests[i];
+        const gx = g.x * TILE_SIZE;
+        const gy = g.y * TILE_SIZE;
+        if (x >= gx && x <= gx + TILE_SIZE && y >= gy && y <= gy + TILE_SIZE) {
+          this.onGuestClick(event, g.id);
+          return;
+        }
       }
     }
 
     const cell = this.gridService.getCell(this.grid(), gridX, gridY, this.GRID_W(), this.GRID_H());
     if (cell) {
-      if (cell.type === 'building' && cell.buildingId) {
-        const bInfo = this.buildingService.getBuildingById(cell.buildingId);
-        if (bInfo && bInfo.isGambling) {
-          this.onCasinoClick(event, cell);
-          return;
-        }
-      }
       this.onCellClick(cell);
     }
   }
@@ -648,6 +650,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     this.guestIdCounter = 0;
     this.tickCounter = 0;
     this.casinoLastPayoutDay = 1;
+    this.isParkClosed.set(false);
   }
 
   saveGame() {
@@ -660,7 +663,8 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       guests: this.guests(),
       guestIdCounter: this.guestIdCounter,
       entranceIndex: this.entranceIndex,
-      casinoLastPayoutDay: this.casinoLastPayoutDay
+      casinoLastPayoutDay: this.casinoLastPayoutDay,
+      isParkClosed: this.isParkClosed(),
     };
 
     const success = this.gameStateService.saveGame(state);
@@ -670,12 +674,14 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   }
 
   loadGame(): boolean {
+    this.isParkClosed.set(false);
     const state = this.gameStateService.loadGame();
     if (!state) return false;
 
     this.money.set(state.money);
     this.dayCount.set(state.dayCount);
     this.grid.set(state.grid);
+    this.isParkClosed.set(!!state.isParkClosed);
 
     if (state.gridWidth && state.gridHeight) {
       this.GRID_W.set(state.gridWidth);
@@ -720,6 +726,16 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
+  toggleParkState() {
+    if (this.isParkClosed()) {
+      this.isParkClosed.set(false);
+      this.showNotification('Парк открыт!');
+    } else {
+      this.isParkClosed.set(true);
+      this.showNotification('Парк закрыт!');
+    }
+  }
+
   updateGame() {
     this.tickCounter++;
     if (this.tickCounter >= 60) {
@@ -737,7 +753,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     const currentGuests = this.guests().length;
     const maxGuests = 5 + (attractionCount * 3);
 
-    if (currentGuests < maxGuests && Math.random() > 0.3) {
+    if (!this.isParkClosed() && currentGuests < maxGuests && Math.random() > 0.3) {
       this.spawnGuest();
     }
 
@@ -745,7 +761,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   }
 
   spawnGuest() {
-    if (this.entranceIndex === -1) return;
+    if (this.isParkClosed() || this.entranceIndex === -1) return;
     const entrance = this.grid()[this.entranceIndex];
 
     const attractionCount = this.grid().filter(c => c.type === 'building').length;
@@ -965,25 +981,6 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       this.showNotification(`💰 Выплата казино: $${result.totalPayout.toFixed(2)}`);
       this.grid.set(result.updatedGrid);
     }
-  }
-
-  onCasinoClick(event: MouseEvent, cell: Cell) {
-    event.stopPropagation();
-    event.preventDefault();
-
-    if (cell.buildingId) {
-      const bInfo = this.buildingService.getBuildingById(cell.buildingId);
-      if (bInfo && bInfo.isGambling) {
-        const stats = this.casinoService.getCasinoStats(cell.x, cell.y);
-        if (stats) {
-          this.selectedCasinoCoords.set({ x: cell.x, y: cell.y });
-        }
-      }
-    }
-  }
-
-  closeCasinoStats() {
-    this.selectedCasinoCoords.set(null);
   }
 
   loadDemoPark() {

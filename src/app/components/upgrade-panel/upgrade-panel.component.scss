@@ -1,0 +1,390 @@
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.upgrade-panel {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 500px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.panel-header {
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.header-title h3 {
+    margin: 0 0 5px 0;
+    font-size: 22px;
+}
+
+.level-badge {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.close-btn:hover {
+    color: white;
+}
+
+/* Repair Banner */
+.repair-banner {
+    background: #fee2e2;
+    border-bottom: 1px solid #fecaca;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+.repair-info {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.repair-icon {
+    font-size: 24px;
+}
+
+.repair-text strong {
+    display: block;
+    color: #dc2626;
+    font-size: 14px;
+}
+
+.repair-text p {
+    margin: 0;
+    color: #7f1d1d;
+    font-size: 12px;
+}
+
+.repair-btn {
+    background: #dc2626;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.repair-btn:hover:not(:disabled) {
+    background: #b91c1c;
+}
+
+.repair-btn:disabled {
+    background: #fca5a5;
+    cursor: not-allowed;
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    border-bottom: 1px solid #eee;
+    padding: 0 20px;
+    background: #f8f9fa;
+}
+
+.tab-btn {
+    padding: 15px 20px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #666;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover {
+    color: #333;
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.tab-btn.active {
+    color: #764ba2;
+    border-bottom-color: #764ba2;
+}
+
+/* Content */
+.panel-content {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+    background: #f8f9fa;
+}
+
+.section {
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.section h4 {
+    margin: 0 0 15px 0;
+    color: #444;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.section.highlight {
+    border: 2px solid #e0e7ff;
+    background: #eef2ff;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.stat-label {
+    font-size: 11px;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-weight: bold;
+    color: #2e7d32;
+}
+
+/* Upgrade Preview */
+.upgrade-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.level-transition {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+}
+
+.lvl {
+    background: white;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.lvl.next {
+    background: #764ba2;
+    color: white;
+}
+
+.bonuses-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.bonus-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #555;
+}
+
+.action-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.action-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+}
+
+.upgrade-action {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(118, 75, 162, 0.3);
+}
+
+.upgrade-action:disabled {
+    background: #ccc;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+.max-level-message {
+    text-align: center;
+    color: #f59e0b;
+    font-weight: bold;
+    padding: 10px;
+}
+
+/* Stats List */
+.stats-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: #555;
+    border-bottom: 1px dashed #eee;
+    padding-bottom: 5px;
+}
+
+.stat-row:last-child {
+    border-bottom: none;
+}
+
+.money {
+    color: #2e7d32;
+    font-weight: bold;
+}
+.positive {
+    color: #2e7d32;
+}
+
+/* Themes */
+.themes-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+.theme-card {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.theme-card.active {
+    border-color: #4caf50;
+    background: #e8f5e9;
+}
+
+.theme-icon {
+    font-size: 24px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border-radius: 8px;
+}
+
+.theme-info {
+    flex: 1;
+}
+
+.theme-name {
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 4px;
+}
+
+.theme-bonuses {
+    display: flex;
+    gap: 10px;
+    font-size: 12px;
+    color: #666;
+}
+
+.theme-select-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    background: #e0e0e0;
+    color: #333;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.theme-select-btn:hover:not(:disabled) {
+    background: #d0d0d0;
+}
+
+.active-badge {
+    color: #4caf50;
+    font-weight: bold;
+    font-size: 20px;
+}

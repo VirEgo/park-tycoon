@@ -119,13 +119,17 @@ export class GuestService {
                     const checkX = currentCell.isRoot ? currentCell.x : (currentCell.rootX ?? currentCell.x);
                     const checkY = currentCell.isRoot ? currentCell.y : (currentCell.rootY ?? currentCell.y);
                     const buildingKey = `${checkX}_${checkY}`;
+                    const isBroken = this.buildingStatusService.isBroken(checkX, checkY);
+                    const canVisit = bInfo ? bInfo.isAvailableForVisit !== false : true;
 
-                    if (g.visitingBuildingRoot === buildingKey) {
+                    if (isBroken) {
+                        g.visitingBuildingRoot = null;
+                        g.wantsToLeave = true;
+                    }
+
+                    if (g.visitingBuildingRoot === buildingKey && !isBroken) {
                         // Already visiting this building, skip logic
                     } else {
-                        const isBroken = this.buildingStatusService.isBroken(checkX, checkY);
-                        const canVisit = bInfo ? bInfo.isAvailableForVisit !== false : true;
-
                         if (canVisit && !isBroken && bInfo && g.money >= bInfo.income && bInfo.allowedOnPath !== false) {
                             g.visitingBuildingRoot = buildingKey;
 
@@ -250,9 +254,14 @@ export class GuestService {
                         isWalkable = true;
                     }
 
-                    // Allow movement within the same building even if broken
-                    if (currentCell && currentCell.buildingId === cell.buildingId) {
-                        isWalkable = true;
+                    // Allow movement within the same building instance (same root) even if broken
+                    if (currentCell) {
+                        const currentRootX = currentCell.isRoot ? currentCell.x : (currentCell.rootX ?? currentCell.x);
+                        const currentRootY = currentCell.isRoot ? currentCell.y : (currentCell.rootY ?? currentCell.y);
+
+                        if (currentRootX === checkX && currentRootY === checkY) {
+                            isWalkable = true;
+                        }
                     }
                 }
             }
@@ -289,6 +298,7 @@ export class GuestService {
         hydration: number;
         energy: number;
         fun: number;
+        toilet: number;
         money: number;
     } | null {
         if (guests.length === 0) return null;
@@ -302,6 +312,7 @@ export class GuestService {
             hydration: avg('hydration'),
             energy: avg('energy'),
             fun: avg('fun'),
+            toilet: avg('toilet'),
             money: avg('money')
         };
     }

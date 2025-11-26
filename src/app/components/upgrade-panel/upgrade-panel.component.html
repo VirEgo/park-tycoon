@@ -1,0 +1,200 @@
+<div class="modal-backdrop" (click)="onClose.emit()">
+    <div class="upgrade-panel" (click)="$event.stopPropagation()">
+        <!-- Header -->
+        <div class="panel-header">
+            <div class="header-title">
+                <h3>{{ building().name }}</h3>
+                <span class="level-badge">Уровень {{ currentLevel }}</span>
+            </div>
+            <button class="close-btn" (click)="onClose.emit()">✖</button>
+        </div>
+
+        <!-- Repair Banner -->
+        @if (isBroken()) {
+        <div class="repair-banner">
+            <div class="repair-info">
+                <span class="repair-icon">⚠️</span>
+                <div class="repair-text">
+                    <strong>Здание сломано!</strong>
+                    <p>Посетители не могут войти.</p>
+                </div>
+            </div>
+            <button class="repair-btn" [disabled]="currentMoney() < repairCost()"
+                (click)="onRepair.emit({ cost: repairCost() })">
+                Починить за ${{ repairCost() }}
+            </button>
+        </div>
+        }
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn" [class.active]="activeTab() === 'upgrade'" (click)="activeTab.set('upgrade')">
+                ⬆️ Улучшения
+            </button>
+            <button class="tab-btn" [class.active]="activeTab() === 'stats'" (click)="activeTab.set('stats')">
+                📊 Статистика
+            </button>
+            <button class="tab-btn" [class.active]="activeTab() === 'customization'"
+                (click)="activeTab.set('customization')">
+                🎨 Вид
+            </button>
+        </div>
+
+        <div class="panel-content">
+            <!-- UPGRADE TAB -->
+            @if (activeTab() === 'upgrade') {
+            <div class="tab-content">
+                <!-- Current Stats -->
+                <div class="section">
+                    <h4>Текущие показатели</h4>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Скорость</span>
+                            <span class="stat-value">+{{ upgrade?.upgrades?.speed || 0 }}%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Доход</span>
+                            <span class="stat-value">+{{ upgrade?.upgrades?.income || 0 }}%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Удовлетворение</span>
+                            <span class="stat-value">+{{ upgrade?.upgrades?.satisfaction || 0 }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Next Upgrade -->
+                <div class="section highlight">
+                    <h4>Следующий уровень</h4>
+                    @if (nextUpgradeCost !== null) {
+                    <div class="upgrade-preview">
+                        <div class="level-transition">
+                            <span class="lvl">{{ currentLevel }}</span>
+                            <span class="arrow">➜</span>
+                            <span class="lvl next">{{ currentLevel + 1 }}</span>
+                        </div>
+                        <div class="bonuses-list">
+                            <div class="bonus-item">
+                                <span class="icon">💰</span>
+                                <span>+{{ getNextLevelBonus().income }}% доход</span>
+                            </div>
+                            <div class="bonus-item">
+                                <span class="icon">⚡</span>
+                                <span>+{{ getNextLevelBonus().speed }}% скорость</span>
+                            </div>
+                            <div class="bonus-item">
+                                <span class="icon">😊</span>
+                                <span>+{{ getNextLevelBonus().satisfaction }} счастья</span>
+                            </div>
+                        </div>
+                        <button class="action-btn upgrade-action" [disabled]="currentMoney() < nextUpgradeCost"
+                            (click)="upgradeLevel()">
+                            Улучшить (${{ nextUpgradeCost }})
+                        </button>
+                    </div>
+                    } @else {
+                    <div class="max-level-message">
+                        🏆 Максимальный уровень достигнут!
+                    </div>
+                    }
+                </div>
+            </div>
+            }
+
+            <!-- STATS TAB -->
+            @if (activeTab() === 'stats') {
+            <div class="tab-content">
+                <div class="section">
+                    <h4>Финансы</h4>
+                    <div class="stats-list">
+                        <div class="stat-row">
+                            <span>Всего посещений:</span>
+                            <span>{{ totalVisits }}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>Всего инвестировано:</span>
+                            <span class="money">${{ upgrade?.totalInvested || 0 }}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>Бонус к доходу:</span>
+                            <span class="positive">+{{ calculateFinalIncome() }}%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="section">
+                    <h4>Информация</h4>
+                    <div class="stats-list">
+                        <div class="stat-row">
+                            <span>Тип:</span>
+                            <span>{{ building().name }}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>Размер:</span>
+                            <span>{{ building().width }}x{{ building().height }}</span>
+                        </div>
+                    </div>
+                </div>
+                @if (building().isGambling && casinoStats) {
+                <div class="section">
+                    <h4>Статистика казино</h4>
+                    <div class="stats-list">
+                        <div class="stat-row">
+                            <span>Текущий банк:</span>
+                            <span class="money">${{ casinoStats!.currentBank.toFixed(2) }}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>Всего визитов:</span>
+                            <span>{{ casinoStats!.totalVisits }}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>Победы / Поражения:</span>
+                            <span>{{ casinoStats!.totalWins }} / {{ casinoStats!.totalLoses }}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>Win-rate:</span>
+                            <span class="positive">{{ getCasinoWinRate(casinoStats!) }}%</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>Транзакции:</span>
+                            <span>{{ casinoStats!.transactions.length }}</span>
+                        </div>
+                    </div>
+                </div>
+                }
+            </div>
+            }
+
+            <!-- CUSTOMIZATION TAB -->
+            @if (activeTab() === 'customization') {
+            <div class="tab-content">
+                <div class="section">
+                    <h4>Темы оформления</h4>
+                    <div class="themes-grid">
+                        @for (theme of availableThemes; track theme.id) {
+                        <div class="theme-card" [class.active]="currentTheme === theme.id">
+                            <div class="theme-icon">{{ theme.icon }}</div>
+                            <div class="theme-info">
+                                <div class="theme-name">{{ theme.name }}</div>
+                                <div class="theme-bonuses">
+                                    @if (theme.bonuses.income) { <span>💰 +{{ theme.bonuses.income }}%</span> }
+                                    @if (theme.bonuses.satisfaction) { <span>😊 +{{ theme.bonuses.satisfaction }}</span>
+                                    }
+                                </div>
+                            </div>
+                            @if (currentTheme !== theme.id) {
+                            <button class="theme-select-btn" [disabled]="currentMoney() < theme.cost"
+                                (click)="applyTheme(theme.id)">
+                                ${{ theme.cost }}
+                            </button>
+                            } @else {
+                            <div class="active-badge">✓</div>
+                            }
+                        </div>
+                        }
+                    </div>
+                </div>
+            </div>
+            }
+        </div>
+    </div>
+</div>
