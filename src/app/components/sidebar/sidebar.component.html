@@ -1,0 +1,81 @@
+<aside class="sidebar">
+  <div class="sidebar__header">
+    <h1 class="sidebar__title">ANGULAR PARK</h1>
+    <div class="sidebar__subtitle">Tycoon Simulator</div>
+
+    <button type="button" class="btn btn--primary" (click)="loadDemo.emit()">
+      Загрузить демо-парк
+    </button>
+
+    <button type="button" class="btn" [class.btn--success]="isParkClosed" [class.btn--danger]="!isParkClosed"
+      (click)="togglePark.emit()">
+      {{isParkClosed ? 'Открыть парк' : 'Закрыть парк'}}
+    </button>
+  </div>
+
+  <div class="sidebar__content custom-scrollbar">
+
+    <section class="sidebar__section">
+      <h3 class="section__title">Инфраструктура</h3>
+      <div class="tile-grid">
+        <button type="button" class="tool-card" [class.is-selected]="selectedToolId === 'path'"
+          (click)="onSelectTool('path', 'path')">
+          <img [src]="'/assets/buildings/path.svg'" alt="Path" class="tool-card__icon pixel-render">
+          <span class="tool-card__name">Дорожка</span>
+          <span class="tool-card__price">$10</span>
+        </button>
+
+        <button type="button" class="tool-card" [class.is-selected]="selectedToolId === 'exit'"
+          (click)="onSelectTool('path', 'exit')">
+          <img [src]="'/assets/buildings/exit.svg'" alt="Exit" class="tool-card__icon pixel-render">
+          <span class="tool-card__name">Выход</span>
+          <span class="tool-card__price">$0</span>
+        </button>
+
+        <button type="button" class="tool-card tool-card--danger"
+          [class.is-selected]="selectedToolCategory === 'demolish'" (click)="onSelectTool('demolish', null)">
+          <span class="tool-card__emoji">❌</span>
+          <span class="tool-card__name">Снос</span>
+          <span class="tool-card__price">$5</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="sidebar__section" *ngFor="let cat of categories">
+      <h3 class="section__title">
+        {{ cat === 'attraction' ? 'Аттракционы' : cat === 'shop' ? 'Магазины' : 'Декор' }}
+      </h3>
+
+      <div class="tile-grid">
+        <button type="button" class="tool-card" *ngFor="let item of buildings(cat); trackBy: trackByBuildingId"
+          [class.is-selected]="selectedToolId === item.id" [class.is-disabled]="money < item.price"
+          (click)="onSelectTool(cat, item.id)">
+
+          <div class="tool-card__badge">{{item.width}}×{{item.height}}</div>
+
+          <img *ngIf="item.svgPath" [src]="item.svgPath" [alt]="item.name" class="tool-card__icon pixel-render">
+          <span *ngIf="!item.svgPath" class="tool-card__emoji">{{ item.icon }}</span>
+
+          <span class="tool-card__name tool-card__name--center">{{ item.name }}</span>
+          <span class="tool-card__price tool-card__price--highlight">{{ item.price }}</span>
+
+          <div class="tool-card__tooltip">
+            <div class="tool-card__tooltip-title">{{item.name}}</div>
+            <div class="tool-card__tooltip-text">{{item.description}}</div>
+            <div class="tool-card__tooltip-meta">Размер: {{item.width}}×{{item.height}} клеток</div>
+            <div *ngIf="item.income > 0" class="tool-card__tooltip-income">Доход: {{item.income}}/день</div>
+          </div>
+        </button>
+      </div>
+    </section>
+
+    <div class="sidebar__footer">
+      <button type="button" class="btn btn--danger" (click)="reset.emit()">
+        Сброс прогресса
+      </button>
+      <div class="sidebar__hint">
+        Автосохранение каждые 5 сек
+      </div>
+    </div>
+  </div>
+</aside>

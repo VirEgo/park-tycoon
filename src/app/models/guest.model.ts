@@ -17,6 +17,7 @@ export class Guest {
     toilet: number = 100;    // Bladder
 
     state: 'walking' | 'idle' | 'spending' | 'leaving' = 'idle';
+    statusMessage: string | null = null;
     color: string;
     emoji: string;
     visualType: string;

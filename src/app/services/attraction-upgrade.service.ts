@@ -12,38 +12,42 @@ import {
     providedIn: 'root'
 })
 export class AttractionUpgradeService {
-    private readonly STORAGE_KEY = 'park-upgrades-v1';
+    private readonly STORAGE_KEY = 'park-upgrades-v2';
     private upgrades: Map<string, AttractionUpgrade> = new Map();
 
     constructor() {
         this.loadFromStorage();
     }
 
-    /**
-     * Получить улучшение аттракциона
-     */
-    getUpgrade(attractionId: string): AttractionUpgrade | null {
-        return this.upgrades.get(attractionId) || null;
+    private makeKey(attractionId: string, cellX: number, cellY: number): string {
+        return `${attractionId}@${cellX},${cellY}`;
     }
 
     /**
-     * Проверить, улучшен ли аттракцион
+     * Получить улучшение конкретного экземпляра аттракциона
      */
-    isUpgraded(attractionId: string): boolean {
-        const upgrade = this.upgrades.get(attractionId);
+    getUpgrade(attractionId: string, cellX: number, cellY: number): AttractionUpgrade | null {
+        return this.upgrades.get(this.makeKey(attractionId, cellX, cellY)) || null;
+    }
+
+    /**
+     * Проверить, есть ли прокачка у конкретного экземпляра
+     */
+    isUpgraded(attractionId: string, cellX: number, cellY: number): boolean {
+        const upgrade = this.getUpgrade(attractionId, cellX, cellY);
         return upgrade ? upgrade.level > 1 : false;
     }
 
     /**
-     * Получить текущий уровень аттракциона
+     * Текущий уровень экземпляра
      */
-    getLevel(attractionId: string): number {
-        const upgrade = this.upgrades.get(attractionId);
+    getLevel(attractionId: string, cellX: number, cellY: number): number {
+        const upgrade = this.getUpgrade(attractionId, cellX, cellY);
         return upgrade ? upgrade.level : 1;
     }
 
     /**
-     * Улучшить аттракцион на следующий уровень
+     * Улучшить конкретный экземпляр
      */
     upgradeAttraction(
         attractionId: string,
@@ -56,7 +60,8 @@ export class AttractionUpgradeService {
         newUpgrade?: AttractionUpgrade;
         message: string;
     } {
-        const currentUpgrade = this.upgrades.get(attractionId);
+        const key = this.makeKey(attractionId, cellX, cellY);
+        const currentUpgrade = this.upgrades.get(key);
         const currentLevel = currentUpgrade ? currentUpgrade.level : 1;
 
         if (currentLevel >= 5) {
@@ -72,7 +77,7 @@ export class AttractionUpgradeService {
         if (!upgradeCost) {
             return {
                 success: false,
-                message: 'Ошибка: данные улучшения не найдены'
+                message: 'Ошибка: стоимость улучшения не найдена'
             };
         }
 
@@ -84,7 +89,6 @@ export class AttractionUpgradeService {
             };
         }
 
-        // Создаем или обновляем улучшение
         const newUpgrade: AttractionUpgrade = currentUpgrade
             ? {
                 ...currentUpgrade,
@@ -110,7 +114,7 @@ export class AttractionUpgradeService {
                 hasStaff: false
             };
 
-        this.upgrades.set(attractionId, newUpgrade);
+        this.upgrades.set(key, newUpgrade);
         this.saveToStorage();
 
         return {
@@ -122,10 +126,12 @@ export class AttractionUpgradeService {
     }
 
     /**
-     * Применить тему к аттракциону
+     * Применить тему к экземпляру
      */
     applyTheme(
         attractionId: string,
+        cellX: number,
+        cellY: number,
         theme: ThemeType,
         currentMoney: number
     ): {
@@ -138,10 +144,10 @@ export class AttractionUpgradeService {
             return { success: false, message: 'Тема не найдена' };
         }
 
-        const upgrade = this.upgrades.get(attractionId);
+        const key = this.makeKey(attractionId, cellX, cellY);
+        const upgrade = this.upgrades.get(key);
         const currentLevel = upgrade ? upgrade.level : 1;
 
-        // Проверка требований
         if (themeData.requirements?.minLevel && currentLevel < themeData.requirements.minLevel) {
             return {
                 success: false,
@@ -157,13 +163,11 @@ export class AttractionUpgradeService {
             };
         }
 
-        // Применяем тему
         if (upgrade) {
             upgrade.theme = theme;
             upgrade.totalInvested += themeData.cost;
-            this.upgrades.set(attractionId, upgrade);
+            this.upgrades.set(key, upgrade);
         } else {
-            // Создаем базовое улучшение с темой
             const newUpgrade: AttractionUpgrade = {
                 attractionId,
                 level: 1,
@@ -177,7 +181,7 @@ export class AttractionUpgradeService {
                 theme,
                 hasStaff: false
             };
-            this.upgrades.set(attractionId, newUpgrade);
+            this.upgrades.set(key, newUpgrade);
         }
 
         this.saveToStorage();
@@ -190,18 +194,15 @@ export class AttractionUpgradeService {
     }
 
     /**
-     * Рассчитать модифицированный доход с учетом улучшений
+     * Посчитать доход с учетом апгрейдов
      */
-    calculateModifiedIncome(attractionId: string, baseIncome: number): number {
-        const upgrade = this.upgrades.get(attractionId);
+    calculateModifiedIncome(attractionId: string, cellX: number, cellY: number, baseIncome: number): number {
+        const upgrade = this.getUpgrade(attractionId, cellX, cellY);
         if (!upgrade) return baseIncome;
 
         let modifiedIncome = baseIncome;
-
-        // Бонус от уровня
         modifiedIncome += (baseIncome * upgrade.upgrades.income) / 100;
 
-        // Бонус от темы
         if (upgrade.theme) {
             const theme = THEMES.find(t => t.id === upgrade.theme);
             if (theme?.bonuses.income) {
@@ -213,15 +214,14 @@ export class AttractionUpgradeService {
     }
 
     /**
-     * Рассчитать модифицированное удовлетворение
+     * Посчитать удовлетворенность с учетом апгрейдов
      */
-    calculateModifiedSatisfaction(attractionId: string, baseSatisfaction: number): number {
-        const upgrade = this.upgrades.get(attractionId);
+    calculateModifiedSatisfaction(attractionId: string, cellX: number, cellY: number, baseSatisfaction: number): number {
+        const upgrade = this.getUpgrade(attractionId, cellX, cellY);
         if (!upgrade) return baseSatisfaction;
 
         let modified = baseSatisfaction + upgrade.upgrades.satisfaction;
 
-        // Бонус от темы
         if (upgrade.theme) {
             const theme = THEMES.find(t => t.id === upgrade.theme);
             if (theme?.bonuses.satisfaction) {
@@ -233,10 +233,10 @@ export class AttractionUpgradeService {
     }
 
     /**
-     * Получить стоимость следующего улучшения
+     * Стоимость следующего уровня
      */
-    getNextUpgradeCost(attractionId: string): number | null {
-        const upgrade = this.upgrades.get(attractionId);
+    getNextUpgradeCost(attractionId: string, cellX: number, cellY: number): number | null {
+        const upgrade = this.getUpgrade(attractionId, cellX, cellY);
         const currentLevel = upgrade ? upgrade.level : 1;
 
         if (currentLevel >= 5) return null;
@@ -246,10 +246,10 @@ export class AttractionUpgradeService {
     }
 
     /**
-     * Получить список доступных тем
+     * Доступные темы для экземпляра
      */
-    getAvailableThemes(attractionId: string): ThemeDefinition[] {
-        const upgrade = this.upgrades.get(attractionId);
+    getAvailableThemes(attractionId: string, cellX: number, cellY: number): ThemeDefinition[] {
+        const upgrade = this.getUpgrade(attractionId, cellX, cellY);
         const currentLevel = upgrade ? upgrade.level : 1;
 
         return THEMES.filter(theme => {
@@ -262,10 +262,10 @@ export class AttractionUpgradeService {
     }
 
     /**
-     * Получить иконку темы аттракциона
+     * Иконка темы для экземпляра
      */
-    getThemeIcon(attractionId: string): string {
-        const upgrade = this.upgrades.get(attractionId);
+    getThemeIcon(attractionId: string, cellX: number, cellY: number): string {
+        const upgrade = this.getUpgrade(attractionId, cellX, cellY);
         if (!upgrade || !upgrade.theme) return '';
 
         const theme = THEMES.find(t => t.id === upgrade.theme);
@@ -273,15 +273,12 @@ export class AttractionUpgradeService {
     }
 
     /**
-     * Получить все улучшенные аттракционы
+     * Статистика апгрейдов
      */
     getAllUpgrades(): AttractionUpgrade[] {
         return Array.from(this.upgrades.values());
     }
 
-    /**
-     * Получить статистику по улучшениям
-     */
     getUpgradeStats(): {
         totalUpgrades: number;
         totalInvested: number;
@@ -312,6 +309,22 @@ export class AttractionUpgradeService {
     }
 
     /**
+     * Сбросить все улучшения
+     */
+    clearAll(): void {
+        this.upgrades.clear();
+        localStorage.removeItem(this.STORAGE_KEY);
+    }
+
+    /**
+     * Удалить улучшение для конкретного экземпляра
+     */
+    removeUpgrade(attractionId: string, cellX: number, cellY: number): void {
+        this.upgrades.delete(this.makeKey(attractionId, cellX, cellY));
+        this.saveToStorage();
+    }
+
+    /**
      * Сохранить в localStorage
      */
     private saveToStorage(): void {
@@ -324,33 +337,17 @@ export class AttractionUpgradeService {
     }
 
     /**
-     * Загрузить из localStorage
+     * Загрузить из localStorage (игнорируя старый формат без координат)
      */
     private loadFromStorage(): void {
         try {
             const data = localStorage.getItem(this.STORAGE_KEY);
             if (data) {
                 const entries = JSON.parse(data) as Array<[string, AttractionUpgrade]>;
-                this.upgrades = new Map(entries);
+                this.upgrades = new Map(entries.filter(([key]) => key.includes('@')));
             }
         } catch (e) {
             console.error('Failed to load upgrades:', e);
         }
-    }
-
-    /**
-     * Очистить все улучшения
-     */
-    clearAll(): void {
-        this.upgrades.clear();
-        localStorage.removeItem(this.STORAGE_KEY);
-    }
-
-    /**
-     * Удалить улучшение конкретного аттракциона (при сносе)
-     */
-    removeUpgrade(attractionId: string): void {
-        this.upgrades.delete(attractionId);
-        this.saveToStorage();
     }
 }

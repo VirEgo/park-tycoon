@@ -3,8 +3,9 @@ import { HttpClient } from '@angular/common/http';
 import { AfterViewInit, Component, computed, effect, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { interval, Subscription } from 'rxjs';
-import { UpgradePanelComponent } from './components/upgrade-panel/upgrade-panel.component';
 import { GuestDetailsComponent } from './components/guest-details/guest-details.component';
+import { SidebarComponent } from './components/sidebar/sidebar.component';
+import { UpgradePanelComponent } from './components/upgrade-panel/upgrade-panel.component';
 import { BuildingType, ToolType } from './models/building.model';
 import { Cell } from './models/cell.model';
 import { ExpansionState, LandPlot } from './models/expansion.model';
@@ -39,7 +40,7 @@ export class AppComponent {
 @Component({
   selector: 'app-tycoon',
   standalone: true,
-  imports: [CommonModule, RouterModule, UpgradePanelComponent, GuestDetailsComponent],
+  imports: [CommonModule, RouterModule, UpgradePanelComponent, GuestDetailsComponent, SidebarComponent],
   templateUrl: './app.component.html',
   styleUrl: 'app.component.scss'
 })
@@ -326,7 +327,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
                 }
               }
 
-              const level = this.upgradeService.getLevel(bId);
+              const level = this.upgradeService.getLevel(bId, cell.x, cell.y);
 
               const isBroken = this.buildingStatusService.isBroken(cell.x, cell.y);
               if (isBroken) {
@@ -365,7 +366,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
                 }
               }
 
-              const themeIcon = this.upgradeService.getThemeIcon(bId);
+              const themeIcon = this.upgradeService.getThemeIcon(bId, cell.x, cell.y);
               if (themeIcon) {
                 this.ctx.font = '16px Arial';
                 this.ctx.textAlign = 'right';
@@ -630,6 +631,9 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   }
 
   initNewGame() {
+    // Reset all per-building upgrades so new games start from base level
+    this.upgradeService.clearAll();
+
     const newGrid = this.gridService.createEmptyGrid(GRID_W, GRID_H);
 
     const entryX = Math.floor(GRID_W / 2);
@@ -1113,6 +1117,44 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  repairAllBroken() {
+    const broken = this.buildingStatusService.getBrokenPositions();
+    if (!broken.length) {
+      this.showNotification('Поврежденных зданий нет');
+      return;
+    }
+
+    const repairs: Array<{ x: number; y: number; cost: number }> = [];
+    let totalCost = 0;
+
+    broken.forEach(({ x, y }) => {
+      const idx = this.gridService.getCellIndex(x, y, this.GRID_W());
+      const cell = this.grid()[idx];
+      if (!cell || !cell.buildingId) return;
+      const building = this.buildingService.getBuildingById(cell.buildingId);
+      if (!building) return;
+      const level = this.upgradeService.getLevel(building.id, x, y);
+      const cost = this.buildingStatusService.getRepairCost(building.price, level);
+      totalCost += cost;
+      repairs.push({ x, y, cost });
+    });
+
+    if (!repairs.length) {
+      this.showNotification('Нет доступных к ремонту зданий');
+      return;
+    }
+
+    if (this.money() < totalCost) {
+      this.showNotification('Недостаточно средств для ремонта всех зданий');
+      return;
+    }
+
+    this.money.update(m => m - totalCost);
+    repairs.forEach(r => this.buildingStatusService.repair(r.x, r.y));
+    this.showNotification(`Отремонтировано: ${repairs.length}, затраты: $${totalCost}`);
+    this.saveGame();
+  }
+
   openUpgradePanel(cell: Cell) {
     if (cell.type === 'building' && cell.buildingId) {
       const building = this.buildingService.getBuildingById(cell.buildingId);
@@ -1126,7 +1168,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
         let repairCost = 0;
 
         if (isBroken) {
-          const level = this.upgradeService.getLevel(building.id);
+          const level = this.upgradeService.getLevel(building.id, rootX, rootY);
           repairCost = this.buildingStatusService.getRepairCost(building.price, level);
         }
 

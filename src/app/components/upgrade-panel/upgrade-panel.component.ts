@@ -46,19 +46,19 @@ export class UpgradePanelComponent {
     }
 
     get upgrade(): AttractionUpgrade | null {
-        return this.upgradeService.getUpgrade(this.building().id);
+        return this.upgradeService.getUpgrade(this.building().id, this.cellX(), this.cellY());
     }
 
     get currentLevel(): number {
-        return this.upgradeService.getLevel(this.building().id);
+        return this.upgradeService.getLevel(this.building().id, this.cellX(), this.cellY());
     }
 
     get nextUpgradeCost(): number | null {
-        return this.upgradeService.getNextUpgradeCost(this.building().id);
+        return this.upgradeService.getNextUpgradeCost(this.building().id, this.cellX(), this.cellY());
     }
 
     get availableThemes() {
-        return this.upgradeService.getAvailableThemes(this.building().id);
+        return this.upgradeService.getAvailableThemes(this.building().id, this.cellX(), this.cellY());
     }
 
     get currentTheme(): ThemeType | undefined {
@@ -92,6 +92,8 @@ export class UpgradePanelComponent {
     applyTheme(themeId: ThemeType): void {
         const result = this.upgradeService.applyTheme(
             this.building().id,
+            this.cellX(),
+            this.cellY(),
             themeId,
             this.currentMoney()
         );
@@ -116,5 +118,18 @@ export class UpgradePanelComponent {
     getCasinoWinRate(stats: CasinoStats | null): number {
         if (!stats || stats.totalVisits === 0) return 0;
         return Math.round((stats.totalWins / stats.totalVisits) * 100);
+    }
+
+    formatTime(timestamp: Date | string | number): string {
+        const date = new Date(timestamp);
+        return date.toLocaleTimeString('ru-RU', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+    }
+
+    trackByTxId(index: number, tx: any): number {
+        return tx.id ?? index;
     }
 }

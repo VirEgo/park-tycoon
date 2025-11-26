@@ -15,7 +15,7 @@ import { Guest } from '../../models/guest.model';
           </div>
           <div>
             <div class="font-bold text-yellow-400">Гость #{{guest().id}}</div>
-            <div class="text-xs text-gray-400 uppercase">{{guest().state}}</div>
+            <div class="text-xs text-gray-400 uppercase">{{guest().statusMessage || guest().state}}</div>
           </div>
         </div>
         <button (click)="close.emit()" class="text-gray-400 hover:text-white">✕</button>

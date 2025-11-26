@@ -119,6 +119,21 @@ export class BuildingStatusService {
         localStorage.removeItem(this.STORAGE_KEY);
     }
 
+    getBrokenPositions(): Array<{ x: number; y: number }> {
+        const result: Array<{ x: number; y: number }> = [];
+        this.statuses.forEach((status, key) => {
+            if (status.isBroken) {
+                const [xStr, yStr] = key.split('_');
+                const x = Number(xStr);
+                const y = Number(yStr);
+                if (!Number.isNaN(x) && !Number.isNaN(y)) {
+                    result.push({ x, y });
+                }
+            }
+        });
+        return result;
+    }
+
     removeStatus(x: number, y: number) {
         this.statuses.delete(this.getKey(x, y));
         this.saveToStorage();

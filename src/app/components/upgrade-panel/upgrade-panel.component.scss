@@ -388,3 +388,77 @@
     font-weight: bold;
     font-size: 20px;
 }
+
+/* Casino transactions */
+.tx-history {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.tx-item {
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #f1f5f9;
+    border-left: 3px solid #9ca3af;
+}
+
+.tx-item.tx-win {
+    border-left-color: #22c55e;
+}
+.tx-item.tx-lose {
+    border-left-color: #ef4444;
+}
+.tx-item.tx-payout {
+    border-left-color: #3b82f6;
+}
+
+.tx-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+
+.tx-type {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: #374151;
+    flex-wrap: wrap;
+}
+
+.tx-guest {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.tx-amount {
+    font-family: 'Fira Code', 'SFMono-Regular', Consolas, monospace;
+    font-weight: 700;
+}
+
+.tx-amount.win { color: #16a34a; }
+.tx-amount.lose { color: #dc2626; }
+.tx-amount.payout { color: #2563eb; }
+
+.tx-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.tx-time {
+    font-family: 'Fira Code', 'SFMono-Regular', Consolas, monospace;
+}
+
+.empty-tx {
+    text-align: center;
+    color: #9ca3af;
+    font-size: 13px;
+    padding: 10px 0;
+}

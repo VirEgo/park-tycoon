@@ -75,7 +75,30 @@ export class GuestService {
             g.updateNeeds();
             g.incrementTime();
             g.checkMood();
+            g.statusMessage = this.getStatusMessage(g);
         });
+    }
+
+    private getStatusMessage(guest: Guest): string | null {
+        if (guest.wantsToLeave) {
+            return 'Покидает парк';
+        }
+        if (guest.toilet < 30) {
+            return 'Поиск туалета';
+        }
+        if (guest.hydration < 30) {
+            return 'Ищу напитки';
+        }
+        if (guest.satiety < 30) {
+            return 'Ищу еду';
+        }
+        if (guest.fun < 30) {
+            return 'Ищу развлечения';
+        }
+        if (guest.energy < 30) {
+            return 'Ищу отдых';
+        }
+        return null;
     }
 
     processGuestMovement(
@@ -232,7 +255,7 @@ export class GuestService {
         const neighbors = this.gridService.getNeighbors(cx, cy, width, height);
         const currentCell = this.gridService.getCell(grid, cx, cy, width, height);
 
-        const walkable = neighbors.filter(({ x, y }) => {
+        let walkable = neighbors.filter(({ x, y }) => {
             const cell = this.gridService.getCell(grid, x, y, width, height);
             if (!cell) return false;
 
@@ -246,7 +269,20 @@ export class GuestService {
                 const checkY = cell.isRoot ? cell.y : (cell.rootY ?? cell.y);
                 const isBroken = this.buildingStatusService.isBroken(checkX, checkY);
 
-                if (bInfo) {
+                if (wantsToLeave) {
+                    // When leaving, do not enter other buildings; allow only same building to exit
+                    if (currentCell) {
+                        const currentRootX = currentCell.isRoot ? currentCell.x : (currentCell.rootX ?? currentCell.x);
+                        const currentRootY = currentCell.isRoot ? currentCell.y : (currentCell.rootY ?? currentCell.y);
+                        if (currentRootX === checkX && currentRootY === checkY) {
+                            isWalkable = true;
+                        } else {
+                            isWalkable = false;
+                        }
+                    } else {
+                        isWalkable = false;
+                    }
+                } else if (bInfo) {
                     const canVisit = bInfo.isAvailableForVisit !== false;
                     const allowedOnPath = bInfo.allowedOnPath !== false;
 
@@ -269,6 +305,27 @@ export class GuestService {
             return isWalkable;
         });
 
+        // If guest wants to leave and is inside a building, prefer stepping onto a road/exit first
+        if (wantsToLeave && currentCell?.type === 'building') {
+            const nextStepToRoad = this.findNextStepToRoad(cx, cy, grid, width, height);
+            if (nextStepToRoad) {
+                return [nextStepToRoad];
+            }
+
+            const roadNeighbors = walkable.filter(({ x, y }) => {
+                const cell = this.gridService.getCell(grid, x, y, width, height);
+                return cell && (cell.type === 'path' || cell.type === 'entrance' || cell.type === 'exit');
+            });
+            if (roadNeighbors.length > 0) {
+                walkable = roadNeighbors;
+            }
+        } else if (wantsToLeave) {
+            const nextStepToExit = this.findNextStepToExit(cx, cy, grid, width, height, exits);
+            if (nextStepToExit) {
+                return [nextStepToExit];
+            }
+        }
+
         if (wantsToLeave && exits.length > 0) {
             const guestPos = { x: cx, y: cy };
             let nearestExit = exits[0];
@@ -290,6 +347,122 @@ export class GuestService {
         }
 
         return walkable;
+    }
+
+    /**
+     * BFS to find the next step from inside a building to the nearest road/entrance/exit.
+     * Allows walking through the same building tiles even if broken; stops once a road tile is found.
+     */
+    private findNextStepToRoad(
+        startX: number,
+        startY: number,
+        grid: Cell[],
+        width: number,
+        height: number
+    ): { x: number, y: number } | null {
+        const startCell = this.gridService.getCell(grid, startX, startY, width, height);
+        if (!startCell || startCell.type !== 'building') return null;
+
+        const rootX = startCell.isRoot ? startCell.x : (startCell.rootX ?? startCell.x);
+        const rootY = startCell.isRoot ? startCell.y : (startCell.rootY ?? startCell.y);
+
+        const queue: Array<{ x: number, y: number, prev?: { x: number, y: number } }> = [{ x: startX, y: startY }];
+        const visited = new Set<string>([`${startX},${startY}`]);
+        const parents = new Map<string, { x: number, y: number }>();
+
+        const encode = (x: number, y: number) => `${x},${y}`;
+
+        while (queue.length > 0) {
+            const node = queue.shift()!;
+            const neighbors = this.gridService.getNeighbors(node.x, node.y, width, height);
+
+            for (const n of neighbors) {
+                const key = encode(n.x, n.y);
+                if (visited.has(key)) continue;
+
+                const cell = this.gridService.getCell(grid, n.x, n.y, width, height);
+                if (!cell) continue;
+
+                const isRoad = cell.type === 'path' || cell.type === 'entrance' || cell.type === 'exit';
+                const sameBuilding = cell.type === 'building' && (
+                    (cell.isRoot ? cell.x : (cell.rootX ?? cell.x)) === rootX &&
+                    (cell.isRoot ? cell.y : (cell.rootY ?? cell.y)) === rootY
+                );
+
+                if (!isRoad && !sameBuilding) continue;
+
+                parents.set(key, { x: node.x, y: node.y });
+                visited.add(key);
+
+                if (isRoad) {
+                    // Reconstruct first step
+                    let back = { x: n.x, y: n.y };
+                    let prev = parents.get(encode(back.x, back.y));
+                    while (prev && !(prev.x === startX && prev.y === startY)) {
+                        back = prev;
+                        prev = parents.get(encode(back.x, back.y));
+                    }
+                    return back;
+                }
+
+                queue.push({ x: n.x, y: n.y });
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * BFS to the nearest exit/entrance using only roads/entrances/exits.
+     */
+    private findNextStepToExit(
+        startX: number,
+        startY: number,
+        grid: Cell[],
+        width: number,
+        height: number,
+        exits: Cell[]
+    ): { x: number, y: number } | null {
+        if (exits.length === 0) return null;
+
+        const queue: Array<{ x: number, y: number }> = [{ x: startX, y: startY }];
+        const visited = new Set<string>([`${startX},${startY}`]);
+        const parents = new Map<string, { x: number, y: number }>();
+        const encode = (x: number, y: number) => `${x},${y}`;
+
+        const isWalkableRoad = (cell: Cell | null | undefined) =>
+            !!cell && (cell.type === 'path' || cell.type === 'entrance' || cell.type === 'exit');
+
+        while (queue.length > 0) {
+            const node = queue.shift()!;
+            const cell = this.gridService.getCell(grid, node.x, node.y, width, height);
+            if (cell && (cell.type === 'exit' || cell.type === 'entrance')) {
+                // reconstruct first step
+                let back = { x: node.x, y: node.y };
+                let prev = parents.get(encode(back.x, back.y));
+                while (prev && !(prev.x === startX && prev.y === startY)) {
+                    back = prev;
+                    prev = parents.get(encode(back.x, back.y));
+                }
+                if (back.x === startX && back.y === startY) {
+                    return null;
+                }
+                return back;
+            }
+
+            const neighbors = this.gridService.getNeighbors(node.x, node.y, width, height);
+            for (const n of neighbors) {
+                const key = encode(n.x, n.y);
+                if (visited.has(key)) continue;
+                const nCell = this.gridService.getCell(grid, n.x, n.y, width, height);
+                if (!isWalkableRoad(nCell)) continue;
+                visited.add(key);
+                parents.set(key, { x: node.x, y: node.y });
+                queue.push({ x: n.x, y: n.y });
+            }
+        }
+
+        return null;
     }
 
     calculateAverageStats(guests: Guest[]): {
