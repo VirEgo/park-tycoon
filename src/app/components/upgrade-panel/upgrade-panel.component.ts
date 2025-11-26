@@ -2,6 +2,7 @@ import { Component, inject, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AttractionUpgradeService } from '../../services/attraction-upgrade.service';
 import { BuildingStatusService } from '../../services/building-status.service';
+import { CasinoService, CasinoStats } from '../../services/casino.service';
 import { AttractionUpgrade, THEMES, ThemeType } from '../../models/attraction-upgrade.model';
 import { BuildingType } from '../../models/building.model';
 
@@ -123,7 +124,7 @@ type TabType = 'upgrade' | 'stats' | 'customization';
                                         🏆 Максимальный уровень достигнут!
                                     </div>
                                 }
-                            </div>
+                        </div>
                         </div>
                     }
 
@@ -160,6 +161,33 @@ type TabType = 'upgrade' | 'stats' | 'customization';
                                     </div>
                                 </div>
                             </div>
+                            @if (building().isGambling && casinoStats() as cStats) {
+                                <div class="section">
+                                    <h4>Статистика казино</h4>
+                                    <div class="stats-list">
+                                        <div class="stat-row">
+                                            <span>Текущий банк:</span>
+                                            <span class="money">\${{ cStats.currentBank.toFixed(2) }}</span>
+                                        </div>
+                                        <div class="stat-row">
+                                            <span>Всего визитов:</span>
+                                            <span>{{ cStats.totalVisits }}</span>
+                                        </div>
+                                        <div class="stat-row">
+                                            <span>Победы / Поражения:</span>
+                                            <span>{{ cStats.totalWins }} / {{ cStats.totalLoses }}</span>
+                                        </div>
+                                        <div class="stat-row">
+                                            <span>Win-rate:</span>
+                                            <span class="positive">{{ getCasinoWinRate(cStats) }}%</span>
+                                        </div>
+                                        <div class="stat-row">
+                                            <span>Транзакции:</span>
+                                            <span>{{ cStats.transactions.length }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
                         </div>
                     }
 
@@ -584,6 +612,7 @@ type TabType = 'upgrade' | 'stats' | 'customization';
 export class UpgradePanelComponent {
     private upgradeService = inject(AttractionUpgradeService);
     private buildingStatusService = inject(BuildingStatusService);
+    private casinoService = inject(CasinoService);
 
     building = input.required<BuildingType>();
     cellX = input.required<number>();
@@ -603,6 +632,11 @@ export class UpgradePanelComponent {
 
     get totalVisits(): number {
         return this.buildingStatusService.getStatus(this.cellX(), this.cellY())?.totalVisits || 0;
+    }
+
+    get casinoStats(): CasinoStats | null {
+        if (!this.building().isGambling) return null;
+        return this.casinoService.getCasinoStats(this.cellX(), this.cellY()) || null;
     }
 
     get upgrade(): AttractionUpgrade | null {
@@ -671,5 +705,10 @@ export class UpgradePanelComponent {
             }
         }
         return total;
+    }
+
+    getCasinoWinRate(stats: CasinoStats | null): number {
+        if (!stats || stats.totalVisits === 0) return 0;
+        return Math.round((stats.totalWins / stats.totalVisits) * 100);
     }
 }
