@@ -1,30 +1,45 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, OnDestroy, OnInit, signal, ViewChild, ElementRef, AfterViewInit, effect } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { AfterViewInit, Component, computed, effect, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
+import { Router, RouterModule } from '@angular/router';
 import { interval, Subscription } from 'rxjs';
 import { CasinoStatsComponent } from './components/casino-stats/casino-stats.component';
-import { SkinsGalleryComponent } from './components/skins-gallery/skins-gallery.component';
-import { ExpansionPanelComponent } from './components/expansion-panel/expansion-panel.component';
 import { UpgradePanelComponent } from './components/upgrade-panel/upgrade-panel.component';
-import { Guest } from './models/guest.model';
-import { SafeHtmlPipe } from './pipes/safe-html.pipe';
-import { CasinoService } from './services/casino.service';
-import { GridService, GRID_W, GRID_H } from './services/grid.service';
-import { GuestService } from './services/guest.service';
-import { BuildingService } from './services/building.service';
-import { GameStateService } from './services/game-state.service';
-import { ExpansionService } from './services/expansion.service';
-import { AttractionUpgradeService } from './services/attraction-upgrade.service';
+import { BuildingType, ToolType } from './models/building.model';
 import { Cell } from './models/cell.model';
-import { ToolType, BuildingType } from './models/building.model';
+import { ExpansionState, LandPlot } from './models/expansion.model';
 import { GameSaveState } from './models/game-state.model';
-import { ExpansionState } from './models/expansion.model';
+import { Guest } from './models/guest.model';
+import { AttractionUpgradeService } from './services/attraction-upgrade.service';
+import { BuildingStatusService } from './services/building-status.service';
+import { BuildingService } from './services/building.service';
+import { CasinoService } from './services/casino.service';
+import { ExpansionService } from './services/expansion.service';
+import { GameStateService } from './services/game-state.service';
+import { GRID_H, GRID_W, GridService } from './services/grid.service';
+import { GuestService } from './services/guest.service';
 
 const TILE_SIZE = 40;
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 2;
+const ZOOM_STEP = 0.25;
+const MAX_CANVAS_HEIGHT = 700;
+const MAX_CANVAS_WIDTH = 1200;
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, SafeHtmlPipe, SkinsGalleryComponent, CasinoStatsComponent, ExpansionPanelComponent, UpgradePanelComponent],
+  imports: [RouterModule],
+  template: `<router-outlet></router-outlet>`
+})
+export class AppComponent {
+  title = 'park-tycoon';
+}
+
+@Component({
+  selector: 'app-tycoon',
+  standalone: true,
+  imports: [CommonModule, RouterModule, CasinoStatsComponent, UpgradePanelComponent],
   templateUrl: './app.component.html',
   styleUrl: 'app.component.scss'
 })
@@ -32,11 +47,19 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild('gameCanvas') gameCanvas!: ElementRef<HTMLCanvasElement>;
   private ctx!: CanvasRenderingContext2D;
   private renderLoopId: number | null = null;
-  private skinImages: Map<string, HTMLImageElement> = new Map();
+  private skinCache: Map<string, HTMLImageElement> = new Map();
+  private rawSkins: Map<string, string> = new Map();
+  private handleEscapeListener = (event: KeyboardEvent) => this.handleEscape(event);
+  private handleContextMenuListener = (event: MouseEvent) => this.handleGlobalRightClick(event);
+  private stopPanListener = () => this.stopPanning();
+  private handleResize = () => this.resizeCanvas();
 
   GRID_W = signal<number>(GRID_W);
   GRID_H = signal<number>(GRID_H);
   TILE_SIZE = TILE_SIZE;
+  viewScale = signal<number>(1);
+  panX = signal<number>(0);
+  panY = signal<number>(0);
 
   // State Signals
   money = signal<number>(5000);
@@ -53,11 +76,20 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   // UI Signals
   showGuestStats = signal<boolean>(false);
   selectedGuestId = signal<number | null>(null);
-  currentView = signal<'game' | 'gallery'>('game');
   private selectedCasinoCoords = signal<{ x: number, y: number } | null>(null);
   showExpansionPanel = signal<boolean>(false);
   showUpgradePanel = signal<boolean>(false);
-  selectedBuildingForUpgrade = signal<{ building: BuildingType, cellX: number, cellY: number } | null>(null);
+
+  // Updated to include repair info
+  selectedBuildingForUpgrade = signal<{
+    building: BuildingType,
+    cellX: number,
+    cellY: number,
+    isBroken: boolean,
+    repairCost: number
+  } | null>(null);
+
+  showSidebar = signal<boolean>(true);
 
   // Canvas Interaction State
   private hoveredCell: Cell | null = null;
@@ -78,9 +110,12 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   private gridService = inject(GridService);
   private guestService = inject(GuestService);
   private buildingService = inject(BuildingService);
+  private buildingStatusService = inject(BuildingStatusService);
   private gameStateService = inject(GameStateService);
   private expansionService = inject(ExpansionService);
   private upgradeService = inject(AttractionUpgradeService);
+  private router = inject(Router);
+  private http = inject(HttpClient);
 
   guestStats = computed(() => {
     return this.guestService.calculateAverageStats(this.guests());
@@ -103,16 +138,14 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   private tickCounter = 0;
   private casinoLastPayoutDay = 0;
   private lastFrameTime = 0;
+  private isPanning = false;
+  private panStart = { x: 0, y: 0, panX: 0, panY: 0 };
+  private readonly dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
 
   constructor() {
-    // Effect to resize canvas when grid dimensions change
+    // Effect to resize canvas when grid dimensions or zoom change
     effect(() => {
-      const w = this.GRID_W();
-      const h = this.GRID_H();
-      if (this.gameCanvas && this.gameCanvas.nativeElement) {
-        this.gameCanvas.nativeElement.width = w * TILE_SIZE;
-        this.gameCanvas.nativeElement.height = h * TILE_SIZE;
-      }
+      this.resizeCanvas();
     });
   }
 
@@ -129,14 +162,16 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
     window.addEventListener('mousedown', () => this.mouseIsDown = true);
     window.addEventListener('mouseup', () => this.mouseIsDown = false);
+    window.addEventListener('keydown', this.handleEscapeListener);
+    window.addEventListener('contextmenu', this.handleContextMenuListener);
+    window.addEventListener('mouseup', this.stopPanListener);
+    window.addEventListener('resize', this.handleResize);
   }
 
   ngAfterViewInit() {
     if (this.gameCanvas) {
       this.ctx = this.gameCanvas.nativeElement.getContext('2d')!;
-      // Initial resize
-      this.gameCanvas.nativeElement.width = this.GRID_W() * TILE_SIZE;
-      this.gameCanvas.nativeElement.height = this.GRID_H() * TILE_SIZE;
+      this.resizeCanvas(); // Initial resize
       this.startRenderLoop();
     }
   }
@@ -147,13 +182,20 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     if (this.renderLoopId !== null) cancelAnimationFrame(this.renderLoopId);
     window.removeEventListener('mousedown', () => this.mouseIsDown = true);
     window.removeEventListener('mouseup', () => this.mouseIsDown = false);
+    window.removeEventListener('keydown', this.handleEscapeListener);
+    window.removeEventListener('contextmenu', this.handleContextMenuListener);
+    window.removeEventListener('mouseup', this.stopPanListener);
+    window.removeEventListener('resize', this.handleResize);
   }
 
   private preloadSkins() {
-    Object.entries(Guest.SKINS).forEach(([key, svg]) => {
-      const img = new Image();
-      img.src = 'data:image/svg+xml;base64,' + btoa(svg);
-      this.skinImages.set(key, img);
+    Object.entries(Guest.SKINS).forEach(([key, path]) => {
+      this.http.get(path, { responseType: 'text' }).subscribe({
+        next: (svgContent) => {
+          this.rawSkins.set(key, svgContent);
+        },
+        error: (err) => console.error(`Failed to load skin: ${key}`, err)
+      });
     });
   }
 
@@ -184,83 +226,201 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       (msg) => this.showNotification(msg)
     );
 
-    // We don't need to set the signal every frame if we are just mutating objects for rendering
-    // But if we add/remove guests (leaving), we should update the signal
     if (result.updatedGuests.length !== this.guests().length) {
       this.guests.set(result.updatedGuests);
     }
-    // Grid updates (casino bank)
-    // this.grid.set(result.updatedGrid); // Avoid setting grid signal every frame if possible
   }
 
   private render() {
-    if (!this.ctx) return;
+    if (!this.ctx || !this.gameCanvas?.nativeElement) return;
 
     const width = this.gameCanvas.nativeElement.width;
     const height = this.gameCanvas.nativeElement.height;
+    const scale = this.viewScale();
+    const panX = this.panX();
+    const panY = this.panY();
+    const dpr = this.dpr;
     const grid = this.grid();
     const guests = this.guests();
     const selectedGuestId = this.selectedGuestId();
     const hoveredCell = this.hoveredCell;
 
-    // Clear
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.clearRect(0, 0, width, height);
+    this.ctx.setTransform(scale * dpr, 0, 0, scale * dpr, panX * dpr, panY * dpr);
+
+    const startX = Math.floor((-panX / scale) / TILE_SIZE) * TILE_SIZE;
+    const startY = Math.floor((-panY / scale) / TILE_SIZE) * TILE_SIZE;
+    const endX = ((width / dpr - panX) / scale);
+    const endY = ((height / dpr - panY) / scale);
+
+    const tileBg = '#3bcf6f';
+
+    for (let y = startY; y < endY + TILE_SIZE; y += TILE_SIZE) {
+      for (let x = startX; x < endX + TILE_SIZE; x += TILE_SIZE) {
+        this.ctx.fillStyle = tileBg;
+        this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+        this.ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
+      }
+    }
 
     // 1. Draw Grid
     grid.forEach(cell => {
       const x = cell.x * TILE_SIZE;
       const y = cell.y * TILE_SIZE;
 
-      // Background
       if (cell.type === 'grass') {
-        this.ctx.fillStyle = '#4ade80'; // green-400
+        this.ctx.fillStyle = '#4ade80';
+        this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
       } else if (cell.type === 'path') {
-        this.ctx.fillStyle = '#9ca3af'; // gray-400
-      } else if (cell.type === 'entrance') {
-        this.ctx.fillStyle = '#fbbf24'; // amber-400
-      } else if (cell.type === 'exit') {
-        this.ctx.fillStyle = '#ef4444'; // red-500
-      } else if (cell.type === 'building') {
-        // If building has color, use it, else gray
-        const bId = cell.buildingId;
-        if (bId) {
-          this.ctx.fillStyle = this.getBuildingColor(bId);
+        const pathImg = this.buildingService.getBuildingImage('path');
+        if (pathImg && pathImg.complete && pathImg.naturalWidth > 0) {
+          this.ctx.drawImage(pathImg, x, y, TILE_SIZE, TILE_SIZE);
         } else {
-          this.ctx.fillStyle = '#6b7280';
+          this.ctx.fillStyle = '#9ca3af';
+          this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+        }
+      } else if (cell.type === 'entrance') {
+        this.ctx.fillStyle = '#fbbf24';
+        this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+      } else if (cell.type === 'exit') {
+        const exitImg = this.buildingService.getBuildingImage('exit');
+        if (exitImg && exitImg.complete && exitImg.naturalWidth > 0) {
+          this.ctx.drawImage(exitImg, x, y, TILE_SIZE, TILE_SIZE);
+        } else {
+          this.ctx.fillStyle = '#ef4444';
+          this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+        }
+      } else if (cell.type === 'building') {
+        if (cell.isRoot) {
+          const bId = cell.buildingId;
+          if (bId) {
+            const building = this.buildingService.getBuildingById(bId);
+            if (building) {
+              const img = this.buildingService.getBuildingImage(bId);
+
+              this.ctx.fillStyle = '#4ade80';
+              this.ctx.fillRect(x, y, TILE_SIZE * building.width, TILE_SIZE * building.height);
+
+              if (img && img.complete && img.naturalWidth > 0) {
+                this.ctx.drawImage(img, x, y, TILE_SIZE * building.width, TILE_SIZE * building.height);
+              } else {
+                this.ctx.strokeStyle = '#4ade80';
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeRect(x, y, TILE_SIZE * building.width, TILE_SIZE * building.height);
+
+                const icon = building.icon;
+                if (icon) {
+                  this.ctx.font = '24px Arial';
+                  this.ctx.textAlign = 'center';
+                  this.ctx.textBaseline = 'middle';
+                  this.ctx.fillStyle = '#000';
+                  this.ctx.fillText(icon, x + (TILE_SIZE * building.width) / 2, y + (TILE_SIZE * building.height) / 2);
+                }
+              }
+
+              const level = this.upgradeService.getLevel(bId);
+
+              const isBroken = this.buildingStatusService.isBroken(cell.x, cell.y);
+              if (isBroken) {
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                this.ctx.fillRect(x, y, TILE_SIZE * building.width, TILE_SIZE * building.height);
+
+                this.ctx.font = '30px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.fillStyle = '#FFF';
+                this.ctx.fillText('🔧', x + (TILE_SIZE * building.width) / 2, y + (TILE_SIZE * building.height) / 2);
+              }
+
+              if (level === 5) {
+                const centerX = x + (TILE_SIZE * building.width) / 2;
+                const starY = y - 10;
+                this.ctx.shadowColor = '#FFD700';
+                this.ctx.shadowBlur = 15;
+                this.ctx.font = '24px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'bottom';
+                this.ctx.fillText('⭐', centerX, starY);
+                this.ctx.shadowBlur = 0;
+              } else if (level > 1) {
+                const starCount = level - 1;
+                const starSize = 12;
+                const startX = x + (TILE_SIZE * building.width) / 2 - ((starCount - 1) * starSize) / 2;
+                const starY = y - 5;
+
+                this.ctx.font = '12px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'bottom';
+
+                for (let i = 0; i < starCount; i++) {
+                  this.ctx.fillText('⭐', startX + i * starSize, starY);
+                }
+              }
+
+              const themeIcon = this.upgradeService.getThemeIcon(bId);
+              if (themeIcon) {
+                this.ctx.font = '16px Arial';
+                this.ctx.textAlign = 'right';
+                this.ctx.textBaseline = 'top';
+                this.ctx.fillText(themeIcon, x + TILE_SIZE * building.width - 2, y + 2);
+              }
+            }
+          }
         }
       }
-      this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
 
-      // Border
-      this.ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-      this.ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
+      if (cell.type !== 'building') {
+        this.ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+        this.ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
+      }
 
-      // Building Icon / Text
-      if (cell.type === 'building' && cell.buildingId) {
-        const icon = this.getBuildingIcon(cell.buildingId);
-        if (icon) {
-          this.ctx.font = '24px Arial';
-          this.ctx.textAlign = 'center';
-          this.ctx.textBaseline = 'middle';
-          this.ctx.fillStyle = '#000';
-          this.ctx.fillText(icon, x + TILE_SIZE / 2, y + TILE_SIZE / 2);
-        }
-      } else if (cell.type === 'entrance') {
+      if (cell.type === 'entrance') {
         this.ctx.font = '20px Arial';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
+        this.ctx.fillStyle = '#000';
         this.ctx.fillText('ENT', x + TILE_SIZE / 2, y + TILE_SIZE / 2);
       } else if (cell.type === 'exit') {
-        this.ctx.font = '20px Arial';
+        this.ctx.font = '10px Arial';
         this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText('EXIT', x + TILE_SIZE / 2, y + TILE_SIZE / 2);
+        this.ctx.textBaseline = 'ideographic';
+        this.ctx.fillText('EXIT', x + TILE_SIZE / 3, y + TILE_SIZE / 3);
       }
 
-      // Hover Effect
       if (hoveredCell && hoveredCell.x === cell.x && hoveredCell.y === cell.y) {
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-        this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+        const toolId = this.selectedToolId();
+        if (toolId && this.selectedToolCategory() !== 'none' && this.selectedToolCategory() !== 'demolish') {
+          const building = this.buildingService.getBuildingById(toolId);
+          if (building) {
+            const isValid = this.buildingService.checkPlacement(grid, cell.x, cell.y, building, this.GRID_W(), this.GRID_H());
+
+            for (let i = 0; i < building.width; i++) {
+              for (let j = 0; j < building.height; j++) {
+                const cellX = (cell.x + i) * TILE_SIZE;
+                const cellY = (cell.y + j) * TILE_SIZE;
+                const cellValid = (cell.x + i < this.GRID_W() && cell.y + j < this.GRID_H());
+
+                this.ctx.fillStyle = isValid && cellValid ? 'rgba(0, 255, 0, 0.35)' : 'rgba(255, 0, 0, 0.35)';
+                this.ctx.fillRect(cellX, cellY, TILE_SIZE, TILE_SIZE);
+
+                this.ctx.strokeStyle = isValid && cellValid ? 'rgba(0, 255, 0, 0.8)' : 'rgba(255, 0, 0, 0.8)';
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeRect(cellX, cellY, TILE_SIZE, TILE_SIZE);
+              }
+            }
+
+            this.ctx.strokeStyle = isValid ? '#00ff00' : '#ff0000';
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeRect(x, y, TILE_SIZE * building.width, TILE_SIZE * building.height);
+            this.ctx.lineWidth = 1;
+          }
+        } else {
+          this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+          this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+        }
       }
     });
 
@@ -269,7 +429,6 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       const gx = guest.x * TILE_SIZE;
       const gy = guest.y * TILE_SIZE;
 
-      // Selection Highlight
       if (selectedGuestId === guest.id) {
         this.ctx.beginPath();
         this.ctx.arc(gx + TILE_SIZE / 2, gy + TILE_SIZE / 2, TILE_SIZE / 1.5, 0, Math.PI * 2);
@@ -277,16 +436,24 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
         this.ctx.fill();
       }
 
-      // Skin
-      const skinKey = guest.visualType; // or guest.skin if we map it back
-      // Actually guest.skin is the SVG string. guest.visualType is the key (e.g. 'visitor')
-      // Let's use visualType to lookup image
-      const img = this.skinImages.get(guest.visualType);
+      const skinKey = guest.visualType;
+      const cacheKey = `${skinKey}_${guest.color}`;
+
+      let img = this.skinCache.get(cacheKey);
+
+      if (!img) {
+        const rawSvg = this.rawSkins.get(skinKey);
+        if (rawSvg) {
+          const coloredSvg = rawSvg.replace(/#FF00FF/gi, guest.color);
+          img = new Image();
+          img.src = 'data:image/svg+xml;base64,' + btoa(coloredSvg);
+          this.skinCache.set(cacheKey, img);
+        }
+      }
 
       if (img && img.complete) {
         this.ctx.drawImage(img, gx, gy, TILE_SIZE, TILE_SIZE);
       } else {
-        // Fallback
         this.ctx.fillStyle = guest.color;
         this.ctx.beginPath();
         this.ctx.arc(gx + TILE_SIZE / 2, gy + TILE_SIZE / 2, TILE_SIZE / 3, 0, Math.PI * 2);
@@ -296,7 +463,6 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
         this.ctx.fillText(guest.emoji, gx + TILE_SIZE / 2, gy + TILE_SIZE / 2);
       }
 
-      // Mood/Status Indicator (optional)
       if (guest.happiness < 30) {
         this.ctx.fillStyle = 'red';
         this.ctx.beginPath();
@@ -306,34 +472,129 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  // --- Canvas Interaction ---
+  private resizeCanvas() {
+    if (!this.gameCanvas?.nativeElement) return;
+    const sidebarWidth = this.showSidebar() ? 255 : 0;
+    const headerHeight = 70;
+    const viewportW = typeof window !== 'undefined' ? window.innerWidth : MAX_CANVAS_WIDTH;
+    const viewportH = typeof window !== 'undefined' ? window.innerHeight : MAX_CANVAS_HEIGHT;
+
+    const pxW = Math.max(0, viewportW - sidebarWidth);
+    const pxH = Math.max(0, viewportH - headerHeight);
+
+    const el = this.gameCanvas.nativeElement;
+    el.width = pxW * this.dpr;
+    el.height = pxH * this.dpr;
+    el.style.width = `${pxW}px`;
+    el.style.height = `${pxH}px`;
+    this.centerPan(pxW, pxH);
+  }
+
+  private startPanning(event: MouseEvent) {
+    this.isPanning = true;
+    this.panStart = { x: event.clientX, y: event.clientY, panX: this.panX(), panY: this.panY() };
+    event.preventDefault();
+  }
+
+  private updatePanFromPointer(event: MouseEvent) {
+    const dx = event.clientX - this.panStart.x;
+    const dy = event.clientY - this.panStart.y;
+    this.setPan(this.panStart.panX + dx, this.panStart.panY + dy);
+  }
+
+  private stopPanning() {
+    this.isPanning = false;
+  }
+
+  private setPan(x: number, y: number) {
+    const clamped = this.clampPan(x, y);
+    this.panX.set(clamped.x);
+    this.panY.set(clamped.y);
+  }
+
+  private clampPan(x: number, y: number): { x: number, y: number } {
+    const canvasEl = this.gameCanvas?.nativeElement;
+    if (!canvasEl) {
+      return { x: 0, y: 0 };
+    }
+    const parent = canvasEl.parentElement;
+    const containerW = parent?.getBoundingClientRect().width ?? canvasEl?.width ?? 0;
+    const containerH = parent?.getBoundingClientRect().height ?? canvasEl?.height ?? 0;
+    const mapW = this.GRID_W() * TILE_SIZE * this.viewScale();
+    const mapH = this.GRID_H() * TILE_SIZE * this.viewScale();
+
+    if (mapW <= containerW) {
+      x = (containerW - mapW) / 2;
+    }
+    if (mapH <= containerH) {
+      y = (containerH - mapH) / 2;
+    }
+
+    const minX = Math.min(0, containerW - mapW);
+    const minY = Math.min(0, containerH - mapH);
+    const clampedX = Math.min(0, Math.max(minX, x));
+    const clampedY = Math.min(0, Math.max(minY, y));
+
+    return { x: clampedX, y: clampedY };
+  }
+
+  private centerPan(canvasWidth?: number, canvasHeight?: number) {
+    const canvasEl = this.gameCanvas?.nativeElement;
+    if (!canvasEl) return;
+    const cssW = canvasWidth ?? canvasEl.width / this.dpr;
+    const cssH = canvasHeight ?? canvasEl.height / this.dpr;
+    const mapW = this.GRID_W() * TILE_SIZE * this.viewScale();
+    const mapH = this.GRID_H() * TILE_SIZE * this.viewScale();
+
+    const centerX = (cssW - mapW) / 2;
+    const centerY = (cssH - mapH) / 2;
+    this.setPan(centerX, centerY);
+  }
+
+  handleCanvasWheel(event: WheelEvent) {
+    event.preventDefault();
+    const nextX = this.panX() - event.deltaX;
+    const nextY = this.panY() - event.deltaY;
+    this.setPan(nextX, nextY);
+  }
 
   handleCanvasMouseDown(event: MouseEvent) {
     const rect = this.gameCanvas.nativeElement.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const scale = this.viewScale();
+    const x = (event.clientX - rect.left - this.panX()) / scale;
+    const y = (event.clientY - rect.top - this.panY()) / scale;
 
     const gridX = Math.floor(x / TILE_SIZE);
     const gridY = Math.floor(y / TILE_SIZE);
 
-    // Check if clicked on a guest
-    // We iterate backwards to click top-most guest if they overlap
+    if (event.button === 1) {
+      this.startPanning(event);
+      return;
+    }
+
+    if (event.button === 2) {
+      this.selectTool('none', null);
+      return;
+    }
+
+    if (gridX < 0 || gridX >= this.GRID_W() || gridY < 0 || gridY >= this.GRID_H()) {
+      this.selectTool('none', null);
+      return;
+    }
+
     const guests = this.guests();
     for (let i = guests.length - 1; i >= 0; i--) {
       const g = guests[i];
       const gx = g.x * TILE_SIZE;
       const gy = g.y * TILE_SIZE;
-      // Simple bounding box for guest click
       if (x >= gx && x <= gx + TILE_SIZE && y >= gy && y <= gy + TILE_SIZE) {
         this.onGuestClick(event, g.id);
         return;
       }
     }
 
-    // If not guest, check cell
     const cell = this.gridService.getCell(this.grid(), gridX, gridY, this.GRID_W(), this.GRID_H());
     if (cell) {
-      // Handle Casino Click
       if (cell.type === 'building' && cell.buildingId) {
         const bInfo = this.buildingService.getBuildingById(cell.buildingId);
         if (bInfo && bInfo.isGambling) {
@@ -341,15 +602,20 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
           return;
         }
       }
-      // Handle Normal Click
       this.onCellClick(cell);
     }
   }
 
   handleCanvasMouseMove(event: MouseEvent) {
+    if (this.isPanning) {
+      this.updatePanFromPointer(event);
+      return;
+    }
+
     const rect = this.gameCanvas.nativeElement.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const scale = this.viewScale();
+    const x = (event.clientX - rect.left - this.panX()) / scale;
+    const y = (event.clientY - rect.top - this.panY()) / scale;
 
     const gridX = Math.floor(x / TILE_SIZE);
     const gridY = Math.floor(y / TILE_SIZE);
@@ -359,10 +625,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   }
 
   handleCanvasDoubleClick(event: MouseEvent) {
-    // Optional: Implement zoom or other features
   }
-
-  // --- Save / Load System ---
 
   initNewGame() {
     const newGrid = this.gridService.createEmptyGrid(GRID_W, GRID_H);
@@ -414,7 +677,6 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     this.dayCount.set(state.dayCount);
     this.grid.set(state.grid);
 
-    // Restore dimensions if available, otherwise default
     if (state.gridWidth && state.gridHeight) {
       this.GRID_W.set(state.gridWidth);
       this.GRID_H.set(state.gridHeight);
@@ -423,8 +685,6 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       this.GRID_H.set(GRID_H);
     }
 
-    // Преобразуем сохранённых гостей обратно в экземпляры класса Guest,
-    // иначе теряются методы и возникает ошибка типов.
     if (state.guests && Array.isArray(state.guests)) {
       const restored = state.guests.map(g => Guest.fromJSON(g));
       this.guests.set(restored);
@@ -453,8 +713,6 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  // --- Game Loop ---
-
   startGameLoop() {
     this.gameLoopSub = interval(500).subscribe(() => {
       if (this.isPaused()) return;
@@ -464,11 +722,10 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
   updateGame() {
     this.tickCounter++;
-    if (this.tickCounter >= 60) { // 30 seconds (60 * 500ms)
+    if (this.tickCounter >= 60) {
       this.dayCount.update(d => d + 1);
       this.tickCounter = 0;
 
-      // Casino payout every 10 days
       const currentDay = this.dayCount();
       if (currentDay - this.casinoLastPayoutDay >= 10) {
         this.processCasinoPayout();
@@ -503,9 +760,6 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   selectTool(category: ToolType | string, id: string | null) {
     this.selectedToolCategory.set(category);
     this.selectedToolId.set(id);
-    // Deselect guest when selecting a tool
-
-    console.log(category);
 
     if (category !== 'none') {
       this.selectedGuestId.set(null);
@@ -516,12 +770,38 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     this.showGuestStats.update(v => !v);
   }
 
+  openSkinsGallery() {
+    this.saveGame();
+    this.router.navigate(['/skins']);
+  }
+
+  toggleSidebar() {
+    this.showSidebar.update(v => !v);
+  }
+
+  zoomIn() {
+    this.adjustZoom(ZOOM_STEP);
+  }
+
+  zoomOut() {
+    this.adjustZoom(-ZOOM_STEP);
+  }
+
+  resetZoom() {
+    this.viewScale.set(1);
+    this.centerPan();
+  }
+
+  private adjustZoom(delta: number) {
+    const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, this.viewScale() + delta));
+    this.viewScale.set(next);
+    this.centerPan();
+  }
+
   onGuestClick(event: MouseEvent, id: number) {
     event.stopPropagation();
     event.preventDefault();
     this.selectedGuestId.set(id);
-
-    // Deselect tool when selecting a guest
     this.selectTool('none', null);
   }
 
@@ -530,14 +810,33 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onCellHover(event: MouseEvent) {
-    // Placeholder
+  }
+
+  private handleEscape(event: KeyboardEvent) {
+    if (event.key !== 'Escape') return;
+    if (this.shouldCancelTool()) {
+      this.selectTool('none', null);
+      event.preventDefault();
+    }
+  }
+
+  private handleGlobalRightClick(event: MouseEvent) {
+    if (event.button !== 2) return;
+    if (this.shouldCancelTool()) {
+      this.selectTool('none', null);
+      event.preventDefault();
+    }
+  }
+
+  private shouldCancelTool(): boolean {
+    const cat = this.selectedToolCategory();
+    return cat === 'path' || cat === 'decoration';
   }
 
   onCellClick(cell: Cell) {
     const cat = this.selectedToolCategory();
     const id = this.selectedToolId();
 
-    // Deselect tool if clicking on grass with no tool selected
     if (cat === 'none' && cell.type === 'grass') {
       return;
     }
@@ -553,6 +852,9 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     }
 
     if (cat === 'none' || !id) {
+      if (cell.type === 'building' && cat === 'none') {
+        this.openUpgradePanel(cell);
+      }
       return;
     }
 
@@ -560,11 +862,8 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       const building = this.buildingService.getBuildingById(id);
       if (!building) return;
 
-      if (cell.type !== 'grass') {
-        // Show modal instead of confirm
-        this.pendingBuildCell.set(cell);
-        this.pendingBuildId.set(id);
-        this.showConfirmModal.set(true);
+      if (!this.buildingService.checkPlacement(this.grid(), cell.x, cell.y, building, this.GRID_W(), this.GRID_H())) {
+        this.showNotification('Здесь нельзя строить!');
         return;
       }
 
@@ -582,7 +881,6 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       }
     }
     this.closeModal();
-    // Note: tool is already reset in executeBuild
   }
 
   cancelBuild() {
@@ -607,12 +905,16 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     this.grid.set(newGrid);
     this.saveGame();
 
-    // Reset tool selection after build
-    this.selectTool('none', null);
+    if (building.category !== 'path') {
+      this.selectTool('none', null);
+    }
   }
 
-  // Снос зданий и тд
   demolish(cell: Cell) {
+    if (cell.buildingId === 'mountain' || cell.buildingId === 'pond' || cell.terrain === 'water' || cell.terrain === 'mountain') {
+      this.showNotification('Этот участок нельзя изменить');
+      return;
+    }
     if (cell.type === 'grass') return;
 
     if (this.money() < 5) {
@@ -626,7 +928,6 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     this.grid.set(newGrid);
     this.saveGame();
 
-    // Reset tool selection after demolish
     this.selectTool('none', null);
   }
 
@@ -640,6 +941,16 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
   getBuildingIcon(id: string): string {
     return this.buildingService.getBuildingIcon(id);
+  }
+
+  getGuestImageSrc(guest: Guest): string {
+    const skinKey = guest.visualType;
+    const cacheKey = `${skinKey}_${guest.color}`;
+    const img = this.skinCache.get(cacheKey);
+    if (img) {
+      return img.src
+    }
+    return guest.skin;
   }
 
   trackByGuestId(index: number, guest: Guest): number {
@@ -682,63 +993,58 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private createDemoSave(): GameSaveState {
-    // Создаем сетку
-    const grid: Cell[] = [];
+    let grid: Cell[] = [];
     for (let y = 0; y < GRID_H; y++) {
       for (let x = 0; x < GRID_W; x++) {
         grid.push({ x, y, type: 'grass' });
       }
     }
 
-    // Главная дорожка (вертикальная по центру)
+    const build = (id: string, x: number, y: number) => {
+      const b = this.buildingService.getBuildingById(id);
+      if (b) {
+        const cell = grid[y * GRID_W + x];
+        grid = this.buildingService.buildBuilding(grid, cell, b, GRID_W);
+      }
+    };
+
     for (let y = 0; y < GRID_H; y++) {
-      const idx = y * GRID_W + 10;
-      grid[idx] = { x: 10, y, type: 'path', variant: 1 };
+      build('path', 10, y);
     }
 
-    // Горизонтальные дорожки
     for (let x = 5; x <= 15; x++) {
-      const idx1 = 3 * GRID_W + x;
-      const idx2 = 7 * GRID_W + x;
-      const idx3 = 11 * GRID_W + x;
-      grid[idx1] = { x, y: 3, type: 'path', variant: 1 };
-      grid[idx2] = { x, y: 7, type: 'path', variant: 1 };
-      grid[idx3] = { x, y: 11, type: 'path', variant: 1 };
+      build('path', x, 3);
+      build('path', x, 7);
+      build('path', x, 11);
     }
 
-    // Вход внизу
     const entranceIdx = 14 * GRID_W + 10;
     grid[entranceIdx] = { x: 10, y: 14, type: 'entrance' };
 
-    // Выход вверху
     const exitIdx = 0 * GRID_W + 10;
     grid[exitIdx] = { x: 10, y: 0, type: 'exit' };
 
-    // Аттракционы
-    grid[3 * GRID_W + 7] = { x: 7, y: 3, type: 'building', buildingId: 'carousel' };
-    grid[3 * GRID_W + 13] = { x: 13, y: 3, type: 'building', buildingId: 'ferris' };
-    grid[7 * GRID_W + 7] = { x: 7, y: 7, type: 'building', buildingId: 'castle' };
-    grid[7 * GRID_W + 13] = { x: 13, y: 7, type: 'building', buildingId: 'coaster' };
-    grid[11 * GRID_W + 7] = { x: 7, y: 11, type: 'building', buildingId: 'slots', data: { bank: 20 } };
-    grid[11 * GRID_W + 13] = { x: 13, y: 11, type: 'building', buildingId: 'shooting', data: { bank: 20 } };
+    build('carousel', 7, 3);
+    build('ferris', 13, 3);
+    build('castle', 7, 7);
+    build('coaster', 13, 7);
+    build('slots', 7, 11);
+    build('shooting', 13, 11);
 
-    // Магазины
-    grid[3 * GRID_W + 9] = { x: 9, y: 3, type: 'building', buildingId: 'burger' };
-    grid[3 * GRID_W + 11] = { x: 11, y: 3, type: 'building', buildingId: 'pizza' };
-    grid[7 * GRID_W + 9] = { x: 9, y: 7, type: 'building', buildingId: 'soda' };
-    grid[7 * GRID_W + 11] = { x: 11, y: 7, type: 'building', buildingId: 'coffee' };
-    grid[11 * GRID_W + 9] = { x: 9, y: 11, type: 'building', buildingId: 'popcorn' };
-    grid[11 * GRID_W + 11] = { x: 11, y: 11, type: 'building', buildingId: 'icecream' };
+    build('burger', 9, 3);
+    build('pizza', 11, 3);
+    build('soda', 9, 7);
+    build('coffee', 11, 7);
+    build('popcorn', 9, 11);
+    build('icecream', 11, 11);
 
-    // Декорации
-    grid[5 * GRID_W + 10] = { x: 10, y: 5, type: 'building', buildingId: 'fountain' };
-    grid[2 * GRID_W + 5] = { x: 5, y: 2, type: 'building', buildingId: 'tree' };
-    grid[2 * GRID_W + 15] = { x: 15, y: 2, type: 'building', buildingId: 'tree' };
-    grid[12 * GRID_W + 5] = { x: 5, y: 12, type: 'building', buildingId: 'tree' };
-    grid[12 * GRID_W + 15] = { x: 15, y: 12, type: 'building', buildingId: 'tree' };
-    grid[9 * GRID_W + 10] = { x: 10, y: 9, type: 'building', buildingId: 'bench' };
+    build('fountain', 10, 5);
+    build('tree', 5, 2);
+    build('tree', 15, 2);
+    build('tree', 5, 12);
+    build('tree', 15, 12);
+    build('bench', 10, 9);
 
-    // Инициализация казино
     const casinoData = JSON.stringify({
       casino_7_11: {
         totalBank: 0,
@@ -779,8 +1085,6 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     }, 2000);
   }
 
-  // --- Expansion Panel Methods ---
-
   openExpansionPanel() {
     this.showExpansionPanel.set(true);
   }
@@ -799,14 +1103,10 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     if (result.success && result.newState) {
       this.expansionState.set(result.newState);
       this.money.update(m => m - event.cost);
-
-      // Расширяем сетку
       this.expandGrid(event.plotId);
-
       this.showNotification(result.message);
       this.saveGame();
 
-      // Проверяем открытые здания
       const unlockedBuildings = this.expansionService.getUnlockedBuildings(result.newState);
       if (unlockedBuildings.length > 0) {
         this.showNotification(`🎉 Открыты новые здания: ${unlockedBuildings.join(', ')}`);
@@ -816,13 +1116,30 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  // --- Upgrade Panel Methods ---
-
   openUpgradePanel(cell: Cell) {
     if (cell.type === 'building' && cell.buildingId) {
       const building = this.buildingService.getBuildingById(cell.buildingId);
       if (building) {
-        this.selectedBuildingForUpgrade.set({ building, cellX: cell.x, cellY: cell.y });
+        // Determine root coordinates
+        const rootX = cell.isRoot ? cell.x : (cell.rootX ?? cell.x);
+        const rootY = cell.isRoot ? cell.y : (cell.rootY ?? cell.y);
+
+        // Check broken status on the root cell (or current cell if root not found, but should be root)
+        const isBroken = this.buildingStatusService.isBroken(rootX, rootY);
+        let repairCost = 0;
+
+        if (isBroken) {
+          const level = this.upgradeService.getLevel(building.id);
+          repairCost = this.buildingStatusService.getRepairCost(building.price, level);
+        }
+
+        this.selectedBuildingForUpgrade.set({
+          building,
+          cellX: rootX,
+          cellY: rootY,
+          isBroken,
+          repairCost
+        });
         this.showUpgradePanel.set(true);
       }
     }
@@ -837,6 +1154,13 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     this.money.update(m => m - event.cost);
     this.showNotification('✅ Аттракцион улучшен!');
     this.saveGame();
+
+    // Refresh panel data (e.g. repair cost might change if level up, though unlikely to upgrade while broken)
+    const current = this.selectedBuildingForUpgrade();
+    if (current) {
+      // Re-open to refresh or just update signal if we had granular signals
+      // For now, just keeping it open is fine, the component handles internal state updates via service
+    }
   }
 
   handleThemeApplied(event: { cost: number }) {
@@ -845,7 +1169,18 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     this.saveGame();
   }
 
-  // --- Grid Expansion ---
+  handleRepair(event: { cost: number }) {
+    const current = this.selectedBuildingForUpgrade();
+    if (current && this.money() >= event.cost) {
+      this.money.update(m => m - event.cost);
+      this.buildingStatusService.repair(current.cellX, current.cellY);
+      this.showNotification('🔧 Здание отремонтировано!');
+      this.saveGame();
+      this.closeUpgradePanel();
+    } else {
+      this.showNotification('Недостаточно средств!');
+    }
+  }
 
   private expandGrid(plotId: string) {
     const state = this.expansionState();
@@ -856,16 +1191,12 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     const currentW = this.GRID_W();
     const currentH = this.GRID_H();
 
-    // 1. Calculate new bounds based on ALL purchased plots
-    // Base grid is always at (0,0) with size 20x15 (GRID_W x GRID_H constants)
     let minX = 0;
-    let maxX = 20; // Base width
+    let maxX = 20;
     let minY = 0;
-    let maxY = 15; // Base height
+    let maxY = 15;
 
-    // Helper to update bounds
     const updateBounds = (p: import('./models/expansion.model').LandPlot) => {
-      // Assuming gridX/gridY are multipliers of base size (20x15)
       const pX = p.gridX * 20;
       const pY = p.gridY * 15;
 
@@ -875,17 +1206,14 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       maxY = Math.max(maxY, pY + p.size.h);
     };
 
-    // Iterate all purchased plots
     state.plots.filter(p => p.purchased).forEach(updateBounds);
 
     const newW = maxX - minX;
     const newH = maxY - minY;
 
-    // 2. Calculate offset needed to shift everything to positive coordinates
     const targetOffsetX = -minX;
     const targetOffsetY = -minY;
 
-    // 3. Calculate OLD offset to map current grid cells to new grid
     let oldMinX = 0;
     let oldMinY = 0;
 
@@ -906,46 +1234,30 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     const oldOffsetX = -oldMinX;
     const oldOffsetY = -oldMinY;
 
-    // Calculate the shift difference
     const shiftX = targetOffsetX - oldOffsetX;
     const shiftY = targetOffsetY - oldOffsetY;
 
-    // 4. Create new grid
     const newGrid: Cell[] = [];
 
     for (let y = 0; y < newH; y++) {
       for (let x = 0; x < newW; x++) {
-        // Convert new grid coord (x,y) to world coord
-        // worldX = x - targetOffsetX
-        // worldY = y - targetOffsetY
-
-        // Convert world coord to old grid coord
-        // oldGridX = worldX + oldOffsetX
-        // oldGridY = worldY + oldOffsetY
-
-        // Combined:
-        // oldGridX = x - targetOffsetX + oldOffsetX = x - shiftX
         const oldGridX = x - shiftX;
         const oldGridY = y - shiftY;
 
         if (oldGridX >= 0 && oldGridX < currentW && oldGridY >= 0 && oldGridY < currentH) {
-          // Copy old cell
           const oldIdx = oldGridY * currentW + oldGridX;
           const oldCell = currentGrid[oldIdx];
           newGrid.push({ ...oldCell, x, y });
 
-          // Update entrance index
           if (oldIdx === this.entranceIndex) {
             this.entranceIndex = y * newW + x;
           }
         } else {
-          // New territory
-          newGrid.push({ x, y, type: 'grass' });
+          newGrid.push({ x, y, type: 'grass', terrain: plot.terrain });
         }
       }
     }
 
-    // 5. Update guests
     if (shiftX > 0 || shiftY > 0) {
       this.guests.update(gs => {
         gs.forEach(guest => {
@@ -958,9 +1270,66 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       });
     }
 
-    // 6. Apply changes
     this.GRID_W.set(newW);
     this.GRID_H.set(newH);
-    this.grid.set(newGrid);
+    const seededGrid = this.seedTerrainForPlot(plot, newGrid, newW, newH, targetOffsetX, targetOffsetY);
+    this.grid.set(seededGrid);
+  }
+
+  private seedTerrainForPlot(plot: LandPlot, grid: Cell[], gridW: number, gridH: number, offsetX: number, offsetY: number): Cell[] {
+    const area = {
+      startX: plot.gridX * 20 + offsetX,
+      startY: plot.gridY * 15 + offsetY,
+      endX: plot.gridX * 20 + offsetX + plot.size.w,
+      endY: plot.gridY * 15 + offsetY + plot.size.h
+    };
+
+    if (plot.terrain === 'forest') {
+      const treeCount = 20 + Math.floor(Math.random() * 31);
+      return this.placeFeatures('tree', treeCount, area, grid, gridW, gridH);
+    }
+
+    if (plot.terrain === 'mountain') {
+      const mountainCount = 2 + Math.floor(Math.random() * 2);
+      return this.placeFeatures('mountain', mountainCount, area, grid, gridW, gridH);
+    }
+
+    if (plot.terrain === 'water') {
+      const pondCount = 2 + Math.floor(Math.random() * 2);
+      return this.placeFeatures('pond', pondCount, area, grid, gridW, gridH);
+    }
+
+    return grid;
+  }
+
+  private placeFeatures(buildingId: string, count: number, area: { startX: number; startY: number; endX: number; endY: number }, grid: Cell[], gridW: number, gridH: number): Cell[] {
+    const building = this.buildingService.getBuildingById(buildingId);
+    if (!building) return grid;
+
+    let updatedGrid = grid;
+    let placed = 0;
+    let attempts = 0;
+    const maxAttempts = count * 10;
+
+    while (placed < count && attempts < maxAttempts) {
+      attempts++;
+      const x = area.startX + Math.floor(Math.random() * (area.endX - area.startX - building.width + 1));
+      const y = area.startY + Math.floor(Math.random() * (area.endY - area.startY - building.height + 1));
+
+      if (x < area.startX || y < area.startY || x + building.width > area.endX || y + building.height > area.endY) {
+        continue;
+      }
+
+      if (!this.buildingService.checkPlacement(updatedGrid, x, y, building, gridW, gridH)) {
+        continue;
+      }
+
+      const idx = y * gridW + x;
+      updatedGrid = this.buildingService.buildBuilding(updatedGrid, updatedGrid[idx], building, gridW);
+      placed++;
+    }
+
+    return updatedGrid;
   }
 }
+

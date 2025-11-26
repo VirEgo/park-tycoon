@@ -1,0 +1,16 @@
+<svg width="120" height="80" viewBox="0 0 30 20" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+  <!-- Building Base -->
+  <rect x="2" y="6" width="26" height="12" fill="#fbc02d" />
+  <rect x="3" y="7" width="24" height="10" fill="#fff9c4" />
+  
+  <!-- Roof -->
+  <rect x="1" y="4" width="28" height="2" fill="#f57f17" />
+  <rect x="3" y="2" width="24" height="2" fill="#f9a825" />
+  
+  <!-- Counter Window -->
+  <rect x="5" y="10" width="20" height="6" fill="#5d4037" />
+  
+  <!-- Taco Sign -->
+  <rect x="12" y="0" width="6" height="4" fill="#ffeb3b" />
+  <rect x="13" y="1" width="4" height="2" fill="#795548" />
+</svg>

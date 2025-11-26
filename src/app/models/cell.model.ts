@@ -8,5 +8,8 @@ export interface Cell {
     variant?: number;
     data?: any;
     terrain?: TerrainType;
+    isRoot?: boolean;
+    rootX?: number;
+    rootY?: number;
 }
 

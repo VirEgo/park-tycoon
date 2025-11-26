@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" shape-rendering="crispEdges">
+  <!-- Exit sign background -->
+  <rect width="40" height="40" fill="#ef4444"/>
+  <rect width="40" height="4" fill="#dc2626"/>
+  
+  <!-- Sign plate -->
+  <rect x="8" y="11" width="24" height="18" fill="#b91c1c"/>
+  <rect x="8" y="11" width="4" height="18" fill="#991b1b"/>
+  
+  <!-- Text "EXIT" (pixel style) -->
+  <rect x="11" y="15" width="2" height="6" fill="#fca5a5"/>
+  <rect x="11" y="15" width="3" height="2" fill="#fca5a5"/>
+  <rect x="11" y="18" width="2" height="2" fill="#fca5a5"/>
+  <rect x="11" y="21" width="3" height="2" fill="#fca5a5"/>
+  
+  <rect x="16" y="15" width="2" height="6" fill="#fca5a5"/>
+  <rect x="20" y="15" width="2" height="6" fill="#fca5a5"/>
+  <rect x="24" y="15" width="3" height="2" fill="#fca5a5"/>
+  <rect x="26" y="17" width="2" height="6" fill="#fca5a5"/>
+  
+  <!-- Arrow (pixel style) -->
+  <rect x="18" y="26" width="4" height="2" fill="#fca5a5"/>
+  <rect x="20" y="24" width="2" height="2" fill="#fca5a5"/>
+  <rect x="20" y="28" width="2" height="2" fill="#fca5a5"/>
+  <rect x="22" y="22" width="2" height="2" fill="#fca5a5"/>
+  <rect x="22" y="30" width="2" height="2" fill="#fca5a5"/>
+  
+  <!-- Door indicator (light) -->
+  <rect x="28" y="19" width="3" height="3" fill="#fca5a5"/>
+</svg>

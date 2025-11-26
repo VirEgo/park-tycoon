@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" shape-rendering="crispEdges">
+  <!-- Stand background -->
+  <rect x="4" y="6" width="32" height="28" fill="#22c55e"/>
+  <rect x="4" y="6" width="4" height="28" fill="#16a34a"/>
+  <rect x="6" y="8" width="28" height="24" fill="#15803d"/>
+  
+  <!-- Target 1 -->
+  <rect x="8" y="12" width="8" height="8" fill="#fef3c7"/>
+  <rect x="10" y="14" width="4" height="4" fill="#fbbf24"/>
+  <rect x="12" y="16" width="2" height="2" fill="#dc2626"/>
+  
+  <!-- Target 2 -->
+  <rect x="20" y="14" width="8" height="8" fill="#fef3c7"/>
+  <rect x="22" y="16" width="4" height="4" fill="#fbbf24"/>
+  <rect x="24" y="18" width="2" height="2" fill="#dc2626"/>
+  
+  <!-- Target 3 -->
+  <rect x="14" y="20" width="6" height="6" fill="#fef3c7"/>
+  <rect x="16" y="22" width="3" height="3" fill="#fbbf24"/>
+  <rect x="17" y="23" width="2" height="2" fill="#dc2626"/>
+  
+  <!-- Counter/shelf -->
+  <rect x="4" y="30" width="32" height="8" fill="#166534"/>
+  <rect x="4" y="30" width="32" height="2" fill="#22c55e"/>
+  
+  <!-- Gun on counter (pixel style) -->
+  <rect x="16" y="32" width="8" height="3" fill="#6b7280"/>
+  <rect x="16" y="32" width="2" height="3" fill="#9ca3af"/>
+  <rect x="15" y="33" width="2" height="2" fill="#4b5563"/>
+  
+  <!-- Booth frame -->
+  <rect x="4" y="6" width="2" height="2" fill="#14532d"/>
+  <rect x="34" y="6" width="2" height="2" fill="#14532d"/>
+</svg>

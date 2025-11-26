@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" shape-rendering="crispEdges">
+  <!-- Left tower -->
+  <rect x="6" y="30" width="18" height="50" fill="#a855f7"/>
+  <rect x="6" y="30" width="4" height="50" fill="#9333ea"/>
+  
+  <!-- Left tower battlements -->
+  <rect x="6" y="26" width="4" height="4" fill="#7c3aed"/>
+  <rect x="14" y="26" width="4" height="4" fill="#7c3aed"/>
+  <rect x="20" y="26" width="4" height="4" fill="#7c3aed"/>
+  
+  <!-- Right tower -->
+  <rect x="56" y="30" width="18" height="50" fill="#a855f7"/>
+  <rect x="56" y="30" width="4" height="50" fill="#9333ea"/>
+  
+  <!-- Right tower battlements -->
+  <rect x="56" y="26" width="4" height="4" fill="#7c3aed"/>
+  <rect x="64" y="26" width="4" height="4" fill="#7c3aed"/>
+  <rect x="70" y="26" width="4" height="4" fill="#7c3aed"/>
+  
+  <!-- Central building -->
+  <rect x="26" y="40" width="28" height="40" fill="#c084fc"/>
+  <rect x="26" y="40" width="4" height="40" fill="#a855f7"/>
+  
+  <!-- Central roof -->
+  <rect x="30" y="36" width="20" height="4" fill="#9333ea"/>
+  <rect x="34" y="32" width="12" height="4" fill="#7c3aed"/>
+  <rect x="38" y="28" width="4" height="4" fill="#6d28d9"/>
+  
+  <!-- Gate -->
+  <rect x="36" y="60" width="8" height="20" fill="#581c87"/>
+  <rect x="36" y="60" width="8" height="4" fill="#4c1d95"/>
+  
+  <!-- Windows left tower -->
+  <rect x="10" y="40" width="6" height="8" fill="#fde047"/>
+  <rect x="10" y="40" width="2" height="8" fill="#fef08a"/>
+  <rect x="10" y="56" width="6" height="8" fill="#fde047"/>
+  <rect x="10" y="56" width="2" height="8" fill="#fef08a"/>
+  
+  <!-- Windows right tower -->
+  <rect x="64" y="40" width="6" height="8" fill="#fde047"/>
+  <rect x="64" y="40" width="2" height="8" fill="#fef08a"/>
+  <rect x="64" y="56" width="6" height="8" fill="#fde047"/>
+  <rect x="64" y="56" width="2" height="8" fill="#fef08a"/>
+  
+  <!-- Central windows -->
+  <rect x="32" y="46" width="6" height="6" fill="#fde047"/>
+  <rect x="42" y="46" width="6" height="6" fill="#fde047"/>
+  
+  <!-- Flags -->
+  <rect x="14" y="20" width="2" height="6" fill="#7f1d1d"/>
+  <rect x="16" y="20" width="4" height="4" fill="#ef4444"/>
+  
+  <rect x="64" y="20" width="2" height="6" fill="#1e3a8a"/>
+  <rect x="66" y="20" width="4" height="4" fill="#3b82f6"/>
+</svg>

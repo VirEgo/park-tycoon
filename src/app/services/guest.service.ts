@@ -5,6 +5,7 @@ import { GridService } from './grid.service';
 import { BUILDINGS } from '../models/building.model';
 import { CasinoService } from './casino.service';
 import { GUEST_TYPES, GuestTypeId } from '../models/guest-type.model';
+import { BuildingStatusService } from './building-status.service';
 
 @Injectable({
     providedIn: 'root'
@@ -12,6 +13,7 @@ import { GUEST_TYPES, GuestTypeId } from '../models/guest-type.model';
 export class GuestService {
     private gridService = inject(GridService);
     private casinoService = inject(CasinoService);
+    private buildingStatusService = inject(BuildingStatusService);
 
     /**
      * Определить тип гостя на основе прогресса игры
@@ -99,6 +101,12 @@ export class GuestService {
                 const currentCellIdx = Math.round(g.y) * width + Math.round(g.x);
                 const currentCell = updatedGrid[currentCellIdx];
 
+                // Guard against missing cell (out of bounds or uninitialized grid)
+                if (!currentCell) {
+                    g.state = 'idle';
+                    return g;
+                }
+
                 if ((currentCell.type === 'entrance' || currentCell.type === 'exit') && wantsToLeave) {
                     g.state = 'leaving';
                     return g;
@@ -106,48 +114,69 @@ export class GuestService {
 
                 if (currentCell.type === 'building' && currentCell.buildingId) {
                     const bInfo = BUILDINGS.find(b => b.id === currentCell.buildingId);
-                    if (bInfo && g.money >= bInfo.income && bInfo.allowedOnPath !== false) {
 
-                        // Gambling Logic
-                        if (bInfo.isGambling && currentCell.data && typeof currentCell.data.bank === 'number') {
-                            const bet = 0.25;
+                    // Check if building is broken (check root)
+                    const checkX = currentCell.isRoot ? currentCell.x : (currentCell.rootX ?? currentCell.x);
+                    const checkY = currentCell.isRoot ? currentCell.y : (currentCell.rootY ?? currentCell.y);
+                    const buildingKey = `${checkX}_${checkY}`;
 
-                            if (g.money >= bet) {
-                                g.money -= bet;
+                    if (g.visitingBuildingRoot === buildingKey) {
+                        // Already visiting this building, skip logic
+                    } else {
+                        const isBroken = this.buildingStatusService.isBroken(checkX, checkY);
+                        const canVisit = bInfo ? bInfo.isAvailableForVisit !== false : true;
 
-                                const won = Math.random() < 0.15;
-                                const winAmount = this.casinoService.processBet(
-                                    currentCell.x,
-                                    currentCell.y,
-                                    g.id,
-                                    bet,
-                                    won
-                                );
+                        if (canVisit && !isBroken && bInfo && g.money >= bInfo.income && bInfo.allowedOnPath !== false) {
+                            g.visitingBuildingRoot = buildingKey;
 
-                                if (won) {
-                                    g.money += winAmount;
-                                    currentCell.data.bank = 20;
-                                    onNotification(`🎰 Джекпот! Гость выиграл $${winAmount.toFixed(2)}!`);
-                                } else {
-                                    currentCell.data.bank += bet;
+                            // Record visit
+                            this.buildingStatusService.recordVisit(checkX, checkY);
+
+                            // Gambling Logic
+                            if (bInfo.isGambling && currentCell.data && typeof currentCell.data.bank === 'number') {
+                                const bet = 0.25;
+
+                                if (g.money >= bet) {
+                                    g.money -= bet;
+
+                                    const won = Math.random() < 0.15;
+                                    const winAmount = this.casinoService.processBet(
+                                        currentCell.x,
+                                        currentCell.y,
+                                        g.id,
+                                        bet,
+                                        won
+                                    );
+
+                                    if (won) {
+                                        g.money += winAmount;
+                                        currentCell.data.bank = 20;
+                                        onNotification(`🎰 Джекпот! Гость выиграл $${winAmount.toFixed(2)}!`);
+                                    } else {
+                                        currentCell.data.bank += bet;
+                                    }
                                 }
+                            } else {
+                                // Standard Logic
+                                g.money -= bInfo.income;
+                                onMoneyEarned(bInfo.income);
                             }
-                        } else {
-                            // Standard Logic
-                            g.money -= bInfo.income;
-                            onMoneyEarned(bInfo.income);
-                        }
 
-                        // Apply stats
-                        const stats: any = {};
-                        if (bInfo.satisfies) {
-                            stats[bInfo.satisfies] = bInfo.statValue || 20;
+                            // Apply stats
+                            const stats: any = {};
+                            if (bInfo.satisfies) {
+                                stats[bInfo.satisfies] = bInfo.statValue || 20;
+                            }
+                            if (bInfo.category === 'attraction') {
+                                stats.fun = bInfo.statValue || 30;
+                            }
+                            g.visitAttraction(stats);
+                        } else {
+                            g.visitingBuildingRoot = null;
                         }
-                        if (bInfo.category === 'attraction') {
-                            stats.fun = bInfo.statValue || 30;
-                        }
-                        g.visitAttraction(stats);
                     }
+                } else {
+                    g.visitingBuildingRoot = null;
                 }
 
                 const neighbors = this.getWalkableNeighbors(Math.round(g.x), Math.round(g.y), wantsToLeave, grid, exits, width, height);
@@ -197,6 +226,8 @@ export class GuestService {
         height: number
     ): Array<{ x: number, y: number }> {
         const neighbors = this.gridService.getNeighbors(cx, cy, width, height);
+        const currentCell = this.gridService.getCell(grid, cx, cy, width, height);
+
         const walkable = neighbors.filter(({ x, y }) => {
             const cell = this.gridService.getCell(grid, x, y, width, height);
             if (!cell) return false;
@@ -205,8 +236,24 @@ export class GuestService {
 
             if (cell.type === 'building' && cell.buildingId) {
                 const bInfo = BUILDINGS.find(b => b.id === cell.buildingId);
-                if (bInfo && bInfo.allowedOnPath !== false) {
-                    isWalkable = true;
+
+                // Check if building is broken (check root)
+                const checkX = cell.isRoot ? cell.x : (cell.rootX ?? cell.x);
+                const checkY = cell.isRoot ? cell.y : (cell.rootY ?? cell.y);
+                const isBroken = this.buildingStatusService.isBroken(checkX, checkY);
+
+                if (bInfo) {
+                    const canVisit = bInfo.isAvailableForVisit !== false;
+                    const allowedOnPath = bInfo.allowedOnPath !== false;
+
+                    if (canVisit && !isBroken && allowedOnPath) {
+                        isWalkable = true;
+                    }
+
+                    // Allow movement within the same building even if broken
+                    if (currentCell && currentCell.buildingId === cell.buildingId) {
+                        isWalkable = true;
+                    }
                 }
             }
 

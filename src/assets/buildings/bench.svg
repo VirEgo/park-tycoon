@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" shape-rendering="crispEdges">
+  <!-- Bench legs -->
+  <rect x="9" y="21" width="3" height="14" fill="#6b4423"/>
+  <rect x="28" y="21" width="3" height="14" fill="#6b4423"/>
+  
+  <!-- Bench seat -->
+  <rect x="7" y="19" width="26" height="4" fill="#8B4513"/>
+  <rect x="7" y="19" width="26" height="1" fill="#a0522d"/>
+  
+  <!-- Backrest supports -->
+  <rect x="9" y="11" width="3" height="10" fill="#6b4423"/>
+  <rect x="28" y="11" width="3" height="10" fill="#6b4423"/>
+  
+  <!-- Backrest slats -->
+  <rect x="7" y="11" width="26" height="3" fill="#8B4513"/>
+  <rect x="7" y="11" width="26" height="1" fill="#a0522d"/>
+  
+  <rect x="7" y="15" width="26" height="3" fill="#8B4513"/>
+  <rect x="7" y="15" width="26" height="1" fill="#a0522d"/>
+  
+  <!-- Decorative details (screws/bolts) -->
+  <rect x="9" y="12" width="2" height="2" fill="#d4a574"/>
+  <rect x="29" y="12" width="2" height="2" fill="#d4a574"/>
+  <rect x="9" y="16" width="2" height="2" fill="#d4a574"/>
+  <rect x="29" y="16" width="2" height="2" fill="#d4a574"/>
+  
+  <!-- Shadow -->
+  <rect x="10" y="34" width="20" height="2" fill="#000" opacity="0.2"/>
+</svg>

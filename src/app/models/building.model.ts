@@ -8,39 +8,64 @@ export interface BuildingType {
     income: number;
     color: string;
     icon: string;
-    size: number;
+    width: number;
+    height: number;
     description: string;
+    svgPath?: string;
     allowedOnPath?: boolean;
-    satisfies?: 'satiety' | 'hydration' | 'energy' | 'fun';
+    satisfies?: 'satiety' | 'hydration' | 'energy' | 'fun' | 'toilet';
     statValue?: number;
     isGambling?: boolean;
+    hidden?: boolean;
+    isAvailableForVisit?: boolean;
 }
 
 export const BUILDINGS: BuildingType[] = [
-    // Инфраструктура
-    { id: 'path', name: 'Дорожка', category: 'path', price: 10, income: 0, color: '#9ca3af', icon: '', size: 1, description: 'По ней ходят гости' },
-    { id: 'exit', name: 'Выход', category: 'path', price: 0, income: 0, color: '#ef4444', icon: '🚪', size: 1, description: 'Гости уходят здесь' },
+    // Пешеходные дорожки
+    { id: 'path', name: 'Дорожка', category: 'path', price: 10, income: 0, color: '#9ca3af', icon: '', width: 1, height: 1, svgPath: '/assets/buildings/path.svg', description: 'Обычная тропинка', isAvailableForVisit: true },
+    { id: 'exit', name: 'Выход', category: 'path', price: 0, income: 0, color: '#ef4444', icon: '🚪', width: 1, height: 1, svgPath: '/assets/buildings/exit.svg', description: 'Путь на выход', isAvailableForVisit: true },
 
     // Аттракционы
-    { id: 'carousel', name: 'Карусель', category: 'attraction', price: 400, income: 1.5, color: '#fbbf24', icon: '🎠', size: 3, description: 'Классическое веселье', satisfies: 'fun', statValue: 30 },
-    { id: 'ferris', name: 'Колесо', category: 'attraction', price: 1200, income: 0.4, color: '#f87171', icon: '🎡', size: 1, description: 'Вид на весь парк', satisfies: 'fun', statValue: 50 },
-    { id: 'coaster', name: 'Горки', category: 'attraction', price: 3000, income: 1, color: '#ef4444', icon: '🎢', size: 1, description: 'Только для смелых', satisfies: 'fun', statValue: 80 },
-    { id: 'castle', name: 'Замок', category: 'attraction', price: 5000, income: 2, color: '#c084fc', icon: '🏰', size: 1, description: 'Сказочный дворец', satisfies: 'fun', statValue: 100 },
-    { id: 'slots', name: 'Автоматы', category: 'attraction', price: 600, income: 0.25, color: '#818cf8', icon: '🎰', size: 1, description: 'Испытай удачу (Ставка 0.25)', satisfies: 'fun', statValue: 15, isGambling: true },
-    { id: 'shooting', name: 'Тир', category: 'attraction', price: 800, income: 0.5, color: '#4ade80', icon: '🎯', size: 1, description: 'Меткий глаз (Ставка 0.5)', satisfies: 'fun', statValue: 20, isGambling: true },
+    { id: 'carousel', name: 'Карусель', category: 'attraction', price: 400, income: 1.5, color: '#fbbf24', icon: '🎠', width: 3, height: 3, svgPath: '/assets/buildings/carousel.svg', description: 'Классическая карусель', satisfies: 'fun', statValue: 30, isAvailableForVisit: true },
+    { id: 'ferris', name: 'Колесо', category: 'attraction', price: 1200, income: 0.4, color: '#f87171', icon: '🎡', width: 2, height: 2, svgPath: '/assets/buildings/ferris.svg', description: 'Вид на весь парк', satisfies: 'fun', statValue: 50, isAvailableForVisit: true },
+    { id: 'coaster', name: 'Горки', category: 'attraction', price: 3000, income: 1, color: '#ef4444', icon: '🎢', width: 3, height: 2, svgPath: '/assets/buildings/coaster.svg', description: 'Скоростной адреналин', satisfies: 'fun', statValue: 80, isAvailableForVisit: true },
+    { id: 'castle', name: 'Замок', category: 'attraction', price: 5000, income: 2, color: '#c084fc', icon: '🏰', width: 2, height: 2, svgPath: '/assets/buildings/castle.svg', description: 'Сказочное приключение', satisfies: 'fun', statValue: 100, isAvailableForVisit: true },
+    { id: 'slots', name: 'Слоты', category: 'attraction', price: 600, income: 0.25, color: '#818cf8', icon: '🎰', width: 3, height: 3, svgPath: '/assets/buildings/slots.svg', description: 'Слот-машины', satisfies: 'fun', statValue: 15, isGambling: true, isAvailableForVisit: true },
+    { id: 'shooting', name: 'Тир', category: 'attraction', price: 800, income: 0.5, color: '#4ade80', icon: '🎯', width: 1, height: 1, svgPath: '/assets/buildings/shooting.svg', description: 'Меткий выстрел', satisfies: 'fun', statValue: 20, isGambling: true, isAvailableForVisit: true },
 
     // Магазины
-    { id: 'burger', name: 'Бургеры', category: 'shop', price: 300, income: 1, color: '#f59e0b', icon: '🍔', size: 1, description: 'Вкусно и сытно', satisfies: 'satiety', statValue: 50 },
-    { id: 'pizza', name: 'Пицца', category: 'shop', price: 350, income: 1.2, color: '#f59e0b', icon: '🍕', size: 1, description: 'Итальянская классика', satisfies: 'satiety', statValue: 60 },
-    { id: 'icecream', name: 'Мороженое', category: 'shop', price: 200, income: 0.8, color: '#60a5fa', icon: '🍦', size: 1, description: 'Освежает', satisfies: 'fun', statValue: 10 },
-    { id: 'popcorn', name: 'Попкорн', category: 'shop', price: 150, income: 0.6, color: '#fcd34d', icon: '🍿', size: 1, description: 'Легкий перекус', satisfies: 'satiety', statValue: 20 },
-    { id: 'soda', name: 'Газировка', category: 'shop', price: 150, income: 0.5, color: '#ef4444', icon: '🥤', size: 1, description: 'Жажда нипочем', satisfies: 'hydration', statValue: 40 },
-    { id: 'coffee', name: 'Кофе', category: 'shop', price: 180, income: 0.7, color: '#78350f', icon: '☕', size: 1, description: 'Бодрость (+Энергия)', satisfies: 'energy', statValue: 30 },
-    { id: 'gifts', name: 'Сувениры', category: 'shop', price: 400, income: 1.5, color: '#ec4899', icon: '🎁', size: 1, description: 'Память о парке', satisfies: 'fun', statValue: 25 },
-    { id: 'balloons', name: 'Шарики', category: 'shop', price: 100, income: 0.3, color: '#ef4444', icon: '🎈', size: 1, description: 'Радость детям', satisfies: 'fun', statValue: 15 },
+    { id: 'burger', name: 'Бургер', category: 'shop', price: 300, income: 1, color: '#f59e0b', icon: '🍔', width: 3, height: 2, svgPath: '/assets/buildings/burger.svg', description: 'Сочный и быстрый', satisfies: 'satiety', statValue: 50, isAvailableForVisit: true },
+    { id: 'pizza', name: 'Пицца', category: 'shop', price: 350, income: 1.2, color: '#f59e0b', icon: '🍕', width: 3, height: 2, svgPath: '/assets/buildings/pizza.svg', description: 'Горячая и сырная', satisfies: 'satiety', statValue: 60, isAvailableForVisit: true },
+    { id: 'icecream', name: 'Мороженое', category: 'shop', price: 200, income: 0.8, color: '#60a5fa', icon: '🍦', width: 2, height: 2, svgPath: '/assets/buildings/icecream.svg', description: 'Сладкое охлаждение', satisfies: 'fun', statValue: 10, isAvailableForVisit: true },
+    { id: 'popcorn', name: 'Попкорн', category: 'shop', price: 150, income: 0.6, color: '#fcd34d', icon: '🍿', width: 2, height: 2, svgPath: '/assets/buildings/popcorn.svg', description: 'Идеален для прогулки', satisfies: 'satiety', statValue: 20, isAvailableForVisit: true },
+    { id: 'soda', name: 'Газировка', category: 'shop', price: 150, income: 0.5, color: '#ef4444', icon: '🥤', width: 2, height: 2, svgPath: '/assets/buildings/soda.svg', description: 'Прохладный напиток', satisfies: 'hydration', statValue: 40, isAvailableForVisit: true },
+    { id: 'coffee', name: 'Кофе', category: 'shop', price: 180, income: 0.7, color: '#78350f', icon: '☕', width: 2, height: 2, svgPath: '/assets/buildings/coffee.svg', description: 'Бодрит и греет', satisfies: 'energy', statValue: 30, isAvailableForVisit: true },
+    { id: 'gifts', name: 'Подарки', category: 'shop', price: 400, income: 1.5, color: '#ec4899', icon: '🎁', width: 2, height: 2, svgPath: '/assets/buildings/gifts.svg', description: 'Сувениры и радость', satisfies: 'fun', statValue: 25, isAvailableForVisit: true },
+    { id: 'balloons', name: 'Шарики', category: 'shop', price: 100, income: 0.3, color: '#ef4444', icon: '🎈', width: 2, height: 2, svgPath: '/assets/buildings/balloons.svg', description: 'Цветные эмоции', satisfies: 'fun', statValue: 15, isAvailableForVisit: true },
 
     // Декор
-    { id: 'fountain', name: 'Фонтан', category: 'decoration', price: 400, income: 0, color: '#3b82f6', icon: '⛲', size: 1, description: 'Красота спасет мир', satisfies: 'fun', statValue: 5 },
-    { id: 'tree', name: 'Дерево', category: 'decoration', price: 50, income: 0, color: '#166534', icon: '🌳', size: 1, description: 'Природа', allowedOnPath: false },
-    { id: 'bench', name: 'Скамейка', category: 'decoration', price: 50, income: 0, color: '#8B4513', icon: '🪑', size: 1, description: 'Отдых (+Энергия)', satisfies: 'energy', statValue: 40 },
+    { id: 'fountain', name: 'Фонтан', category: 'decoration', price: 400, income: 0, color: '#3b82f6', icon: '⛲', width: 2, height: 2, svgPath: '/assets/buildings/fountain.svg', description: 'Оживляет площадь', satisfies: 'fun', statValue: 5, isAvailableForVisit: false },
+    { id: 'tree', name: 'Дерево', category: 'decoration', price: 50, income: 0, color: '#166534', icon: '🌳', width: 1, height: 1, svgPath: '/assets/buildings/tree.svg', description: 'Тень и зелень', allowedOnPath: false, isAvailableForVisit: false },
+    { id: 'bench', name: 'Скамейка', category: 'decoration', price: 50, income: 0, color: '#8B4513', icon: '🪑', width: 1, height: 1, svgPath: '/assets/buildings/bench.svg', description: 'Сесть и отдохнуть', satisfies: 'energy', statValue: 40, isAvailableForVisit: true },
+
+    // Новые аттракционы
+    { id: 'bumpers', name: 'Бамперные машинки', category: 'attraction', price: 900, income: 0.6, color: '#0ea5e9', icon: '🚗', width: 2, height: 2, svgPath: '/assets/buildings/bumpers.svg', description: 'Весёлый таран на машинках', satisfies: 'fun', statValue: 35, isAvailableForVisit: true },
+    { id: 'haunted', name: 'Дом с привидениями', category: 'attraction', price: 1400, income: 0.7, color: '#7c3aed', icon: '👻', width: 2, height: 2, svgPath: '/assets/buildings/haunted.svg', description: 'Щекочет нервы', satisfies: 'fun', statValue: 60, isAvailableForVisit: true },
+    { id: 'waterride', name: 'Водная трасса', category: 'attraction', price: 2200, income: 1.1, color: '#0284c7', icon: '🌊', width: 3, height: 2, svgPath: '/assets/buildings/waterride.svg', description: 'Брызги и скорость', satisfies: 'fun', statValue: 70, isAvailableForVisit: true },
+    { id: 'gokarts', name: 'Картинг', category: 'attraction', price: 1800, income: 0.9, color: '#f97316', icon: '🏎️', width: 3, height: 2, svgPath: '/assets/buildings/gokarts.svg', description: 'Гонки по треку', satisfies: 'fun', statValue: 55, isAvailableForVisit: true },
+
+    // Новые магазины
+    { id: 'taco', name: 'Тако', category: 'shop', price: 320, income: 1.1, color: '#facc15', icon: '🌮', width: 3, height: 2, svgPath: '/assets/buildings/taco.svg', description: 'Сытная лепёшка', satisfies: 'satiety', statValue: 55, isAvailableForVisit: true },
+    { id: 'donut', name: 'Пончики', category: 'shop', price: 250, income: 0.8, color: '#fb7185', icon: '🍩', width: 2, height: 2, svgPath: '/assets/buildings/donut.svg', description: 'Сладкая выпечка', satisfies: 'satiety', statValue: 30, isAvailableForVisit: true },
+    { id: 'souvenir', name: 'Сувениры', category: 'shop', price: 450, income: 1.6, color: '#a78bfa', icon: '🛍️', width: 2, height: 2, svgPath: '/assets/buildings/souvenir.svg', description: 'Памятные штучки', satisfies: 'fun', statValue: 20, isAvailableForVisit: true },
+
+    // Новый декор
+    { id: 'statue', name: 'Статуя', category: 'decoration', price: 300, income: 0, color: '#9ca3af', icon: '🗿', width: 1, height: 1, svgPath: '/assets/buildings/statue.svg', description: 'Центр внимания', satisfies: 'fun', statValue: 8, isAvailableForVisit: false },
+    { id: 'lamp', name: 'Фонарь', category: 'decoration', price: 120, income: 0, color: '#f59e0b', icon: '💡', width: 1, height: 1, svgPath: '/assets/buildings/lamp.svg', description: 'Светит по вечерам', satisfies: 'energy', statValue: 5, isAvailableForVisit: false },
+    { id: 'flowerbed', name: 'Клумба', category: 'decoration', price: 90, income: 0, color: '#22c55e', icon: '🌸', width: 1, height: 1, svgPath: '/assets/buildings/flowerbed.svg', description: 'Яркие цветы', satisfies: 'fun', statValue: 6, isAvailableForVisit: false },
+
+    // Служебные элементы рельефа (не отображаются в магазине)
+    { id: 'toilet', name: 'Туалет', category: 'shop', price: 100, income: 0.1, color: '#ffffff', icon: '🚽', width: 1, height: 1, svgPath: '/assets/buildings/toilet.svg', description: 'Место для важных дел', satisfies: 'toilet', statValue: 100, isAvailableForVisit: true },
+    { id: 'mountain', name: 'Гора', category: 'decoration', price: 0, income: 0, color: '#6b7280', icon: '⛰️', width: 7, height: 7, svgPath: '/assets/buildings/mountain.svg', description: 'Высокая гора', satisfies: 'fun', statValue: 2, hidden: true, isAvailableForVisit: false },
+    { id: 'pond', name: 'Пруд', category: 'decoration', price: 0, income: 0, color: '#38bdf8', icon: '🌊', width: 7, height: 7, svgPath: '/assets/buildings/pond.svg', description: 'Водная гладь', satisfies: 'fun', statValue: 3, hidden: true, isAvailableForVisit: false },
 ];

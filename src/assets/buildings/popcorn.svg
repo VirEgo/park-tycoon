@@ -1,0 +1,18 @@
+<svg width="80" height="80" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+  <!-- Booth -->
+  <rect x="2" y="6" width="16" height="12" fill="#c62828" />
+  <rect x="3" y="7" width="14" height="10" fill="#e53935" />
+  
+  <!-- Stripes -->
+  <rect x="4" y="7" width="2" height="10" fill="#fff" />
+  <rect x="8" y="7" width="2" height="10" fill="#fff" />
+  <rect x="12" y="7" width="2" height="10" fill="#fff" />
+  <rect x="16" y="7" width="2" height="10" fill="#fff" />
+  
+  <!-- Roof -->
+  <rect x="1" y="4" width="18" height="2" fill="#b71c1c" />
+  
+  <!-- Popcorn Overflow -->
+  <rect x="6" y="2" width="8" height="2" fill="#ffeb3b" />
+  <rect x="7" y="1" width="6" height="1" fill="#fff9c4" />
+</svg>

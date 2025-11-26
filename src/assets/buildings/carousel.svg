@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" shape-rendering="crispEdges">
+  <!-- Base shadow -->
+  <rect x="10" y="100" width="100" height="4" fill="#92400e" opacity="0.5"/>
+  
+  <!-- Platform base -->
+  <rect x="15" y="85" width="90" height="8" fill="#d97706"/>
+  <rect x="15" y="85" width="90" height="2" fill="#fbbf24"/>
+  
+  <!-- Center pole -->
+  <rect x="56" y="20" width="8" height="65" fill="#78350f"/>
+  <rect x="56" y="20" width="2" height="65" fill="#92400e"/>
+  
+  <!-- Top canopy -->
+  <rect x="25" y="30" width="70" height="4" fill="#fbbf24"/>
+  <rect x="20" y="34" width="80" height="4" fill="#f59e0b"/>
+  <rect x="15" y="38" width="90" height="4" fill="#fbbf24"/>
+  <rect x="25" y="30" width="70" height="2" fill="#fde047"/>
+  
+  <!-- Canopy peak -->
+  <rect x="56" y="20" width="8" height="10" fill="#fbbf24"/>
+  <rect x="52" y="24" width="16" height="6" fill="#f59e0b"/>
+  
+  <!-- Horse 1 (Purple) -->
+  <rect x="30" y="50" width="8" height="4" fill="#8b5cf6"/>
+  <rect x="32" y="46" width="4" height="4" fill="#a78bfa"/>
+  <rect x="30" y="54" width="2" height="30" fill="#6d28d9"/>
+  <rect x="36" y="54" width="2" height="30" fill="#6d28d9"/>
+  
+  <!-- Horse 2 (Pink) -->
+  <rect x="58" y="45" width="8" height="4" fill="#ec4899"/>
+  <rect x="60" y="41" width="4" height="4" fill="#f9a8d4"/>
+  <rect x="58" y="49" width="2" height="35" fill="#be185d"/>
+  <rect x="64" y="49" width="2" height="35" fill="#be185d"/>
+  
+  <!-- Horse 3 (Cyan) -->
+  <rect x="82" y="52" width="8" height="4" fill="#06b6d4"/>
+  <rect x="84" y="48" width="4" height="4" fill="#67e8f9"/>
+  <rect x="82" y="56" width="2" height="28" fill="#0e7490"/>
+  <rect x="88" y="56" width="2" height="28" fill="#0e7490"/>
+  
+  <!-- Platform details -->
+  <rect x="20" y="85" width="4" height="8" fill="#92400e"/>
+  <rect x="50" y="85" width="4" height="8" fill="#92400e"/>
+  <rect x="66" y="85" width="4" height="8" fill="#92400e"/>
+  <rect x="96" y="85" width="4" height="8" fill="#92400e"/>
+</svg>
