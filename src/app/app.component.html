@@ -1,4 +1,4 @@
-<div class="flex h-screen w-screen bg-gray-900 text-white font-sans overflow-hidden select-none">
+<div class="main-wrapper flex h-screen w-screen bg-gray-900 text-white font-sans overflow-hidden select-none">
 
   <!-- Sidebar (Tools) -->
   <app-sidebar *ngIf="showSidebar()" [isParkClosed]="isParkClosed()" [money]="money()"
@@ -9,7 +9,7 @@
 
 
   <!-- Основная область -->
-  <main class="flex-1 flex flex-col relative bg-gray-800">
+  <main class="content-wrapper flex-1 flex flex-col relative bg-gray-800">
 
     <!-- Верхняя панель статистики -->
     <header class="h-16 bg-gray-900 border-b border-gray-700 flex items-center justify-between px-6 shadow-md z-10">
@@ -214,14 +214,6 @@
           <span>{{ showSidebar() ? 'Скрыть' : 'Показать' }}</span>
         </button>
 
-        <div class="flex items-center bg-gray-800 border border-gray-700 rounded px-2 py-1 space-x-1">
-          <button (click)="zoomOut()"
-            class="w-8 h-8 bg-gray-700 hover:bg-gray-600 rounded text-lg leading-none">-</button>
-          <div class="text-xs font-mono w-12 text-center">{{ (viewScale() * 100) | number:'1.0-0' }}%</div>
-          <button (click)="zoomIn()"
-            class="w-8 h-8 bg-gray-700 hover:bg-gray-600 rounded text-lg leading-none">+</button>
-        </div>
-
         <button (click)="openExpansionPanel()"
           class="px-4 py-2 rounded bg-green-700 hover:bg-green-600 font-medium text-sm transition-colors border border-green-600 flex items-center gap-2">
           <span>🗺️</span>
@@ -255,7 +247,7 @@
 
     <!-- Игровое поле (Канвас) -->
     <div
-      class="flex-1 overflow-hidden bg-black relative flex items-start justify-center cursor-crosshair bg-gray-900 p-6">
+      class="park-wrapper flex-1 overflow-hidden bg-black relative flex items-start justify-center cursor-crosshair bg-gray-900 p-6">
 
       <!-- Canvas Container -->
       <div class="relative shadow-2xl overflow-hidden">
@@ -264,7 +256,12 @@
           (contextmenu)="handleCanvasMouseDown($event); $event.preventDefault()" class="block">
         </canvas>
       </div>
-
+      <div class="zoom-btn flex items-center bg-gray-800 border border-gray-700 rounded px-2 py-1 space-x-1">
+        <button (click)="zoomOut()"
+          class="w-8 h-8 bg-gray-700 hover:bg-gray-600 rounded text-lg leading-none">-</button>
+        <div class="text-xs font-mono w-12 text-center">{{ (viewScale() * 100) | number:'1.0-0' }}%</div>
+        <button (click)="zoomIn()" class="w-8 h-8 bg-gray-700 hover:bg-gray-600 rounded text-lg leading-none">+</button>
+      </div>
     </div>
 
     <!-- Панель статистики гостей -->

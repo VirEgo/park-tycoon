@@ -51,3 +51,26 @@
         }
     }
 }
+
+.main-wrapper {
+    &:has(app-sidebar) {
+        .content-wrapper {
+            max-width: calc(100% - 256px);
+        }
+    }
+}
+
+.content-wrapper {
+    max-width: 100%;
+    transition: max-width 0.3s ease;
+}
+
+.park-wrapper {
+    position: relative;
+    .zoom-btn {
+        position: absolute;
+        bottom: 16px;
+        left: 16px;
+        z-index: 20;
+    }
+}

@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { AfterViewInit, Component, computed, effect, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, computed, effect, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild, WritableSignal } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { interval, Subscription } from 'rxjs';
 import { GuestDetailsComponent } from './components/guest-details/guest-details.component';
@@ -1116,6 +1116,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       this.showNotification(result.message);
     }
   }
+
 
   repairAllBroken() {
     const broken = this.buildingStatusService.getBrokenPositions();

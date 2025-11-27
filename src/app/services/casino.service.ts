@@ -6,7 +6,7 @@ export interface CasinoTransaction {
     type: 'win' | 'lose' | 'payout';
     amount: number;
     bank: number;
-    timestamp: Date; // Важно: при загрузке из JSON нужно восстанавливать
+    timestamp: Date;
     guestId?: number;
 }
 
@@ -25,14 +25,18 @@ export interface CasinoStats {
     providedIn: 'root'
 })
 export class CasinoService {
-    // Константы лучше вынести (можно в отдельный config файл)
+    // Базовый банк казино (можно вынести в конфиг)
     private readonly INITIAL_BANK = 20;
     private readonly MAX_HISTORY = 50;
+    // Рулетка (ставка на красное: 18 красных, 18 черных, 0 зеленый)
+    private readonly ROULETTE_NUMBERS = {
+        red: new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]),
+        black: new Set([2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35])
+    };
 
     private casinos = signal<Map<string, CasinoStats>>(new Map());
     private transactionIdCounter = 0;
 
-    // Computed сигналы (полезно для статистики парка)
     public totalCasinos = computed(() => this.casinos().size);
     public totalBank = computed(() =>
         Array.from(this.casinos().values()).reduce((acc, c) => acc + c.currentBank, 0)
@@ -42,9 +46,8 @@ export class CasinoService {
 
     initCasino(x: number, y: number, initialBank: number = this.INITIAL_BANK) {
         const casinoId = this.getCasinoId(x, y);
-        // Используем update сразу, чтобы избежать лишних чтений
         this.casinos.update(map => {
-            if (map.has(casinoId)) return map; // Если уже есть, не трогаем
+            if (map.has(casinoId)) return map;
 
             const newMap = new Map(map);
             newMap.set(casinoId, {
@@ -71,59 +74,65 @@ export class CasinoService {
         });
     }
 
-    processBet(x: number, y: number, guestId: number, bet: number, won: boolean): number {
+    /**
+     * Проигрыш/выигрыш гостя. Возвращает информацию о результате.
+     */
+    processBet(
+        x: number,
+        y: number,
+        guestId: number,
+        bet: number
+    ): { payout: number; outcome: 'win' | 'lose'; bankAfter: number } {
         const casinoId = this.getCasinoId(x, y);
-        let winAmount = 0;
+        let result: { payout: number; outcome: 'win' | 'lose'; bankAfter: number } = { payout: 0, outcome: 'lose', bankAfter: 0 };
 
         this.casinos.update(map => {
             const casino = map.get(casinoId);
 
-            // Если казино нет, инициализируем его "на лету" (side-effect внутри update допустим, но лучше вынести)
             if (!casino) {
-                // Внимание: рекурсивный вызов внутри update может быть опасен, 
-                // но здесь мы просто инициализируем. 
-                // Лучше просто создать объект здесь же.
                 const newStats = this.createDefaultStats(x, y, casinoId);
-                // Повторяем логику для нового казино
-                return this.applyBetLogic(new Map(map).set(casinoId, newStats), casinoId, guestId, bet, won, (amount) => winAmount = amount);
+                return this.applyBetLogic(new Map(map).set(casinoId, newStats), casinoId, guestId, bet, r => result = r);
             }
 
-            return this.applyBetLogic(new Map(map), casinoId, guestId, bet, won, (amount) => winAmount = amount);
+            return this.applyBetLogic(new Map(map), casinoId, guestId, bet, r => result = r);
         });
 
-        return winAmount;
+        return result;
     }
 
-    // Вынесена логика обновления конкретного казино для чистоты
+    // Рулетка: ставка на красное, шанс 18/37, выплата 2x (ставка + выигрыш)
     private applyBetLogic(
         map: Map<string, CasinoStats>,
         casinoId: string,
         guestId: number,
         bet: number,
-        won: boolean,
-        setWinAmount: (n: number) => void
+        setResult: (r: { payout: number; outcome: 'win' | 'lose'; bankAfter: number }) => void
     ): Map<string, CasinoStats> {
         const casino = map.get(casinoId)!;
 
-        // Клонируем объект и массив транзакций (Deep copy для изменяемых полей)
-        const updatedCasino = {
+        const updatedCasino: CasinoStats = {
             ...casino,
             transactions: [...casino.transactions]
         };
 
+        const spin = Math.floor(Math.random() * 37); // 0..36
+        const isRed = this.ROULETTE_NUMBERS.red.has(spin);
+        const won = isRed; // ставка всегда на красное
+
+        // Касса принимает ставку
+        updatedCasino.currentBank += bet;
+
         if (won) {
-            const amount = updatedCasino.currentBank;
-            updatedCasino.currentBank = this.INITIAL_BANK;
+            const desiredPayout = bet * 2;
+            const payout = Math.min(desiredPayout, updatedCasino.currentBank);
+            updatedCasino.currentBank -= payout;
             updatedCasino.totalWins++;
-            setWinAmount(amount);
-
-            this.pushTransaction(updatedCasino, 'win', amount, guestId);
+            this.pushTransaction(updatedCasino, 'win', payout, guestId);
+            setResult({ payout, outcome: 'win', bankAfter: updatedCasino.currentBank });
         } else {
-            updatedCasino.currentBank += bet;
             updatedCasino.totalLoses++;
-            setWinAmount(0);
-
             this.pushTransaction(updatedCasino, 'lose', bet, guestId);
+            setResult({ payout: 0, outcome: 'lose', bankAfter: updatedCasino.currentBank });
         }
 
         updatedCasino.totalVisits++;
@@ -159,7 +168,7 @@ export class CasinoService {
             const updatedCasino = {
                 ...casino,
                 currentBank: this.INITIAL_BANK,
-                transactions: [...casino.transactions] // Копия массива
+                transactions: [...casino.transactions]
             };
 
             this.pushTransaction(updatedCasino, 'payout', payout);
@@ -181,25 +190,20 @@ export class CasinoService {
     }
 
     saveToStorage(): string {
-        // Map нельзя просто так сериализовать, Array.from(entries) - правильный подход
         return JSON.stringify(Array.from(this.casinos().entries()));
     }
 
     loadFromStorage(jsonData: string) {
         try {
             const parsedArray = JSON.parse(jsonData);
-
-            // Валидация структуры
             if (!Array.isArray(parsedArray)) return;
 
-            // Восстановление Map и типов (особенно Date)
             const map = new Map<string, CasinoStats>();
 
             parsedArray.forEach(([key, value]: [string, any]) => {
-                // Восстанавливаем даты в транзакциях
                 const restoredTransactions = (value.transactions || []).map((t: any) => ({
                     ...t,
-                    timestamp: new Date(t.timestamp) // Преобразование строки в Date
+                    timestamp: new Date(t.timestamp)
                 }));
 
                 map.set(key, {
@@ -210,13 +214,8 @@ export class CasinoService {
 
             this.casinos.set(map);
 
-            // Восстанавливаем счетчик ID
             const allTransactions = Array.from(map.values()).flatMap(c => c.transactions);
-            if (allTransactions.length > 0) {
-                this.transactionIdCounter = Math.max(...allTransactions.map(t => t.id)) + 1;
-            } else {
-                this.transactionIdCounter = 0;
-            }
+            this.transactionIdCounter = allTransactions.length > 0 ? Math.max(...allTransactions.map(t => t.id)) + 1 : 0;
         } catch (e) {
             console.error('Failed to load casino data', e);
         }
@@ -243,22 +242,20 @@ export class CasinoService {
         };
     }
 
-    // Теперь метод не просто добавляет, а корректно обновляет переданный массив
     private pushTransaction(casino: CasinoStats, type: CasinoTransaction['type'], amount: number, guestId?: number) {
         const transaction: CasinoTransaction = {
             id: this.transactionIdCounter++,
             casinoId: casino.casinoId,
             type,
             amount,
-            bank: casino.currentBank, // Банк уже должен быть обновлен к этому моменту
+            bank: casino.currentBank,
             timestamp: new Date(),
             guestId
         };
 
-        // Добавляем в начало и обрезаем
         casino.transactions.unshift(transaction);
         if (casino.transactions.length > this.MAX_HISTORY) {
-            casino.transactions.length = this.MAX_HISTORY; // Укорачиваем массив in-place, так как это копия
+            casino.transactions.length = this.MAX_HISTORY;
         }
     }
 }

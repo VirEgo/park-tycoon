@@ -189,7 +189,8 @@ export class BuildingService {
                 if (bInfo && bInfo.isGambling) {
                     const payout = this.casinoService.processPayout(cell.x, cell.y);
                     totalPayout += payout;
-                    cell.data.bank = 20;
+                    const stats = this.casinoService.getCasinoStats(cell.x, cell.y);
+                    cell.data.bank = stats?.currentBank ?? 20;
                 }
             }
         });

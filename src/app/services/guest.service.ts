@@ -6,6 +6,7 @@ import { BUILDINGS } from '../models/building.model';
 import { CasinoService } from './casino.service';
 import { GUEST_TYPES, GuestTypeId } from '../models/guest-type.model';
 import { BuildingStatusService } from './building-status.service';
+import { AttractionUpgradeService } from './attraction-upgrade.service';
 
 @Injectable({
     providedIn: 'root'
@@ -14,6 +15,7 @@ export class GuestService {
     private gridService = inject(GridService);
     private casinoService = inject(CasinoService);
     private buildingStatusService = inject(BuildingStatusService);
+    private upgradeService = inject(AttractionUpgradeService);
 
     /**
      * Определить тип гостя на основе прогресса игры
@@ -153,49 +155,59 @@ export class GuestService {
                     if (g.visitingBuildingRoot === buildingKey && !isBroken) {
                         // Already visiting this building, skip logic
                     } else {
-                        if (canVisit && !isBroken && bInfo && g.money >= bInfo.income && bInfo.allowedOnPath !== false) {
+                        const adjustedIncome = bInfo && bInfo.income > 0
+                            ? this.upgradeService.calculateModifiedIncome(bInfo.id, checkX, checkY, bInfo.income)
+                            : 0;
+                        const enoughMoney = g.money >= (adjustedIncome || bInfo?.income || 0);
+
+                        if (canVisit && !isBroken && bInfo && enoughMoney && bInfo.allowedOnPath !== false) {
                             g.visitingBuildingRoot = buildingKey;
 
                             // Record visit
                             this.buildingStatusService.recordVisit(checkX, checkY);
 
                             // Gambling Logic
-                            if (bInfo.isGambling && currentCell.data && typeof currentCell.data.bank === 'number') {
-                                const bet = 0.25;
+                            if (bInfo.isGambling && currentCell.data && typeof currentCell.data.bank === "number") {
+                                const bet = Math.max(0.1, adjustedIncome || bInfo.income || 0.25);
 
                                 if (g.money >= bet) {
                                     g.money -= bet;
 
-                                    const won = Math.random() < 0.15;
-                                    const winAmount = this.casinoService.processBet(
+                                    const result = this.casinoService.processBet(
                                         currentCell.x,
                                         currentCell.y,
                                         g.id,
-                                        bet,
-                                        won
+                                        bet
                                     );
 
-                                    if (won) {
-                                        g.money += winAmount;
-                                        currentCell.data.bank = 20;
-                                        onNotification(`🎰 Джекпот! Гость выиграл $${winAmount.toFixed(2)}!`);
-                                    } else {
-                                        currentCell.data.bank += bet;
+                                    if (result.outcome === "win") {
+                                        g.money += result.payout;
+                                        onNotification(`Гость выиграл $${result.payout.toFixed(2)}!`);
                                     }
+
+                                    currentCell.data.bank = result.bankAfter;
                                 }
                             } else {
                                 // Standard Logic
-                                g.money -= bInfo.income;
-                                onMoneyEarned(bInfo.income);
+                                const cost = adjustedIncome || bInfo.income;
+                                g.money -= cost;
+                                onMoneyEarned(cost);
                             }
 
                             // Apply stats
+                            const adjustedStat = this.upgradeService.calculateModifiedSatisfaction(
+                                bInfo.id,
+                                checkX,
+                                checkY,
+                                bInfo.statValue || 0
+                            );
+
                             const stats: any = {};
                             if (bInfo.satisfies) {
-                                stats[bInfo.satisfies] = bInfo.statValue || 20;
+                                stats[bInfo.satisfies] = adjustedStat || bInfo.statValue || 20;
                             }
                             if (bInfo.category === 'attraction') {
-                                stats.fun = bInfo.statValue || 30;
+                                stats.fun = adjustedStat || bInfo.statValue || 30;
                             }
                             g.visitAttraction(stats);
                         } else {
