@@ -211,40 +211,43 @@ export class CanvasRenderService {
         ctx.textBaseline = 'ideographic';
         ctx.fillText('EXIT', x + tileSize / 3, y + tileSize / 3);
       }
-
-      if (hoveredCell && hoveredCell.x === cell.x && hoveredCell.y === cell.y) {
-        const toolId = selectedToolId;
-        if (toolId && selectedToolCategory !== 'none' && selectedToolCategory !== 'demolish') {
-          const building = this.buildingService.getBuildingById(toolId);
-          if (building) {
-            const isValid = this.buildingService.checkPlacement(grid, cell.x, cell.y, building, gridWidth, gridHeight);
-
-            for (let i = 0; i < building.width; i++) {
-              for (let j = 0; j < building.height; j++) {
-                const cellX = (cell.x + i) * tileSize;
-                const cellY = (cell.y + j) * tileSize;
-                const cellValid = (cell.x + i < gridWidth && cell.y + j < gridHeight);
-
-                ctx.fillStyle = isValid && cellValid ? 'rgba(0, 255, 0, 0.35)' : 'rgba(255, 0, 0, 0.35)';
-                ctx.fillRect(cellX, cellY, tileSize, tileSize);
-
-                ctx.strokeStyle = isValid && cellValid ? 'rgba(0, 255, 0, 0.8)' : 'rgba(255, 0, 0, 0.8)';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(cellX, cellY, tileSize, tileSize);
-              }
-            }
-
-            ctx.strokeStyle = isValid ? '#00ff00' : '#ff0000';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(x, y, tileSize * building.width, tileSize * building.height);
-            ctx.lineWidth = 1;
-          }
-        } else {
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-          ctx.fillRect(x, y, tileSize, tileSize);
-        }
-      }
     });
+
+    // Рисуем подсветку строительства ПОСЛЕ отрисовки всего грида
+    if (hoveredCell && selectedToolId && selectedToolCategory !== 'none' && selectedToolCategory !== 'demolish') {
+      const building = this.buildingService.getBuildingById(selectedToolId);
+      if (building) {
+        const isValid = this.buildingService.checkPlacement(grid, hoveredCell.x, hoveredCell.y, building, gridWidth, gridHeight);
+        const baseX = hoveredCell.x * tileSize;
+        const baseY = hoveredCell.y * tileSize;
+
+        for (let i = 0; i < building.width; i++) {
+          for (let j = 0; j < building.height; j++) {
+            const cellX = (hoveredCell.x + i) * tileSize;
+            const cellY = (hoveredCell.y + j) * tileSize;
+            const cellValid = (hoveredCell.x + i < gridWidth && hoveredCell.y + j < gridHeight);
+
+            ctx.fillStyle = isValid && cellValid ? 'rgba(22, 101, 52, 0.5)' : 'rgba(255, 0, 0, 0.35)';
+            ctx.fillRect(cellX, cellY, tileSize, tileSize);
+
+            ctx.strokeStyle = isValid && cellValid ? 'rgba(22, 101, 52, 0.9)' : 'rgba(255, 0, 0, 0.8)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(cellX, cellY, tileSize, tileSize);
+          }
+        }
+
+        ctx.strokeStyle = isValid ? '#166534' : '#ff0000';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(baseX, baseY, tileSize * building.width, tileSize * building.height);
+        ctx.lineWidth = 1;
+      }
+    } else if (hoveredCell) {
+      // Простая подсветка для других инструментов
+      const x = hoveredCell.x * tileSize;
+      const y = hoveredCell.y * tileSize;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.fillRect(x, y, tileSize, tileSize);
+    }
 
     guests.forEach(guest => {
       const gx = guest.x * tileSize;

@@ -121,9 +121,9 @@ export const UPGRADE_COSTS: UpgradeCost[] = [
 
 
 export interface ServiceBehaviorConfig {
-    // сколько посещений выдерживает здание до поломки (если не задано - берётся из DEFAULT в сервисе)
+    // сколько посещений выдерживает здание до поломки (если не задано - берется из DEFAULT в сервисе)
     visitsBeforeBreak?: number;
-    // множитель для расчёта стоимости ремонта относительно базовой цены здания
+    // множитель для расчета стоимости ремонта относительно базовой цены здания
     // (можно комбинировать с уровнями: профиль может иметь costMultiplier)
     repairCostMultiplier?: number;
     // если true - темы запрещены для этого типа здания
@@ -160,7 +160,7 @@ export interface AttractionUpgrade {
     service?: ServiceStatus;
 }
 
-// утилита расчёта стоимости ремонта (используется в сервисе/панели)
+// утилита расчета стоимости ремонта (используется в сервисе/панели)
 export function calcRepairCost(basePrice: number, level: number, multiplier: number = 1): number {
     // относительно базовой цены применяется коэффициент по уровню:
     // level 1 -> 25%, 2 -> 60%, 3 -> 90%, 4 -> 110%, 5 -> 150%

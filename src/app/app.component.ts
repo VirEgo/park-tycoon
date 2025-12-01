@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { AfterViewInit, Component, computed, effect, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild, WritableSignal } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { interval, Subscription } from 'rxjs';
+import { ExpansionPanelComponent } from './components/expansion-panel/expansion-panel.component';
 import { GuestDetailsComponent } from './components/guest-details/guest-details.component';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { UpgradePanelComponent } from './components/upgrade-panel/upgrade-panel.component';
@@ -41,7 +42,7 @@ export class AppComponent {
 @Component({
   selector: 'app-tycoon',
   standalone: true,
-  imports: [CommonModule, RouterModule, UpgradePanelComponent, GuestDetailsComponent, SidebarComponent],
+  imports: [CommonModule, RouterModule, UpgradePanelComponent, GuestDetailsComponent, SidebarComponent, ExpansionPanelComponent],
   templateUrl: './app.component.html',
   styleUrl: 'app.component.scss'
 })
@@ -218,7 +219,8 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       this.GRID_H(),
       deltaTime,
       (amount) => this.money.update(m => m + amount),
-      (msg) => this.showNotification(msg)
+      (msg) => this.showNotification(msg),
+      (repairCost) => this.money.update(m => m - repairCost) // Списание за ремонт
     );
 
     if (result.updatedGuests.length !== this.guests().length) {

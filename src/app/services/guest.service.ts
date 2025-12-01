@@ -123,10 +123,27 @@ export class GuestService {
         height: number,
         deltaTime: number, // секунды
         onMoneyEarned: (amount: number) => void,
-        onNotification: (msg: string) => void
+        onNotification: (msg: string) => void,
+        onRepairCostSpent?: (amount: number) => void
     ): { updatedGuests: Guest[], updatedGrid: Cell[] } {
         const exits = grid.filter(c => c.type === 'entrance' || c.type === 'exit');
         const updatedGrid = [...grid];
+
+        // Метод для расчета стоимости ремонта
+        const processRepair = (x: number, y: number) => {
+            this.buildingStatusService.repair(x, y);
+            if (onRepairCostSpent) {
+                const cell = grid.find(c => c.x === x && c.y === y);
+                if (cell?.buildingId) {
+                    const building = BUILDINGS.find(b => b.id === cell.buildingId);
+                    if (building) {
+                        const level = this.upgradeService.getLevel(building.id, x, y);
+                        const repairCost = this.buildingStatusService.getRepairCost(building.price, level);
+                        onRepairCostSpent(repairCost);
+                    }
+                }
+            }
+        };
 
         const updatedGuests = guests.map(guest => {
             if (guest.isWorker) {
@@ -163,7 +180,7 @@ export class GuestService {
                     };
 
                     if (path.length === 0) {
-                        this.buildingStatusService.repair(serviceTask.x, serviceTask.y);
+                        processRepair(serviceTask.x, serviceTask.y);
                         this.maintenanceService.completeTask(guest.id, serviceTask.key);
                         guest.workerTask = undefined;
                         guest.state = 'idle';
@@ -223,7 +240,7 @@ export class GuestService {
                 if (!nextStep) {
                     // Path finished; ensure repair or return
                     if (!activeTask.isReturnToBase) {
-                        this.buildingStatusService.repair(activeTask.targetX, activeTask.targetY);
+                        processRepair(activeTask.targetX, activeTask.targetY);
                         this.maintenanceService.completeTask(guest.id, activeTask.buildingKey);
                     }
                     guest.workerTask = undefined;
@@ -253,7 +270,7 @@ export class GuestService {
                     activeTask.pathIndex = (activeTask.pathIndex ?? 0) + 1;
                     if (activeTask.pathIndex >= activeTask.path.length) {
                         if (!activeTask.isReturnToBase) {
-                            this.buildingStatusService.repair(activeTask.targetX, activeTask.targetY);
+                            processRepair(activeTask.targetX, activeTask.targetY);
                             this.maintenanceService.completeTask(guest.id, activeTask.buildingKey);
                         }
                         guest.workerTask = undefined;

@@ -372,5 +372,9 @@
       (onUpgrade)="handleUpgrade($event)" (onThemeApplied)="handleThemeApplied($event)"
       (onRepair)="handleRepair($event)" />
 
+    <!-- Expansion Panel Modal -->
+    <app-expansion-panel *ngIf="showExpansionPanel()" [expansionState]="expansionState()" [currentMoney]="money()"
+      (onClose)="closeExpansionPanel()" (onPurchase)="handleLandPurchase($event)" />
+
   </main>
 </div>
