@@ -7,7 +7,7 @@ import { AttractionUpgrade, THEMES, ThemeType } from '../../models/attraction-up
 import { BuildingType } from '../../models/building.model';
 import { BuildingService } from '../../services/building.service';
 
-type TabType = 'upgrade' | 'stats' | 'customization';
+type TabType = 'upgrade' | 'stats' | 'customization' | 'transactions';
 
 @Component({
     selector: 'app-upgrade-panel',

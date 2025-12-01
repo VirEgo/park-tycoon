@@ -38,6 +38,10 @@
                 (click)="activeTab.set('customization')">
                 Темы
             </button>
+            <button class="tab-btn" *ngIf="building().isGambling && casinoStats"
+                [class.active]="activeTab() === 'transactions'" (click)="activeTab.set('transactions')">
+                Транзакции
+            </button>
         </div>
 
         <div class="panel-content">
@@ -143,59 +147,6 @@
                         </div>
                     </div>
                 </div>
-                @if (building().isGambling && casinoStats) {
-                <div class="section">
-                    <h4>Статистика казино</h4>
-                    <div class="stats-list">
-                        <div class="stat-row">
-                            <span>Текущий банк:</span>
-                            <span class="money">${{ casinoStats!.currentBank.toFixed(2) }}</span>
-                        </div>
-                        <div class="stat-row">
-                            <span>Всего визитов:</span>
-                            <span>{{ casinoStats!.totalVisits }}</span>
-                        </div>
-                        <div class="stat-row">
-                            <span>Выигрыши / Проигрыши:</span>
-                            <span>{{ casinoStats!.totalWins }} / {{ casinoStats!.totalLoses }}</span>
-                        </div>
-                        <div class="stat-row">
-                            <span>Win-rate:</span>
-                            <span class="positive">{{ getCasinoWinRate(casinoStats!) }}%</span>
-                        </div>
-                        <div class="stat-row">
-                            <span>Транзакций:</span>
-                            <span>{{ casinoStats!.transactions.length }}</span>
-                        </div>
-                    </div>
-
-                    <div class="tx-history" *ngIf="casinoStats!.transactions.length; else noTx">
-                        <div class="tx-item" *ngFor="let tx of casinoStats!.transactions; trackBy: trackByTxId"
-                            [class.tx-win]="tx.type === 'win'" [class.tx-lose]="tx.type === 'lose'"
-                            [class.tx-payout]="tx.type === 'payout'">
-                            <div class="tx-row">
-                                <div class="tx-type">
-                                    <span *ngIf="tx.type === 'win'">Выигрыш</span>
-                                    <span *ngIf="tx.type === 'lose'">Проигрыш</span>
-                                    <span *ngIf="tx.type === 'payout'">Выплата</span>
-                                    <span *ngIf="tx.guestId !== undefined" class="tx-guest">Гость #{{tx.guestId}}</span>
-                                </div>
-                                <div class="tx-amount" [class.win]="tx.type === 'win'" [class.lose]="tx.type === 'lose'"
-                                    [class.payout]="tx.type === 'payout'">
-                                    {{tx.type === 'lose' ? '-' : '+'}} ${{tx.amount.toFixed(2)}}
-                                </div>
-                            </div>
-                            <div class="tx-meta">
-                                <span>Банк после: ${{tx.bank.toFixed(2)}}</span>
-                                <span class="tx-time">{{formatTime(tx.timestamp)}}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <ng-template #noTx>
-                        <div class="empty-tx">Транзакций пока нет</div>
-                    </ng-template>
-                </div>
-                }
             </div>
             }
 
@@ -224,6 +175,71 @@
                             } @else {
                             <div class="active-badge">✓</div>
                             }
+                        </div>
+                        }
+                    </div>
+                </div>
+            </div>
+            }
+
+            <!-- TRANSACTIONS TAB -->
+            @if (activeTab() === 'transactions') {
+            <div class="tab-content">
+                <div class="section">
+                    <h4>История транзакций</h4>
+                    <div class="tx-list">
+                        @if (building().isGambling && casinoStats) {
+                        <div class="section">
+                            <h4>Статистика казино</h4>
+                            <div class="stats-list">
+                                <div class="stat-row">
+                                    <span>Текущий банк:</span>
+                                    <span class="money">${{ casinoStats!.currentBank.toFixed(2) }}</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Всего визитов:</span>
+                                    <span>{{ casinoStats!.totalVisits }}</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Выигрыши / Проигрыши:</span>
+                                    <span>{{ casinoStats!.totalWins }} / {{ casinoStats!.totalLoses }}</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Win-rate:</span>
+                                    <span class="positive">{{ getCasinoWinRate(casinoStats!) }}%</span>
+                                </div>
+                                <div class="stat-row">
+                                    <span>Транзакций:</span>
+                                    <span>{{ casinoStats!.transactions.length }}</span>
+                                </div>
+                            </div>
+
+                            <div class="tx-history" *ngIf="casinoStats!.transactions.length; else noTx">
+                                <div class="tx-item" *ngFor="let tx of casinoStats!.transactions; trackBy: trackByTxId"
+                                    [class.tx-win]="tx.type === 'win'" [class.tx-lose]="tx.type === 'lose'"
+                                    [class.tx-payout]="tx.type === 'payout'">
+                                    <div class="tx-row">
+                                        <div class="tx-type">
+                                            <span *ngIf="tx.type === 'win'">Выигрыш</span>
+                                            <span *ngIf="tx.type === 'lose'">Проигрыш</span>
+                                            <span *ngIf="tx.type === 'payout'">Выплата</span>
+                                            <span *ngIf="tx.guestId !== undefined" class="tx-guest">Гость
+                                                #{{tx.guestId}}</span>
+                                        </div>
+                                        <div class="tx-amount" [class.win]="tx.type === 'win'"
+                                            [class.lose]="tx.type === 'lose'" [class.payout]="tx.type === 'payout'">
+                                            {{tx.type === 'lose' ? '-' : '+'}} ${{tx.amount.toFixed(2)}}
+                                        </div>
+                                    </div>
+                                    <div class="tx-meta">
+                                        <span>Банк после: ${{tx.bank.toFixed(2)}}</span>
+                                        <span class="tx-time">{{formatTime(tx.timestamp)}}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <ng-template #noTx>
+                                <div class="empty-tx">Транзакций пока нет</div>
+                            </ng-template>
                         </div>
                         }
                     </div>
