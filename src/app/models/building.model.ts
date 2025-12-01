@@ -25,7 +25,7 @@ export interface BuildingType {
 export const BUILDINGS: BuildingType[] = [
     // Пешеходные дорожки
     { id: 'path', name: 'Дорожка', category: 'path', price: 10, income: 0, color: '#9ca3af', icon: '', width: 1, height: 1, svgPath: 'assets/buildings/path.svg', description: 'Обычная тропинка', isAvailableForVisit: true },
-    { id: 'exit', name: 'Выход', category: 'path', price: 0, income: 0, color: '#ef4444', icon: '🚪', width: 1, height: 1, svgPath: 'assets/buildings/exit.svg', description: 'Путь на выход', isAvailableForVisit: true },
+    { id: 'exit', name: 'Выход', category: 'path', price: 0, income: 0, color: '#ef4444', icon: '🚪', width: 1, height: 1, svgPath: 'assets/buildings/exit2.svg', description: 'Путь на выход', isAvailableForVisit: true },
 
     // Аттракционы
     { id: 'carousel', name: 'Карусель', category: 'attraction', price: 400, income: 1.5, color: '#fbbf24', icon: '🎠', width: 3, height: 3, svgPath: 'assets/buildings/carousel.svg', description: 'Классическая карусель', satisfies: 'fun', statValue: 30, isAvailableForVisit: true },
