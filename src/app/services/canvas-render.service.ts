@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Cell } from '../models/cell.model';
 import { Guest } from '../models/guest.model';
-import { ToolType } from '../models/building.model';
+import { ToolType, BUILDINGS, BuildingType } from '../models/building.model';
 import { AttractionUpgradeService } from './attraction-upgrade.service';
 import { BuildingService } from './building.service';
 import { BuildingStatusService } from './building-status.service';
@@ -31,13 +31,41 @@ export interface CanvasRenderParams {
 export class CanvasRenderService {
   private skinCache: Map<string, HTMLImageElement> = new Map();
   private rawSkins: Map<string, string> = new Map();
+  private buildingCache: Map<string, BuildingType> = new Map();
 
   constructor(
     private http: HttpClient,
     private buildingService: BuildingService,
     private buildingStatusService: BuildingStatusService,
     private upgradeService: AttractionUpgradeService
-  ) { }
+  ) {
+    BUILDINGS.forEach(b => this.buildingCache.set(b.id, b));
+  }
+
+  private getBuildingByIdFast(id: string): BuildingType | undefined {
+    return this.buildingCache.get(id);
+  }
+
+  private getVisibleCellIndices(
+    gridWidth: number,
+    gridHeight: number,
+    panX: number,
+    panY: number,
+    scale: number,
+    canvasWidth: number,
+    canvasHeight: number,
+    tileSize: number,
+    dpr: number
+  ): { startX: number; startY: number; endX: number; endY: number } {
+    const scaledTileSize = tileSize * scale;
+
+    const startX = Math.max(0, Math.floor(-panX / scaledTileSize) - 1);
+    const startY = Math.max(0, Math.floor(-panY / scaledTileSize) - 1);
+    const endX = Math.min(gridWidth, Math.ceil((canvasWidth / dpr - panX) / scaledTileSize) + 2);
+    const endY = Math.min(gridHeight, Math.ceil((canvasHeight / dpr - panY) / scaledTileSize) + 2);
+
+    return { startX, startY, endX, endY };
+  }
 
   preloadSkins() {
     Object.entries(Guest.SKINS).forEach(([key, path]) => {
@@ -90,130 +118,139 @@ export class CanvasRenderService {
       }
     }
 
-    grid.forEach(cell => {
-      const x = cell.x * tileSize;
-      const y = cell.y * tileSize;
+    const visible = this.getVisibleCellIndices(
+      gridWidth, gridHeight, panX, panY, scale, canvasWidth, canvasHeight, tileSize, dpr
+    );
 
-      if (cell.type === 'grass') {
-        ctx.fillStyle = '#4ade80';
-        ctx.fillRect(x, y, tileSize, tileSize);
-      } else if (cell.type === 'path') {
-        const pathImg = this.buildingService.getBuildingImage('path');
-        if (pathImg && pathImg.complete && pathImg.naturalWidth > 0) {
-          ctx.drawImage(pathImg, x, y, tileSize, tileSize);
-        } else {
-          ctx.fillStyle = '#9ca3af';
+    for (let cellY = visible.startY; cellY < visible.endY; cellY++) {
+      for (let cellX = visible.startX; cellX < visible.endX; cellX++) {
+        const cellIndex = cellY * gridWidth + cellX;
+        const cell = grid[cellIndex];
+        if (!cell) continue;
+
+        const x = cell.x * tileSize;
+        const y = cell.y * tileSize;
+
+        if (cell.type === 'grass') {
+          ctx.fillStyle = '#4ade80';
           ctx.fillRect(x, y, tileSize, tileSize);
-        }
-      } else if (cell.type === 'entrance') {
-        ctx.fillStyle = '#fbbf24';
-        ctx.fillRect(x, y, tileSize, tileSize);
-      } else if (cell.type === 'exit') {
-        const exitImg = this.buildingService.getBuildingImage('exit');
-        if (exitImg && exitImg.complete && exitImg.naturalWidth > 0) {
-          ctx.drawImage(exitImg, x, y, tileSize, tileSize);
-        } else {
-          ctx.fillStyle = '#ef4444';
+        } else if (cell.type === 'path') {
+          const pathImg = this.buildingService.getBuildingImage('path');
+          if (pathImg && pathImg.complete && pathImg.naturalWidth > 0) {
+            ctx.drawImage(pathImg, x, y, tileSize, tileSize);
+          } else {
+            ctx.fillStyle = '#9ca3af';
+            ctx.fillRect(x, y, tileSize, tileSize);
+          }
+        } else if (cell.type === 'entrance') {
+          ctx.fillStyle = '#fbbf24';
           ctx.fillRect(x, y, tileSize, tileSize);
-        }
-      } else if (cell.type === 'building') {
-        if (cell.isRoot) {
-          const bId = cell.buildingId;
-          if (bId) {
-            const building = this.buildingService.getBuildingById(bId);
-            if (building) {
-              const img = this.buildingService.getBuildingImage(bId);
+        } else if (cell.type === 'exit') {
+          const exitImg = this.buildingService.getBuildingImage('exit');
+          if (exitImg && exitImg.complete && exitImg.naturalWidth > 0) {
+            ctx.drawImage(exitImg, x, y, tileSize, tileSize);
+          } else {
+            ctx.fillStyle = '#ef4444';
+            ctx.fillRect(x, y, tileSize, tileSize);
+          }
+        } else if (cell.type === 'building') {
+          if (cell.isRoot) {
+            const bId = cell.buildingId;
+            if (bId) {
+              const building = this.buildingService.getBuildingById(bId);
+              if (building) {
+                const img = this.buildingService.getBuildingImage(bId);
 
-              ctx.fillStyle = '#4ade80';
-              ctx.fillRect(x, y, tileSize * building.width, tileSize * building.height);
-
-              if (img && img.complete && img.naturalWidth > 0) {
-                ctx.drawImage(img, x, y, tileSize * building.width, tileSize * building.height);
-              } else {
-                ctx.strokeStyle = '#4ade80';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(x, y, tileSize * building.width, tileSize * building.height);
-
-                const icon = building.icon;
-                if (icon) {
-                  ctx.font = '24px Arial';
-                  ctx.textAlign = 'center';
-                  ctx.textBaseline = 'middle';
-                  ctx.fillStyle = '#000';
-                  ctx.fillText(icon, x + (tileSize * building.width) / 2, y + (tileSize * building.height) / 2);
-                }
-              }
-
-              const level = this.upgradeService.getLevel(bId, cell.x, cell.y);
-              const isBroken = this.buildingStatusService.isBroken(cell.x, cell.y);
-              if (isBroken) {
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.fillStyle = '#4ade80';
                 ctx.fillRect(x, y, tileSize * building.width, tileSize * building.height);
 
-                ctx.font = '30px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = '#FFF';
-                ctx.fillText('🔧', x + (tileSize * building.width) / 2, y + (tileSize * building.height) / 2);
-              }
+                if (img && img.complete && img.naturalWidth > 0) {
+                  ctx.drawImage(img, x, y, tileSize * building.width, tileSize * building.height);
+                } else {
+                  ctx.strokeStyle = '#4ade80';
+                  ctx.lineWidth = 2;
+                  ctx.strokeRect(x, y, tileSize * building.width, tileSize * building.height);
 
-              if (level === 5) {
-                const centerX = x + (tileSize * building.width) / 2;
-                const starY = y - 10;
-                ctx.shadowColor = '#FFD700';
-                ctx.shadowBlur = 15;
-                ctx.font = '24px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'bottom';
-                ctx.fillText('⭐', centerX, starY);
-                ctx.shadowBlur = 0;
-              } else if (level > 1) {
-                const starCount = level - 1;
-                const starSize = 12;
-                const startX = x + (tileSize * building.width) / 2 - ((starCount - 1) * starSize) / 2;
-                const starY = y - 5;
-
-                ctx.font = '12px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'bottom';
-
-                for (let i = 0; i < starCount; i++) {
-                  ctx.fillText('⭐', startX + i * starSize, starY);
+                  const icon = building.icon;
+                  if (icon) {
+                    ctx.font = '24px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#000';
+                    ctx.fillText(icon, x + (tileSize * building.width) / 2, y + (tileSize * building.height) / 2);
+                  }
                 }
-              }
 
-              const themeIcon = this.upgradeService.getThemeIcon(bId, cell.x, cell.y);
-              if (themeIcon) {
-                ctx.font = '16px Arial';
-                ctx.textAlign = 'right';
-                ctx.textBaseline = 'top';
-                ctx.fillText(themeIcon, x + tileSize * building.width - 2, y + 2);
+                const level = this.upgradeService.getLevel(bId, cell.x, cell.y);
+                const isBroken = this.buildingStatusService.isBroken(cell.x, cell.y);
+                if (isBroken) {
+                  ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                  ctx.fillRect(x, y, tileSize * building.width, tileSize * building.height);
+
+                  ctx.font = '30px Arial';
+                  ctx.textAlign = 'center';
+                  ctx.textBaseline = 'middle';
+                  ctx.fillStyle = '#FFF';
+                  ctx.fillText('🔧', x + (tileSize * building.width) / 2, y + (tileSize * building.height) / 2);
+                }
+
+                if (level === 5) {
+                  const centerX = x + (tileSize * building.width) / 2;
+                  const starY = y - 10;
+                  ctx.shadowColor = '#FFD700';
+                  ctx.shadowBlur = 15;
+                  ctx.font = '24px Arial';
+                  ctx.textAlign = 'center';
+                  ctx.textBaseline = 'bottom';
+                  ctx.fillText('⭐', centerX, starY);
+                  ctx.shadowBlur = 0;
+                } else if (level > 1) {
+                  const starCount = level - 1;
+                  const starSize = 12;
+                  const startX = x + (tileSize * building.width) / 2 - ((starCount - 1) * starSize) / 2;
+                  const starY = y - 5;
+
+                  ctx.font = '12px Arial';
+                  ctx.textAlign = 'center';
+                  ctx.textBaseline = 'bottom';
+
+                  for (let i = 0; i < starCount; i++) {
+                    ctx.fillText('⭐', startX + i * starSize, starY);
+                  }
+                }
+
+                const themeIcon = this.upgradeService.getThemeIcon(bId, cell.x, cell.y);
+                if (themeIcon) {
+                  ctx.font = '16px Arial';
+                  ctx.textAlign = 'right';
+                  ctx.textBaseline = 'top';
+                  ctx.fillText(themeIcon, x + tileSize * building.width - 2, y + 2);
+                }
               }
             }
           }
         }
-      }
 
-      if (cell.type !== 'building') {
-        ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-        ctx.strokeRect(x, y, tileSize, tileSize);
-      }
+        if (cell.type !== 'building') {
+          ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+          ctx.strokeRect(x, y, tileSize, tileSize);
+        }
 
-      if (cell.type === 'entrance') {
-        ctx.font = '20px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#000';
-        ctx.fillText('ENT', x + tileSize / 2, y + tileSize / 2);
-      } else if (cell.type === 'exit') {
-        ctx.font = '10px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'ideographic';
-        ctx.fillText('EXIT', x + tileSize / 3, y + tileSize / 3);
+        if (cell.type === 'entrance') {
+          ctx.font = '20px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#000';
+          ctx.fillText('ENT', x + tileSize / 2, y + tileSize / 2);
+        } else if (cell.type === 'exit') {
+          ctx.font = '10px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'ideographic';
+          ctx.fillText('EXIT', x + tileSize / 3, y + tileSize / 3);
+        }
       }
-    });
+    }
 
-    // Рисуем подсветку строительства ПОСЛЕ отрисовки всего грида
     if (hoveredCell && selectedToolId && selectedToolCategory !== 'none' && selectedToolCategory !== 'demolish') {
       const building = this.buildingService.getBuildingById(selectedToolId);
       if (building) {
@@ -242,14 +279,22 @@ export class CanvasRenderService {
         ctx.lineWidth = 1;
       }
     } else if (hoveredCell) {
-      // Простая подсветка для других инструментов
       const x = hoveredCell.x * tileSize;
       const y = hoveredCell.y * tileSize;
       ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
       ctx.fillRect(x, y, tileSize, tileSize);
     }
 
-    guests.forEach(guest => {
+    const visMinX = visible.startX - 1;
+    const visMaxX = visible.endX + 1;
+    const visMinY = visible.startY - 1;
+    const visMaxY = visible.endY + 1;
+
+    for (const guest of guests) {
+      if (guest.x < visMinX || guest.x > visMaxX || guest.y < visMinY || guest.y > visMaxY) {
+        continue;
+      }
+
       const gx = guest.x * tileSize;
       const gy = guest.y * tileSize;
 
@@ -280,7 +325,7 @@ export class CanvasRenderService {
         ctx.arc(gx + tileSize - 5, gy + 5, 3, 0, Math.PI * 2);
         ctx.fill();
       }
-    });
+    }
   }
 
   getGuestImageSrc(guest: Guest): string {

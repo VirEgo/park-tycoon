@@ -16,6 +16,13 @@ const BuildingCategoryLabels: { [key in BuildingCategory]: string } = {
   [BuildingCategory.SERVICE]: 'Services'
 };
 
+// Тип для статистики зданий
+export interface BuildingStats {
+  total: number;
+  byCategory: Record<string, number>;
+  byType: Record<string, { count: number; name: string; category: string }>;
+}
+
 @Component({
   selector: 'app-sidebar',
   standalone: true,
@@ -29,6 +36,7 @@ export class SidebarComponent {
   @Input() selectedToolId: string | null = null;
   @Input() selectedToolCategory: ToolType | string = 'none';
   @Input() getBuildingsByCategory!: (category: string) => BuildingType[];
+  @Input() buildingStats: BuildingStats = { total: 0, byCategory: {}, byType: {} };
 
   @Output() toolSelected = new EventEmitter<{ category: ToolType | string; id: string | null }>();
   @Output() loadDemo = new EventEmitter<void>();
@@ -43,6 +51,10 @@ export class SidebarComponent {
 
   buildings(cat: string): BuildingType[] {
     return this.getBuildingsByCategory ? this.getBuildingsByCategory(cat) : [];
+  }
+
+  getBuildingCount(buildingId: string): number {
+    return this.buildingStats.byType[buildingId]?.count || 0;
   }
 
   trackByBuildingId(_: number, item: BuildingType) {

@@ -21,6 +21,7 @@ import { GRID_H, GRID_W, GridService } from './services/grid.service';
 import { GuestService } from './services/guest.service';
 import { CanvasRenderService } from './services/canvas-render.service';
 import { MaintenanceService } from './services/maintenance.service';
+import { SpatialHash } from './utils/performance.utils';
 
 const TILE_SIZE = 40;
 const MIN_ZOOM = 0.5;
@@ -122,6 +123,41 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     return this.guests().find(g => g.id === id) || null;
   });
 
+  // Статистика зданий по категориям и типам
+  buildingStats = computed(() => {
+    const grid = this.grid();
+    const stats: {
+      total: number;
+      byCategory: Record<string, number>;
+      byType: Record<string, { count: number; name: string; category: string }>;
+    } = {
+      total: 0,
+      byCategory: {},
+      byType: {}
+    };
+
+    grid.forEach(cell => {
+      if (cell.type === 'building' && cell.isRoot && cell.buildingId) {
+        stats.total++;
+
+        const building = this.buildingService.getBuildingById(cell.buildingId);
+        if (building) {
+          // По категориям
+          const cat = building.category;
+          stats.byCategory[cat] = (stats.byCategory[cat] || 0) + 1;
+
+          // По типам зданий
+          if (!stats.byType[cell.buildingId]) {
+            stats.byType[cell.buildingId] = { count: 0, name: building.name, category: cat };
+          }
+          stats.byType[cell.buildingId].count++;
+        }
+      }
+    });
+
+    return stats;
+  });
+
   // Expansion State
   expansionState = signal<ExpansionState>(this.expansionService.getInitialState());
 
@@ -139,13 +175,17 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   private readonly dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
   private parkClosedEffectReady = false;
 
+  // === ОПТИМИЗАЦИЯ: Контроль частоты обновлений ===
+  private readonly TARGET_FPS = 60;
+  private readonly FRAME_TIME = 1000 / 60; // ~16.67ms
+  private lastRenderTime = 0;
+  private needsRender = true; // Флаг для отложенного рендера
+
   constructor() {
-    // Effect to resize canvas when grid dimensions or zoom change
     effect(() => {
       this.resizeCanvas();
     });
 
-    // Persist park closure state changes
     effect(() => {
       const closed = this.isParkClosed();
       if (!this.parkClosedEffectReady) {
@@ -197,6 +237,17 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
   private startRenderLoop() {
     const loop = (timestamp: number) => {
+      // === ОПТИМИЗАЦИЯ: Ограничение FPS для снижения нагрузки ===
+      const elapsed = timestamp - this.lastRenderTime;
+
+      if (elapsed < this.FRAME_TIME) {
+        // Пропускаем кадр если прошло недостаточно времени
+        this.renderLoopId = requestAnimationFrame(loop);
+        return;
+      }
+
+      this.lastRenderTime = timestamp;
+
       if (!this.lastFrameTime) this.lastFrameTime = timestamp;
       const deltaTime = (timestamp - this.lastFrameTime) / 1000;
       this.lastFrameTime = timestamp;
@@ -210,6 +261,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     };
     this.renderLoopId = requestAnimationFrame(loop);
   }
+  private guestSpatialHash = new SpatialHash<Guest>(3);
 
   private updateGuestMovement(deltaTime: number) {
     const result = this.guestService.processGuestMovement(
@@ -226,6 +278,8 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     if (result.updatedGuests.length !== this.guests().length) {
       this.guests.set(result.updatedGuests);
     }
+
+    this.guestSpatialHash.insertAll(this.guests());
   }
 
   private render() {
@@ -497,13 +551,15 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   }
 
   startAutoSave() {
-    this.saveLoopSub = interval(15000).subscribe(() => {
+    // Автосохранение каждые 30 секунд (было 15)
+    this.saveLoopSub = interval(30000).subscribe(() => {
       this.saveGame();
     });
   }
 
   startGameLoop() {
-    this.gameLoopSub = interval(500).subscribe(() => {
+    // Игровой цикл каждые 750мс вместо 500мс для снижения нагрузки
+    this.gameLoopSub = interval(750).subscribe(() => {
       if (this.isPaused()) return;
       this.updateGame();
     });
@@ -519,6 +575,11 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  // === ОПТИМИЗАЦИЯ: Кэшируем подсчеты для избежания повторных вычислений ===
+  private cachedAttractionCount = 0;
+  private cachedGuestCount = 0;
+  private cacheUpdateCounter = 0;
+
   updateGame() {
     this.tickCounter++;
     if (this.tickCounter >= 60) {
@@ -532,11 +593,17 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       }
     }
 
-    const attractionCount = this.grid().filter(c => c.type === 'building').length;
-    const currentGuests = this.guests().filter(g => !g.isWorker).length;
-    const maxGuests = 5 + (attractionCount * 3);
+    // Обновляем кэш подсчетов каждые 3 тика вместо каждого
+    this.cacheUpdateCounter++;
+    if (this.cacheUpdateCounter >= 3) {
+      this.cacheUpdateCounter = 0;
+      this.cachedAttractionCount = this.grid().filter(c => c.type === 'building').length;
+      this.cachedGuestCount = this.guests().filter(g => !g.isWorker).length;
+    }
 
-    if (!this.isParkClosed() && currentGuests < maxGuests && Math.random() > 0.3) {
+    const maxGuests = 5 + (this.cachedAttractionCount * 3);
+
+    if (!this.isParkClosed() && this.cachedGuestCount < maxGuests && Math.random() > 0.3) {
       this.spawnGuest();
     }
 

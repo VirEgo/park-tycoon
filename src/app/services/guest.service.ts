@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Guest } from '../models/guest.model';
 import { Cell } from '../models/cell.model';
 import { GridService } from './grid.service';
-import { BUILDINGS } from '../models/building.model';
+import { BUILDINGS, BuildingType } from '../models/building.model';
 import { CasinoService } from './casino.service';
 import { GUEST_TYPES, GuestTypeId } from '../models/guest-type.model';
 import { BuildingStatusService } from './building-status.service';
@@ -19,6 +19,17 @@ export class GuestService {
     private upgradeService = inject(AttractionUpgradeService);
     private maintenanceService = inject(MaintenanceService);
 
+    private buildingCache: Map<string, BuildingType> = new Map();
+
+    constructor() {
+        BUILDINGS.forEach(b => this.buildingCache.set(b.id, b));
+    }
+
+    // Быстрый поиск здания по ID
+    private getBuildingByIdFast(id: string): BuildingType | undefined {
+        return this.buildingCache.get(id);
+    }
+
     private parseWorkerHome(homeKey: string | null | undefined): { x: number, y: number } | null {
         if (!homeKey) return null;
         const parts = homeKey.split('_');
@@ -29,9 +40,6 @@ export class GuestService {
         return { x, y };
     }
 
-    /**
-     * Определить тип гостя на основе прогресса игры
-     */
     determineGuestType(attractionCount: number, parkRating: number = 3.0): GuestTypeId {
         const availableTypes = GUEST_TYPES.filter(type => {
             if (type.unlockRequirement) {
@@ -67,9 +75,6 @@ export class GuestService {
         return 'casual';
     }
 
-    /**
-     * Создать гостя с определенным типом
-     */
     spawnGuest(guestId: number, entranceX: number, entranceY: number, attractionCount: number = 0): Guest {
         const guestType = this.determineGuestType(attractionCount);
         const typeData = GUEST_TYPES.find(t => t.id === guestType) || GUEST_TYPES[0];
@@ -135,7 +140,7 @@ export class GuestService {
             if (onRepairCostSpent) {
                 const cell = grid.find(c => c.x === x && c.y === y);
                 if (cell?.buildingId) {
-                    const building = BUILDINGS.find(b => b.id === cell.buildingId);
+                    const building = this.getBuildingByIdFast(cell.buildingId);
                     if (building) {
                         const level = this.upgradeService.getLevel(building.id, x, y);
                         const repairCost = this.buildingStatusService.getRepairCost(building.price, level);
@@ -312,7 +317,7 @@ export class GuestService {
 
                 // Если гость в здании
                 if (currentCell.type === 'building' && currentCell.buildingId) {
-                    const bInfo = BUILDINGS.find(b => b.id === currentCell.buildingId);
+                    const bInfo = this.getBuildingByIdFast(currentCell.buildingId);
 
                     // Проверка, сломано ли здание (по данным здания)
                     const checkX = currentCell.isRoot ? currentCell.x : (currentCell.rootX ?? currentCell.x);
@@ -460,7 +465,7 @@ export class GuestService {
             let isWalkable = cell.type === 'path' || cell.type === 'entrance' || cell.type === 'exit';
 
             if (cell.type === 'building' && cell.buildingId) {
-                const bInfo = BUILDINGS.find(b => b.id === cell.buildingId);
+                const bInfo = this.getBuildingByIdFast(cell.buildingId);
 
                 // Проверка, сломано ли здание (по корню)
                 const checkX = cell.isRoot ? cell.x : (cell.rootX ?? cell.x);

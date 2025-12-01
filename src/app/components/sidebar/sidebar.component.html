@@ -50,6 +50,11 @@
           [class.is-selected]="selectedToolId === item.id" [class.is-disabled]="money < item.price"
           (click)="onSelectTool(cat, item.id)">
 
+          <!-- Количество построенных (левый верхний угол) -->
+          <div class="tool-card__count" *ngIf="getBuildingCount(item.id) > 0">
+            {{ getBuildingCount(item.id) }}
+          </div>
+
           <div class="tool-card__badge">{{item.width}}×{{item.height}}</div>
 
           <img *ngIf="item.svgPath" [src]="item.svgPath" [alt]="item.name" class="tool-card__icon pixel-render">
@@ -63,6 +68,7 @@
             <div class="tool-card__tooltip-text">{{item.description}}</div>
             <div class="tool-card__tooltip-meta">Размер: {{item.width}}×{{item.height}} клеток</div>
             <div *ngIf="item.income > 0" class="tool-card__tooltip-income">Доход: {{item.income}}/день</div>
+            <div class="tool-card__tooltip-count">Построено: {{ getBuildingCount(item.id) }}</div>
           </div>
         </button>
       </div>

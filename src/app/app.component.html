@@ -3,8 +3,9 @@
   <!-- Sidebar (Tools) -->
   <app-sidebar *ngIf="showSidebar()" [isParkClosed]="isParkClosed()" [money]="money()"
     [selectedToolId]="selectedToolId()" [selectedToolCategory]="selectedToolCategory()"
-    [getBuildingsByCategory]="getBuildingsByCategory.bind(this)" (toolSelected)="selectTool($event.category, $event.id)"
-    (loadDemo)="loadDemoPark()" (togglePark)="toggleParkState()" (reset)="resetGame()">
+    [getBuildingsByCategory]="getBuildingsByCategory.bind(this)" [buildingStats]="buildingStats()"
+    (toolSelected)="selectTool($event.category, $event.id)" (loadDemo)="loadDemoPark()" (togglePark)="toggleParkState()"
+    (reset)="resetGame()">
   </app-sidebar>
 
 
