@@ -1,4 +1,4 @@
-import { Component, inject, input, output, signal } from '@angular/core';
+import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AttractionUpgradeService } from '../../services/attraction-upgrade.service';
 import { BuildingStatusService } from '../../services/building-status.service';
@@ -37,6 +37,41 @@ export class UpgradePanelComponent {
     onRepair = output<{ cost: number }>();
     activeTab = signal<TabType>('upgrade');
 
+    // Signal to trigger refresh of computed values
+    private refreshTrigger = signal(0);
+
+    // Computed signals for reactive updates
+    upgrade = computed(() => {
+        this.refreshTrigger(); // Subscribe to refresh trigger
+        return this.upgradeService.getUpgrade(this.building().id, this.cellX(), this.cellY());
+    });
+
+    currentLevel = computed(() => {
+        this.refreshTrigger(); // Subscribe to refresh trigger
+        return this.upgradeService.getLevel(this.building().id, this.cellX(), this.cellY());
+    });
+
+    nextUpgradeCost = computed(() => {
+        this.refreshTrigger(); // Subscribe to refresh trigger
+        return this.upgradeService.getNextUpgradeCost(this.building().id, this.cellX(), this.cellY());
+    });
+
+    currentMaxUsage = computed(() => {
+        this.refreshTrigger(); // Subscribe to refresh trigger
+        const status = this.buildingStatusService.getStatus(this.cellX(), this.cellY());
+        if (status?.maxVisits) return status.maxVisits;
+        return this.buildingService.computeMaxUsageLimit(this.building(), this.currentLevel());
+    });
+
+    availableThemes = computed(() => {
+        this.refreshTrigger(); // Subscribe to refresh trigger
+        return this.upgradeService.getAvailableThemes(this.building().id, this.cellX(), this.cellY());
+    });
+
+    currentTheme = computed(() => {
+        return this.upgrade()?.theme;
+    });
+
     get totalVisits(): number {
         return this.buildingStatusService.getStatus(this.cellX(), this.cellY())?.totalVisits || 0;
     }
@@ -46,23 +81,9 @@ export class UpgradePanelComponent {
         return this.casinoService.getCasinoStats(this.cellX(), this.cellY()) || null;
     }
 
-    get upgrade(): AttractionUpgrade | null {
-        return this.upgradeService.getUpgrade(this.building().id, this.cellX(), this.cellY());
-    }
-
-    get currentLevel(): number {
-        return this.upgradeService.getLevel(this.building().id, this.cellX(), this.cellY());
-    }
-
-    get currentMaxUsage(): number {
-        const status = this.buildingStatusService.getStatus(this.cellX(), this.cellY());
-        if (status?.maxVisits) return status.maxVisits;
-        return this.buildingService.computeMaxUsageLimit(this.building(), this.currentLevel);
-    }
-
     get upcomingMaxUsage(): Array<{ level: number; value: number; delta: number }> {
         const data: Array<{ level: number; value: number; delta: number }> = [];
-        const baseLevel = this.currentLevel;
+        const baseLevel = this.currentLevel();
         const baseValue = this.buildingService.computeMaxUsageLimit(this.building(), baseLevel);
 
         for (let lvl = baseLevel + 1; lvl <= 5; lvl++) {
@@ -72,20 +93,12 @@ export class UpgradePanelComponent {
         return data;
     }
 
-    get nextUpgradeCost(): number | null {
-        return this.upgradeService.getNextUpgradeCost(this.building().id, this.cellX(), this.cellY());
-    }
-
-    get availableThemes() {
-        return this.upgradeService.getAvailableThemes(this.building().id, this.cellX(), this.cellY());
-    }
-
-    get currentTheme(): ThemeType | undefined {
-        return this.upgrade?.theme;
+    private triggerRefresh(): void {
+        this.refreshTrigger.update(v => v + 1);
     }
 
     getNextLevelBonus() {
-        const nextLevel = this.currentLevel + 1;
+        const nextLevel = this.currentLevel() + 1;
         const costs = [
             { level: 2, income: 10, speed: 10, satisfaction: 5 },
             { level: 3, income: 25, speed: 20, satisfaction: 10 },
@@ -105,6 +118,7 @@ export class UpgradePanelComponent {
 
 
         if (result.success && result.cost) {
+            this.triggerRefresh(); // Trigger UI refresh after upgrade
             this.onUpgrade.emit({ cost: result.cost });
         }
     }
@@ -119,15 +133,18 @@ export class UpgradePanelComponent {
         );
 
         if (result.success && result.cost) {
+            this.triggerRefresh(); // Trigger UI refresh after theme change
             this.onThemeApplied.emit({ cost: result.cost });
         }
     }
 
     calculateFinalIncome(): number {
-        if (!this.upgrade) return 0;
-        let total = this.upgrade.upgrades.income;
-        if (this.currentTheme) {
-            const theme = THEMES.find(t => t.id === this.currentTheme);
+        const upgradeData = this.upgrade();
+        if (!upgradeData) return 0;
+        let total = upgradeData.upgrades.income;
+        const themeId = this.currentTheme();
+        if (themeId) {
+            const theme = THEMES.find(t => t.id === themeId);
             if (theme?.bonuses.income) {
                 total += theme.bonuses.income;
             }

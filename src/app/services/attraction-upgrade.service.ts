@@ -113,13 +113,13 @@ export class AttractionUpgradeService {
                 hasStaff: false
             };
 
-        // this.upgrades.set(key, newUpgrade);
-        // this.saveToStorage();
+        this.upgrades.set(key, newUpgrade);
+        this.saveToStorage();
 
 
         return {
             success: true,
-            cost: upgradeCost.cost,
+            cost: effectiveCost,
             newUpgrade,
             message: `Аттракцион улучшен до уровня ${nextLevel}!`
         };

@@ -4,7 +4,7 @@
         <div class="panel-header">
             <div class="header-title">
                 <h3>{{ building().name }}</h3>
-                <span class="level-badge">Уровень {{ currentLevel }}</span>
+                <span class="level-badge">Уровень {{ currentLevel() }}</span>
             </div>
             <button class="close-btn" (click)="onClose.emit()">✕</button>
         </div>
@@ -48,26 +48,21 @@
                 <div class="section">
                     <h4>Текущие бонусы</h4>
                     <div class="stats-grid">
-                        <div class="stat-item" *ngIf="upgrade?.upgrades?.speed as speed">
+                        <div class="stat-item" *ngIf="upgrade()?.upgrades?.speed as speed">
                             <span class="stat-label">Скорость</span>
                             <span class="stat-value">+{{ speed }}%</span>
                         </div>
-                        <div class="stat-item" *ngIf="upgrade?.upgrades?.income as income">
+                        <div class="stat-item" *ngIf="upgrade()?.upgrades?.income as income">
                             <span class="stat-label">Доход</span>
                             <span class="stat-value">+{{ income }}%</span>
                         </div>
-                        <div class="stat-item" *ngIf="upgrade?.upgrades?.satisfaction as satisfaction">
+                        <div class="stat-item" *ngIf="upgrade()?.upgrades?.satisfaction as satisfaction">
                             <span class="stat-label">Удовлетворение</span>
                             <span class="stat-value">+{{ satisfaction }}</span>
                         </div>
-                        <div class="stat-item" *ngIf="currentMaxUsage !== null">
+                        <div class="stat-item" *ngIf="currentMaxUsage() !== null">
                             <span class="stat-label">Макс. посещений</span>
-                            <span class="stat-value">{{ currentMaxUsage }}</span>
-                        </div>
-
-                        <div class="stat-item" *ngIf="currentMaxUsage !== null">
-                            <span class="stat-label">Макс. посещений</span>
-                            <span class="stat-value">{{ currentMaxUsage }}</span>
+                            <span class="stat-value">{{ currentMaxUsage() }}</span>
                         </div>
                     </div>
                 </div>
@@ -75,12 +70,12 @@
                 <!-- Next Upgrade -->
                 <div class="section highlight">
                     <h4>Следующий уровень</h4>
-                    @if (nextUpgradeCost !== null) {
+                    @if (nextUpgradeCost() !== null) {
                     <div class="upgrade-preview">
                         <div class="level-transition">
-                            <span class="lvl">{{ currentLevel }}</span>
+                            <span class="lvl">{{ currentLevel() }}</span>
                             <span class="arrow">➜</span>
-                            <span class="lvl next">{{ currentLevel + 1 }}</span>
+                            <span class="lvl next">{{ currentLevel() + 1 }}</span>
                         </div>
                         <div class="bonuses-list">
                             <div class="bonus-item">
@@ -101,9 +96,9 @@
                                     0 ? '+' : '' }}{{ upcomingMaxUsage[0].delta }})</span>
                             </div>
                         </div>
-                        <button class="action-btn upgrade-action" [disabled]="currentMoney() < nextUpgradeCost"
+                        <button class="action-btn upgrade-action" [disabled]="currentMoney() < nextUpgradeCost()!"
                             (click)="upgradeLevel()">
-                            Улучшить (${{ nextUpgradeCost }})
+                            Улучшить (${{ nextUpgradeCost() }})
                         </button>
                     </div>
                     } @else {
@@ -127,7 +122,7 @@
                         </div>
                         <div class="stat-row">
                             <span>Всего вложений:</span>
-                            <span class="money">${{ upgrade?.totalInvested || 0 }}</span>
+                            <span class="money">${{ upgrade()?.totalInvested || 0 }}</span>
                         </div>
                         <div class="stat-row">
                             <span>Бонус к доходу:</span>
@@ -210,8 +205,8 @@
                 <div class="section">
                     <h4>Темы оформления</h4>
                     <div class="themes-grid">
-                        @for (theme of availableThemes; track theme.id) {
-                        <div class="theme-card" [class.active]="currentTheme === theme.id">
+                        @for (theme of availableThemes(); track theme.id) {
+                        <div class="theme-card" [class.active]="currentTheme() === theme.id">
                             <div class="theme-icon">{{ theme.icon }}</div>
                             <div class="theme-info">
                                 <div class="theme-name">{{ theme.name }}</div>
@@ -221,7 +216,7 @@
                                     }
                                 </div>
                             </div>
-                            @if (currentTheme !== theme.id) {
+                            @if (currentTheme() !== theme.id) {
                             <button class="theme-select-btn" [disabled]="currentMoney() < theme.cost"
                                 (click)="applyTheme(theme.id)">
                                 ${{ theme.cost }}
