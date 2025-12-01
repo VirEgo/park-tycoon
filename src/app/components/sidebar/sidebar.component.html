@@ -19,14 +19,14 @@
       <div class="tile-grid">
         <button type="button" class="tool-card" [class.is-selected]="selectedToolId === 'path'"
           (click)="onSelectTool('path', 'path')">
-          <img [src]="'/assets/buildings/path.svg'" alt="Path" class="tool-card__icon pixel-render">
+          <img [src]="'assets/buildings/path.svg'" alt="Path" class="tool-card__icon pixel-render">
           <span class="tool-card__name">Дорожка</span>
           <span class="tool-card__price">$10</span>
         </button>
 
         <button type="button" class="tool-card" [class.is-selected]="selectedToolId === 'exit'"
           (click)="onSelectTool('path', 'exit')">
-          <img [src]="'/assets/buildings/exit.svg'" alt="Exit" class="tool-card__icon pixel-render">
+          <img [src]="'assets/buildings/exit.svg'" alt="Exit" class="tool-card__icon pixel-render">
           <span class="tool-card__name">Выход</span>
           <span class="tool-card__price">$0</span>
         </button>
