@@ -39,11 +39,12 @@ export class SidebarComponent {
   @Input() buildingStats: BuildingStats = { total: 0, byCategory: {}, byType: {} };
 
   @Output() toolSelected = new EventEmitter<{ category: ToolType | string; id: string | null }>();
-  @Output() loadDemo = new EventEmitter<void>();
   @Output() togglePark = new EventEmitter<void>();
   @Output() reset = new EventEmitter<void>();
+  @Output() closeSidebar = new EventEmitter<void>();
 
   categories: Array<BuildingCategory> = [BuildingCategory.ATTRACTION, BuildingCategory.SHOP, BuildingCategory.DECORATION, BuildingCategory.SERVICE];
+
   BuildingCategoryLabels = BuildingCategoryLabels;
   onSelectTool(category: ToolType | string, id: string | null) {
     this.toolSelected.emit({ category, id });

@@ -48,7 +48,7 @@ export class Guest {
     // Visit tracking
     visitingBuildingRoot: string | null = null;
 
-    constructor(id: number, x: number, y: number, guestType: GuestTypeId = 'casual', spendingPower: number = 1.0, speedModifier: number = 1.0) {
+    constructor(id: number, x: number, y: number, guestType: GuestTypeId = 'casual', spendingPower: number = 1.0, speedModifier: number = 1.0, ownedPremiumSkins: string[] = []) {
         this.id = id;
         this.x = x;
         this.y = y;
@@ -60,14 +60,22 @@ export class Guest {
         this.money = Math.floor(Math.random() * 141 * spendingPower) + 10; // 10 to 150, scaled by spending power
         this.color = `hsl(${Math.random() * 360}, 70%, 60%)`;
         this.emoji = this.getRandomEmoji();
-        this.visualType = this.getRandomVisualType();
-        this.skin = Guest.SKINS[this.visualType] || Guest.SKINS['visitor'];
+        this.visualType = this.getRandomVisualType(ownedPremiumSkins);
+        this.skin = this.getSkinPath(this.visualType);
         this.isWorker = false;
     }
 
-    private getRandomVisualType(): string {
-        const types = Object.keys(Guest.SKINS).filter(key => !Guest.WORKER_SKIN_KEYS.includes(key));
-        return types[Math.floor(Math.random() * types.length)];
+    private getRandomVisualType(ownedPremiumSkins: string[]): string {
+        const standardTypes = Object.keys(Guest.SKINS).filter(key => !Guest.WORKER_SKIN_KEYS.includes(key));
+        const allTypes = [...standardTypes, ...ownedPremiumSkins];
+        return allTypes[Math.floor(Math.random() * allTypes.length)];
+    }
+
+    private getSkinPath(type: string): string {
+        if (Guest.SKINS[type]) {
+            return Guest.SKINS[type];
+        }
+        return `assets/guests/paid/${type}.svg`;
     }
 
     private getRandomEmoji(): string {
@@ -103,7 +111,6 @@ export class Guest {
         if (stats.happiness) {
             this.happiness = Math.min(100, this.happiness + stats.happiness);
         } else if (stats.fun) {
-            // Fun contributes to happiness
             this.happiness = Math.min(100, this.happiness + (stats.fun / 2));
         }
     }
@@ -218,4 +225,34 @@ export class Guest {
         'worker2',
         'worker3'
     ];
+
+    static PremiumSkins: Record<string, number> = {
+        'ghost': 1000,
+        'pickachu': 1500,
+        'pacman': 2000,
+        'dracula': 2500,
+        'zombie': 3000,
+        'frankenstein': 3500,
+        'witch': 4000,
+        'vampire': 4500,
+        'mummy': 5000,
+        'werewolf': 5500,
+        'spongebob': 6000,
+        'patrick': 6500,
+        'squidward': 7000,
+        'minecraft_steve': 7500,
+        'minecraft_creeper': 8000,
+        'among_us_red': 8500,
+        'among_us_blue': 9000,
+        'naruto': 9500,
+        'goku': 10000,
+        'luffy': 10500,
+        'sailor_moon': 11000,
+        'sonic': 11500,
+        'mario': 12000,
+        'link': 12500,
+        'kirby': 13000,
+        'megaman': 13500,
+        'zelda': 14000
+    };
 }

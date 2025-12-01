@@ -8,6 +8,7 @@ import { GUEST_TYPES, GuestTypeId } from '../models/guest-type.model';
 import { BuildingStatusService } from './building-status.service';
 import { AttractionUpgradeService } from './attraction-upgrade.service';
 import { MaintenanceService } from './maintenance.service';
+import { PremiumSkinsService } from './guest/primium-skins';
 
 @Injectable({
     providedIn: 'root'
@@ -18,6 +19,7 @@ export class GuestService {
     private buildingStatusService = inject(BuildingStatusService);
     private upgradeService = inject(AttractionUpgradeService);
     private maintenanceService = inject(MaintenanceService);
+    private premiumSkinsService = inject(PremiumSkinsService);
 
     private buildingCache: Map<string, BuildingType> = new Map();
 
@@ -78,6 +80,7 @@ export class GuestService {
     spawnGuest(guestId: number, entranceX: number, entranceY: number, attractionCount: number = 0): Guest {
         const guestType = this.determineGuestType(attractionCount);
         const typeData = GUEST_TYPES.find(t => t.id === guestType) || GUEST_TYPES[0];
+        const ownedSkins = this.premiumSkinsService.getOwnedSkins();
 
         return new Guest(
             guestId,
@@ -85,7 +88,8 @@ export class GuestService {
             entranceY,
             guestType,
             typeData.spendingPower,
-            typeData.speedModifier
+            typeData.speedModifier,
+            ownedSkins
         );
     }
 
@@ -318,6 +322,7 @@ export class GuestService {
                 // Если гость в здании
                 if (currentCell.type === 'building' && currentCell.buildingId) {
                     const bInfo = this.getBuildingByIdFast(currentCell.buildingId);
+
 
                     // Проверка, сломано ли здание (по данным здания)
                     const checkX = currentCell.isRoot ? currentCell.x : (currentCell.rootX ?? currentCell.x);

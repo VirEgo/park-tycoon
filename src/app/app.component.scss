@@ -55,7 +55,7 @@
 .main-wrapper {
     &:has(app-sidebar) {
         .content-wrapper {
-            max-width: calc(100% - 256px);
+            max-width: 100%;
         }
     }
 }

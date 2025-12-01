@@ -68,13 +68,24 @@ export class CanvasRenderService {
   }
 
   preloadSkins() {
+    // Preload standard skins
     Object.entries(Guest.SKINS).forEach(([key, path]) => {
-      this.http.get(path, { responseType: 'text' }).subscribe({
-        next: (svgContent) => {
-          this.rawSkins.set(key, svgContent);
-        },
-        error: (err) => console.error(`Failed to load skin: ${key}`, err)
-      });
+      this.loadSkin(key, path);
+    });
+
+    // Preload premium skins
+    Object.keys(Guest.PremiumSkins).forEach(key => {
+      const path = `assets/guests/paid/${key}.svg`;
+      this.loadSkin(key, path);
+    });
+  }
+
+  private loadSkin(key: string, path: string) {
+    this.http.get(path, { responseType: 'text' }).subscribe({
+      next: (svgContent) => {
+        this.rawSkins.set(key, svgContent);
+      },
+      error: (err) => console.error(`Failed to load skin: ${key}`, err)
     });
   }
 
@@ -165,7 +176,12 @@ export class CanvasRenderService {
                 ctx.fillRect(x, y, tileSize * building.width, tileSize * building.height);
 
                 if (img && img.complete && img.naturalWidth > 0) {
-                  ctx.drawImage(img, x, y, tileSize * building.width, tileSize * building.height);
+                  if (bId === 'flowerbed') {
+                    const padding = tileSize * 0.15;
+                    ctx.drawImage(img, x + padding, y + padding, tileSize - padding * 2, tileSize - padding * 2);
+                  } else {
+                    ctx.drawImage(img, x, y, tileSize * building.width, tileSize * building.height);
+                  }
                 } else {
                   ctx.strokeStyle = '#4ade80';
                   ctx.lineWidth = 2;
@@ -298,6 +314,22 @@ export class CanvasRenderService {
       const gx = guest.x * tileSize;
       const gy = guest.y * tileSize;
 
+      const prevAlpha = ctx.globalAlpha;
+
+      // Прозрачность если гость внутри здания 
+      if (guest.visitingBuildingRoot) {
+        const [bx, by] = guest.visitingBuildingRoot.split('_').map(Number);
+        const cell = grid[by * gridWidth + bx];
+
+        if (cell && cell.buildingId) {
+          const building = this.getBuildingByIdFast(cell.buildingId);
+          // Не применяем прозрачность для декораций (скамейки и тд)
+          if (building && building.category !== 'decoration') {
+            ctx.globalAlpha = 0.25;
+          }
+        }
+      }
+
       if (selectedGuestId === guest.id) {
         ctx.beginPath();
         ctx.arc(gx + tileSize / 2, gy + tileSize / 2, tileSize / 1.5, 0, Math.PI * 2);
@@ -306,9 +338,23 @@ export class CanvasRenderService {
       }
 
       const img = this.getSkinImage(guest);
+      const isPremium = !!Guest.PremiumSkins[guest.visualType];
 
       if (img && img.complete) {
+        // Если премиум скин - добавляем свечение по контуру изображения
+        if (isPremium) {
+          ctx.save();
+          ctx.shadowColor = '#FFD700';
+          ctx.shadowBlur = 15;
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 0;
+        }
+
         ctx.drawImage(img, gx, gy, tileSize, tileSize);
+
+        if (isPremium) {
+          ctx.restore();
+        }
       } else {
         ctx.fillStyle = guest.color;
         ctx.beginPath();
@@ -319,12 +365,15 @@ export class CanvasRenderService {
         ctx.fillText(guest.emoji, gx + tileSize / 2, gy + tileSize / 2);
       }
 
-      if (guest.happiness < 30) {
-        ctx.fillStyle = 'red';
+      // Индикатор настроения
+      if (!guest.isWorker && guest.happiness < 50) {
+        ctx.fillStyle = guest.happiness < 25 ? '#ef4444' : '#f59e0b';
         ctx.beginPath();
-        ctx.arc(gx + tileSize - 5, gy + 5, 3, 0, Math.PI * 2);
+        ctx.arc(gx + tileSize * 0.8, gy + tileSize * 0.2, 4, 0, Math.PI * 2);
         ctx.fill();
       }
+
+      ctx.globalAlpha = prevAlpha;
     }
   }
 

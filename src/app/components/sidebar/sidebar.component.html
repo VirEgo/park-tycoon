@@ -3,9 +3,7 @@
     <h1 class="sidebar__title">ANGULAR PARK</h1>
     <div class="sidebar__subtitle">Tycoon Simulator</div>
 
-    <button type="button" class="btn btn--primary" (click)="loadDemo.emit()">
-      Загрузить демо-парк
-    </button>
+    <button type="button" class="sidebar__close" (click)="closeSidebar.emit()">✕</button>
 
     <button type="button" class="btn" [class.btn--success]="isParkClosed" [class.btn--danger]="!isParkClosed"
       (click)="togglePark.emit()">

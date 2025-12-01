@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import { TycoonApp } from './app.component';
-import { SkinsGalleryComponent } from './components/skins-gallery/skins-gallery.component';
+import { SkinsGalleryComponent } from './pages/skins-gallery/skins-gallery.component';
 
 export const routes: Routes = [
   { path: '', component: TycoonApp },

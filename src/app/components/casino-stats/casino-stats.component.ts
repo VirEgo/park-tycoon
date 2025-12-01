@@ -3,10 +3,10 @@ import { CommonModule } from '@angular/common';
 import { CasinoStats } from '../../services/casino.service';
 
 @Component({
-    selector: 'app-casino-stats',
-    standalone: true,
-    imports: [CommonModule],
-    template: `
+  selector: 'app-casino-stats',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in"
          (click)="close.emit()">
       <div class="bg-gray-800 border border-purple-500 rounded-lg shadow-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
@@ -80,7 +80,10 @@ import { CasinoStats } from '../../services/casino.service';
                 <div class="flex items-center gap-2">
                   <span *ngIf="tx.type === 'win'" class="text-green-400">🎉 Выигрыш</span>
                   <span *ngIf="tx.type === 'lose'" class="text-red-400">💸 Проигрыш</span>
-                  <span *ngIf="tx.type === 'payout'" class="text-blue-400">💰 Выплата</span>
+                  <span *ngIf="tx.type === 'payout'" class="text-blue-400">
+                    <img src="assets/staff/coin.svg" alt="Payout" class="inline w-4 h-4"/>  
+                    Выплата
+                  </span>
                   
                   <span *ngIf="tx.guestId !== undefined" class="text-gray-500">
                     (Гость #{{tx.guestId}})
@@ -113,7 +116,7 @@ import { CasinoStats } from '../../services/casino.service';
       </div>
     </div>
   `,
-    styles: [`
+  styles: [`
     .custom-scrollbar::-webkit-scrollbar {
       width: 8px;
     }
@@ -131,25 +134,25 @@ import { CasinoStats } from '../../services/casino.service';
   `]
 })
 export class CasinoStatsComponent {
-    stats = input.required<CasinoStats>();
-    close = output<void>();
+  stats = input.required<CasinoStats>();
+  close = output<void>();
 
-    getWinRate(): number {
-        const total = this.stats().totalVisits;
-        if (total === 0) return 0;
-        return Math.round((this.stats().totalWins / total) * 100);
-    }
+  getWinRate(): number {
+    const total = this.stats().totalVisits;
+    if (total === 0) return 0;
+    return Math.round((this.stats().totalWins / total) * 100);
+  }
 
-    formatTime(timestamp: Date): string {
-        const date = new Date(timestamp);
-        return date.toLocaleTimeString('ru-RU', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-        });
-    }
+  formatTime(timestamp: Date): string {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('ru-RU', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  }
 
-    trackByTxId(index: number, tx: any): number {
-        return tx.id;
-    }
+  trackByTxId(index: number, tx: any): number {
+    return tx.id;
+  }
 }

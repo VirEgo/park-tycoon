@@ -1,6 +1,15 @@
 :host {
   display: block;
   flex: 0 0 auto;
+
+  @media (max-width: 768px) {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    z-index: 50;
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.5);
+  }
 }
 
 .sidebar {
@@ -20,6 +29,30 @@
   padding: 16px;
   border-bottom: 1px solid #374151;
   background: #111827;
+  position: relative;
+}
+
+.sidebar__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: 1px solid #374151;
+  border-radius: 4px;
+  color: #9ca3af;
+  font-size: 1.2rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 8px;
+
+  &:hover {
+    color: #fff;
+    background: #374151;
+  }
+
+  @media (min-width: 769px) {
+    display: none;
+  }
 }
 
 .sidebar__title {

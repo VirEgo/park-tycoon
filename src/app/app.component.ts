@@ -21,7 +21,8 @@ import { GRID_H, GRID_W, GridService } from './services/grid.service';
 import { GuestService } from './services/guest.service';
 import { CanvasRenderService } from './services/canvas-render.service';
 import { MaintenanceService } from './services/maintenance.service';
-import { SpatialHash } from './utils/performance.utils';
+import { SpatialHash, FrameRateLimiter } from './utils/performance.utils';
+import { PremiumSkinsService } from './services/guest/primium-skins';
 
 const TILE_SIZE = 40;
 const MIN_ZOOM = 0.5;
@@ -55,6 +56,8 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   private handleContextMenuListener = (event: MouseEvent) => this.handleGlobalRightClick(event);
   private stopPanListener = () => this.stopPanning();
   private handleResize = () => this.resizeCanvas();
+  private handleMouseDown = () => this.mouseIsDown = true;
+  private handleMouseUp = () => this.mouseIsDown = false;
 
   GRID_W = signal<number>(GRID_W);
   GRID_H = signal<number>(GRID_H);
@@ -64,13 +67,14 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   panY = signal<number>(0);
 
   // State Signals
-  money = signal<number>(5000);
+  money = inject(GameStateService).money;
   grid = signal<Cell[]>([]);
   guests = signal<Guest[]>([]);
   dayCount = signal<number>(1);
   notifications = signal<string[]>([]);
   isPaused = signal<boolean>(false);
   isParkClosed = signal<boolean>(false);
+  premiumSkinsOwned = signal<string[]>([]);
 
   // Tool Selection
   selectedToolCategory = signal<ToolType | string>('none');
@@ -91,7 +95,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     repairCost: number
   } | null>(null);
 
-  showSidebar = signal<boolean>(true);
+  showSidebar = signal<boolean>(typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
 
   // Canvas Interaction State
   private hoveredCell: Cell | null = null;
@@ -113,6 +117,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   private router = inject(Router);
   private canvasRenderService = inject(CanvasRenderService);
   private maintenanceService = inject(MaintenanceService);
+  private premiumSkinsService = inject(PremiumSkinsService);
 
   guestStats = computed(() => {
     return this.guestService.calculateAverageStats(this.guests());
@@ -176,9 +181,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   private parkClosedEffectReady = false;
 
   // === ОПТИМИЗАЦИЯ: Контроль частоты обновлений ===
-  private readonly TARGET_FPS = 60;
-  private readonly FRAME_TIME = 1000 / 60; // ~16.67ms
-  private lastRenderTime = 0;
+  private frameRateLimiter = new FrameRateLimiter(60);
   private needsRender = true; // Флаг для отложенного рендера
 
   constructor() {
@@ -194,6 +197,8 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       }
       this.saveGame();
     });
+
+    this.premiumSkinsOwned.set(this.premiumSkinsService.getOwnedSkins());
   }
 
   ngOnInit() {
@@ -207,8 +212,8 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     this.startGameLoop();
     this.startAutoSave();
 
-    window.addEventListener('mousedown', () => this.mouseIsDown = true);
-    window.addEventListener('mouseup', () => this.mouseIsDown = false);
+    window.addEventListener('mousedown', this.handleMouseDown);
+    window.addEventListener('mouseup', this.handleMouseUp);
     window.addEventListener('keydown', this.handleEscapeListener);
     window.addEventListener('contextmenu', this.handleContextMenuListener);
     window.addEventListener('mouseup', this.stopPanListener);
@@ -218,17 +223,18 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   ngAfterViewInit() {
     if (this.gameCanvas) {
       this.ctx = this.gameCanvas.nativeElement.getContext('2d')!;
-      this.resizeCanvas(); // Initial resize
+      this.resizeCanvas();
       this.startRenderLoop();
     }
   }
 
   ngOnDestroy() {
+    this.saveGame();
     if (this.gameLoopSub) this.gameLoopSub.unsubscribe();
     if (this.saveLoopSub) this.saveLoopSub.unsubscribe();
     if (this.renderLoopId !== null) cancelAnimationFrame(this.renderLoopId);
-    window.removeEventListener('mousedown', () => this.mouseIsDown = true);
-    window.removeEventListener('mouseup', () => this.mouseIsDown = false);
+    window.removeEventListener('mousedown', this.handleMouseDown);
+    window.removeEventListener('mouseup', this.handleMouseUp);
     window.removeEventListener('keydown', this.handleEscapeListener);
     window.removeEventListener('contextmenu', this.handleContextMenuListener);
     window.removeEventListener('mouseup', this.stopPanListener);
@@ -237,16 +243,10 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
   private startRenderLoop() {
     const loop = (timestamp: number) => {
-      // === ОПТИМИЗАЦИЯ: Ограничение FPS для снижения нагрузки ===
-      const elapsed = timestamp - this.lastRenderTime;
-
-      if (elapsed < this.FRAME_TIME) {
-        // Пропускаем кадр если прошло недостаточно времени
+      if (!this.frameRateLimiter.shouldRender(timestamp)) {
         this.renderLoopId = requestAnimationFrame(loop);
         return;
       }
-
-      this.lastRenderTime = timestamp;
 
       if (!this.lastFrameTime) this.lastFrameTime = timestamp;
       const deltaTime = (timestamp - this.lastFrameTime) / 1000;
@@ -261,6 +261,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     };
     this.renderLoopId = requestAnimationFrame(loop);
   }
+
   private guestSpatialHash = new SpatialHash<Guest>(3);
 
   private updateGuestMovement(deltaTime: number) {
@@ -306,8 +307,17 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
   private resizeCanvas() {
     if (!this.gameCanvas?.nativeElement) return;
-    const sidebarWidth = this.showSidebar() ? 255 : 0;
-    const headerHeight = 70;
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const sidebarWidth = (this.showSidebar() && !isMobile) ? 255 : 0;
+
+    let headerHeight = 70;
+    if (typeof document !== 'undefined') {
+      const header = document.querySelector('header');
+      if (header) {
+        headerHeight = header.offsetHeight;
+      }
+    }
+
     const viewportW = typeof window !== 'undefined' ? window.innerWidth : MAX_CANVAS_WIDTH;
     const viewportH = typeof window !== 'undefined' ? window.innerHeight : MAX_CANVAS_HEIGHT;
 
@@ -496,6 +506,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       entranceIndex: this.entranceIndex,
       casinoLastPayoutDay: this.casinoLastPayoutDay,
       isParkClosed: this.isParkClosed(),
+      premiumSkinsOwned: this.premiumSkinsOwned(),
     };
 
     const success = this.gameStateService.saveGame(state);
@@ -551,14 +562,12 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   }
 
   startAutoSave() {
-    // Автосохранение каждые 30 секунд (было 15)
     this.saveLoopSub = interval(30000).subscribe(() => {
       this.saveGame();
     });
   }
 
   startGameLoop() {
-    // Игровой цикл каждые 750мс вместо 500мс для снижения нагрузки
     this.gameLoopSub = interval(750).subscribe(() => {
       if (this.isPaused()) return;
       this.updateGame();
@@ -575,7 +584,6 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  // === ОПТИМИЗАЦИЯ: Кэшируем подсчеты для избежания повторных вычислений ===
   private cachedAttractionCount = 0;
   private cachedGuestCount = 0;
   private cacheUpdateCounter = 0;
@@ -878,101 +886,9 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
     if (result.totalPayout > 0) {
       this.money.update(m => m + result.totalPayout);
-      this.showNotification(`💰 Выплата казино: $${result.totalPayout.toFixed(2)}`);
+      this.showNotification(`Выплата казино: $${result.totalPayout.toFixed(2)}`);
       this.grid.set(result.updatedGrid);
     }
-  }
-
-  loadDemoPark() {
-    const demoSave = this.createDemoSave();
-    this.gameStateService.saveGame(demoSave);
-    window.location.reload();
-  }
-
-  private createDemoSave(): GameSaveState {
-    let grid: Cell[] = [];
-    for (let y = 0; y < GRID_H; y++) {
-      for (let x = 0; x < GRID_W; x++) {
-        grid.push({ x, y, type: 'grass' });
-      }
-    }
-
-    const build = (id: string, x: number, y: number) => {
-      const b = this.buildingService.getBuildingById(id);
-      if (b) {
-        const cell = grid[y * GRID_W + x];
-        grid = this.buildingService.buildBuilding(grid, cell, b, GRID_W);
-      }
-    };
-
-    for (let y = 0; y < GRID_H; y++) {
-      build('path', 10, y);
-    }
-
-    for (let x = 5; x <= 15; x++) {
-      build('path', x, 3);
-      build('path', x, 7);
-      build('path', x, 11);
-    }
-
-    const entranceIdx = 14 * GRID_W + 10;
-    grid[entranceIdx] = { x: 10, y: 14, type: 'entrance' };
-
-    const exitIdx = 0 * GRID_W + 10;
-    grid[exitIdx] = { x: 10, y: 0, type: 'exit' };
-
-    build('carousel', 7, 3);
-    build('ferris', 13, 3);
-    build('castle', 7, 7);
-    build('coaster', 13, 7);
-    build('slots', 7, 11);
-    build('shooting', 13, 11);
-
-    build('burger', 9, 3);
-    build('pizza', 11, 3);
-    build('soda', 9, 7);
-    build('coffee', 11, 7);
-    build('popcorn', 9, 11);
-    build('icecream', 11, 11);
-
-    build('fountain', 10, 5);
-    build('tree', 5, 2);
-    build('tree', 15, 2);
-    build('tree', 5, 12);
-    build('tree', 15, 12);
-    build('bench', 10, 9);
-
-    const casinoData = JSON.stringify({
-      casino_7_11: {
-        totalBank: 0,
-        totalVisits: 0,
-        totalWins: 0,
-        totalLosses: 0,
-        lastPayoutDay: 0,
-        transactions: []
-      },
-      casino_13_11: {
-        totalBank: 0,
-        totalVisits: 0,
-        totalWins: 0,
-        totalLosses: 0,
-        lastPayoutDay: 0,
-        transactions: []
-      }
-    });
-
-    return {
-      money: 10000,
-      dayCount: 1,
-      grid: grid,
-      gridWidth: GRID_W,
-      gridHeight: GRID_H,
-      guests: [],
-      guestIdCounter: 1,
-      entranceIndex: entranceIdx,
-      casinoLastPayoutDay: 0,
-      casinoData: casinoData
-    };
   }
 
   showNotification(msg: string) {
@@ -1303,6 +1219,26 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     worker.y = home.y;
     worker.targetX = home.x;
     worker.targetY = home.y;
+  }
+
+  // 2. Метод обработки покупки (вызывается из SkinsGalleryComponent)
+  handleSkinPurchase(skinId: string) {
+    const result = this.premiumSkinsService.buySkin(skinId, this.money());
+
+    if (result.success) {
+      // Обновляем деньги
+      this.money.update(m => m - result.cost!);
+
+      // Обновляем список владений (сигнал)
+      if (result.updatedOwnedList) {
+        this.premiumSkinsOwned.set(result.updatedOwnedList);
+      }
+
+      this.showNotification(result.message);
+      this.saveGame();
+    } else {
+      this.showNotification(result.message);
+    }
   }
 }
 

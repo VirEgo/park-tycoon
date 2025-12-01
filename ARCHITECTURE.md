@@ -63,7 +63,6 @@ Save/load game state:
 - `saveGame(state)` - Save to localStorage
 - `loadGame()` - Load from localStorage
 - `resetGame()` - Clear saved data
-- `createDemoSave()` - Generate pre-built park
 
 ## 📦 Models
 

@@ -13,6 +13,7 @@ export interface GameSaveState {
     casinoLastPayoutDay: number;
     casinoData?: string;
     isParkClosed?: boolean;
+    premiumSkinsOwned?: string[];
 }
 
 export interface GuestStats {

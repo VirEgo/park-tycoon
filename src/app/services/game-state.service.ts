@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal, WritableSignal } from '@angular/core';
 import { GameSaveState } from '../models/game-state.model';
 import { Guest } from '../models/guest.model';
 import { CasinoService } from './casino.service';
@@ -11,10 +11,14 @@ const STORAGE_KEY = 'angular-park-save-v1';
 export class GameStateService {
     private casinoService = inject(CasinoService);
 
+    // Global State
+    money: WritableSignal<number> = signal<number>(5000);
+
     saveGame(state: GameSaveState): boolean {
         try {
             const saveData = {
                 ...state,
+                money: this.money(), // Save money
                 casinoData: this.casinoService.saveToStorage()
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData));
@@ -32,6 +36,11 @@ export class GameStateService {
         try {
             const state: GameSaveState = JSON.parse(saved);
 
+            // Restore money
+            if (state.money !== undefined) {
+                this.money.set(state.money);
+            }
+
             // Restore guests using the static method
             const restoredGuests = state.guests.map(g => Guest.fromJSON(g));
             state.guests = restoredGuests;
@@ -48,21 +57,20 @@ export class GameStateService {
         }
     }
 
+    deductMoney(amount: number): boolean {
+        if (this.money() >= amount) {
+            this.money.update(m => m - amount);
+            return true;
+        }
+        return false;
+    }
+
+    addMoney(amount: number): void {
+        this.money.update(m => m + amount);
+    }
+
     resetGame(): void {
         localStorage.removeItem(STORAGE_KEY);
         this.casinoService.reset();
-    }
-
-    createDemoSave(): GameSaveState {
-        // Demo save creation logic moved here from component
-        return {
-            money: 10000,
-            dayCount: 1,
-            grid: [],
-            guests: [],
-            guestIdCounter: 1,
-            entranceIndex: 0,
-            casinoLastPayoutDay: 0
-        };
     }
 }

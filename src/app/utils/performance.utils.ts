@@ -206,7 +206,7 @@ export class FrameRateLimiter {
     private lastFrameTime = 0;
     private targetFrameTime: number;
 
-    constructor(targetFPS: number = 60) {
+    constructor(targetFPS: number = 30) {
         this.targetFrameTime = 1000 / targetFPS;
     }
 
