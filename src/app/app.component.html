@@ -114,7 +114,9 @@
       <div class="relative shadow-2xl overflow-hidden">
         <canvas #gameCanvas (mousedown)="handleCanvasMouseDown($event)" (mousemove)="handleCanvasMouseMove($event)"
           (dblclick)="handleCanvasDoubleClick($event)" (wheel)="handleCanvasWheel($event)"
-          (contextmenu)="handleCanvasMouseDown($event); $event.preventDefault()" class="block">
+          (contextmenu)="handleCanvasMouseDown($event); $event.preventDefault()"
+          (touchstart)="handleCanvasTouchStart($event)" (touchmove)="handleCanvasTouchMove($event)"
+          (touchend)="handleCanvasTouchEnd($event)" class="block">
         </canvas>
       </div>
       <div class="zoom-btn flex items-center bg-gray-800 border border-gray-700 rounded px-2 py-1 space-x-1">

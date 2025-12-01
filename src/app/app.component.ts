@@ -180,6 +180,11 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   private readonly dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
   private parkClosedEffectReady = false;
 
+  // Touch handling
+  private lastTouchX = 0;
+  private lastTouchY = 0;
+  private isTouchPanning = false;
+
   // === ОПТИМИЗАЦИЯ: Контроль частоты обновлений ===
   private frameRateLimiter = new FrameRateLimiter(60);
   private needsRender = true; // Флаг для отложенного рендера
@@ -400,22 +405,54 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     this.setPan(nextX, nextY);
   }
 
-  handleCanvasMouseDown(event: MouseEvent) {
+  handleCanvasTouchStart(event: TouchEvent) {
+    if (event.touches.length === 1) {
+      const touch = event.touches[0];
+      this.lastTouchX = touch.clientX;
+      this.lastTouchY = touch.clientY;
+      this.isTouchPanning = false;
+    }
+  }
+
+  handleCanvasTouchMove(event: TouchEvent) {
+    if (event.touches.length === 1) {
+      event.preventDefault();
+      const touch = event.touches[0];
+      const dx = touch.clientX - this.lastTouchX;
+      const dy = touch.clientY - this.lastTouchY;
+
+      if (!this.isTouchPanning && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+        this.isTouchPanning = true;
+      }
+
+      if (this.isTouchPanning) {
+        this.setPan(this.panX() + dx, this.panY() + dy);
+        this.lastTouchX = touch.clientX;
+        this.lastTouchY = touch.clientY;
+      }
+    }
+  }
+
+  handleCanvasTouchEnd(event: TouchEvent) {
+    if (!this.isTouchPanning && event.changedTouches.length > 0) {
+      const touch = event.changedTouches[0];
+      event.preventDefault();
+      this.handleInteraction(touch.clientX, touch.clientY, false);
+    }
+    this.isTouchPanning = false;
+  }
+
+  private handleInteraction(clientX: number, clientY: number, isRightClick: boolean) {
     const rect = this.gameCanvas.nativeElement.getBoundingClientRect();
     const scale = this.viewScale();
-    const x = (event.clientX - rect.left - this.panX()) / scale;
-    const y = (event.clientY - rect.top - this.panY()) / scale;
+    const x = (clientX - rect.left - this.panX()) / scale;
+    const y = (clientY - rect.top - this.panY()) / scale;
 
     const gridX = Math.floor(x / TILE_SIZE);
     const gridY = Math.floor(y / TILE_SIZE);
     const currentTool = this.selectedToolCategory();
 
-    if (event.button === 1) {
-      this.startPanning(event);
-      return;
-    }
-
-    if (event.button === 2) {
+    if (isRightClick) {
       this.selectTool('none', null);
       return;
     }
@@ -425,7 +462,6 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
-    // Only allow guest selection when no tool is active, so demolish/build always works
     if (currentTool === 'none') {
       const guests = this.guests();
       for (let i = guests.length - 1; i >= 0; i--) {
@@ -434,7 +470,8 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
         const gx = g.x * TILE_SIZE;
         const gy = g.y * TILE_SIZE;
         if (x >= gx && x <= gx + TILE_SIZE && y >= gy && y <= gy + TILE_SIZE) {
-          this.onGuestClick(event, g.id);
+          this.selectedGuestId.set(g.id);
+          this.selectTool('none', null);
           return;
         }
       }
@@ -444,6 +481,14 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     if (cell) {
       this.onCellClick(cell);
     }
+  }
+
+  handleCanvasMouseDown(event: MouseEvent) {
+    if (event.button === 1) {
+      this.startPanning(event);
+      return;
+    }
+    this.handleInteraction(event.clientX, event.clientY, event.button === 2);
   }
 
   handleCanvasMouseMove(event: MouseEvent) {
