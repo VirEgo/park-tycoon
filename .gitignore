@@ -41,5 +41,3 @@ testem.log
 .DS_Store
 Thumbs.db
 
-# Performance utilities temporary removed from GIT
-performance.utils.ts
