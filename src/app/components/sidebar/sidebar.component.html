@@ -14,7 +14,6 @@
   </div>
 
   <div class="sidebar__content custom-scrollbar">
-
     <section class="sidebar__section">
       <h3 class="section__title">Инфраструктура</h3>
       <div class="tile-grid">
@@ -43,7 +42,7 @@
 
     <section class="sidebar__section" *ngFor="let cat of categories">
       <h3 class="section__title">
-        {{ cat === 'attraction' ? 'Аттракционы' : cat === 'shop' ? 'Магазины' : 'Декор' }}
+        {{ BuildingCategoryLabels[cat] }}
       </h3>
 
       <div class="tile-grid">
@@ -68,14 +67,14 @@
         </button>
       </div>
     </section>
+  </div>
 
-    <div class="sidebar__footer">
-      <button type="button" class="btn btn--danger" (click)="reset.emit()">
-        Сброс прогресса
-      </button>
-      <div class="sidebar__hint">
-        Автосохранение каждые 5 сек
-      </div>
+  <div class="sidebar__footer">
+    <button type="button" class="btn btn--danger" (click)="reset.emit()">
+      Сброс прогресса
+    </button>
+    <div class="sidebar__hint">
+      Автосохранение каждые 5 сек
     </div>
   </div>
 </aside>

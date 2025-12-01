@@ -7,6 +7,7 @@ import {
     ThemeDefinition,
     UpgradeCost
 } from '../models/attraction-upgrade.model';
+import { DEFAULT_UPGRADE_PROFILE, UPGRADE_PROFILES, UpgradeProfile } from '../config/upgrade-profiles';
 
 @Injectable({
     providedIn: 'root'
@@ -23,32 +24,25 @@ export class AttractionUpgradeService {
         return `${attractionId}@${cellX},${cellY}`;
     }
 
-    /**
-     * Получить улучшение конкретного экземпляра аттракциона
-     */
+    // Получить улучшение конкретного экземпляра аттракциона
+
     getUpgrade(attractionId: string, cellX: number, cellY: number): AttractionUpgrade | null {
         return this.upgrades.get(this.makeKey(attractionId, cellX, cellY)) || null;
     }
 
-    /**
-     * Проверить, есть ли прокачка у конкретного экземпляра
-     */
+    // Проверить, есть ли прокачка у конкретного экземпляра
     isUpgraded(attractionId: string, cellX: number, cellY: number): boolean {
         const upgrade = this.getUpgrade(attractionId, cellX, cellY);
         return upgrade ? upgrade.level > 1 : false;
     }
 
-    /**
-     * Текущий уровень экземпляра
-     */
+    // Текущий уровень экземпляра
     getLevel(attractionId: string, cellX: number, cellY: number): number {
         const upgrade = this.getUpgrade(attractionId, cellX, cellY);
         return upgrade ? upgrade.level : 1;
     }
 
-    /**
-     * Улучшить конкретный экземпляр
-     */
+    // Улучшить конкретный экземпляр
     upgradeAttraction(
         attractionId: string,
         cellX: number,
@@ -72,8 +66,11 @@ export class AttractionUpgradeService {
         }
 
         const nextLevel = currentLevel + 1;
-        const upgradeCost = UPGRADE_COSTS.find(u => u.level === nextLevel);
+        const profile = this.getProfile(attractionId);
+        const sourceCosts = profile.upgradeCosts ?? UPGRADE_COSTS;
+        const upgradeCost = sourceCosts.find(u => u.level === nextLevel);
 
+        console.log(profile, 'upgrade');
         if (!upgradeCost) {
             return {
                 success: false,
@@ -81,11 +78,13 @@ export class AttractionUpgradeService {
             };
         }
 
-        if (currentMoney < upgradeCost.cost) {
+        const effectiveCost = Math.ceil(upgradeCost.cost * (profile.costMultiplier ?? 1));
+
+        if (currentMoney < effectiveCost) {
             return {
                 success: false,
-                cost: upgradeCost.cost,
-                message: `Недостаточно денег. Нужно: $${upgradeCost.cost}`
+                cost: effectiveCost,
+                message: `Недостаточно денег. Нужно: $${effectiveCost}`
             };
         }
 
@@ -114,8 +113,9 @@ export class AttractionUpgradeService {
                 hasStaff: false
             };
 
-        this.upgrades.set(key, newUpgrade);
-        this.saveToStorage();
+        // this.upgrades.set(key, newUpgrade);
+        // this.saveToStorage();
+
 
         return {
             success: true,
@@ -123,11 +123,10 @@ export class AttractionUpgradeService {
             newUpgrade,
             message: `Аттракцион улучшен до уровня ${nextLevel}!`
         };
+
     }
 
-    /**
-     * Применить тему к экземпляру
-     */
+    // Применить тему к экземпляру
     applyTheme(
         attractionId: string,
         cellX: number,
@@ -193,9 +192,7 @@ export class AttractionUpgradeService {
         };
     }
 
-    /**
-     * Посчитать доход с учетом апгрейдов
-     */
+    // Посчитать доход с учетом апгрейдов
     calculateModifiedIncome(attractionId: string, cellX: number, cellY: number, baseIncome: number): number {
         const upgrade = this.getUpgrade(attractionId, cellX, cellY);
         if (!upgrade) return baseIncome;
@@ -213,9 +210,7 @@ export class AttractionUpgradeService {
         return Math.floor(modifiedIncome);
     }
 
-    /**
-     * Посчитать удовлетворенность с учетом апгрейдов
-     */
+    // Посчитать удовлетворенность с учетом апгрейдов
     calculateModifiedSatisfaction(attractionId: string, cellX: number, cellY: number, baseSatisfaction: number): number {
         const upgrade = this.getUpgrade(attractionId, cellX, cellY);
         if (!upgrade) return baseSatisfaction;
@@ -232,38 +227,42 @@ export class AttractionUpgradeService {
         return Math.min(100, modified);
     }
 
-    /**
-     * Стоимость следующего уровня
-     */
+    // Стоимость следующего уровня
     getNextUpgradeCost(attractionId: string, cellX: number, cellY: number): number | null {
+        const profile = this.getProfile(attractionId);
         const upgrade = this.getUpgrade(attractionId, cellX, cellY);
         const currentLevel = upgrade ? upgrade.level : 1;
 
-        if (currentLevel >= 5) return null;
+        const maxLevel = profile.maxLevel ?? 5;
+        if (currentLevel >= maxLevel) return null;
 
-        const nextUpgrade = UPGRADE_COSTS.find(u => u.level === currentLevel + 1);
-        return nextUpgrade ? nextUpgrade.cost : null;
+        const sourceCosts = profile.upgradeCosts ?? UPGRADE_COSTS;
+        const nextUpgrade = (sourceCosts as any).find((u: any) => u.level === currentLevel + 1);
+        return nextUpgrade ? Math.ceil(nextUpgrade.cost * (profile.costMultiplier ?? 1)) : null;
     }
 
-    /**
-     * Доступные темы для экземпляра
-     */
+    // Доступные темы для экземпляра
     getAvailableThemes(attractionId: string, cellX: number, cellY: number): ThemeDefinition[] {
+        const profile = this.getProfile(attractionId);
         const upgrade = this.getUpgrade(attractionId, cellX, cellY);
         const currentLevel = upgrade ? upgrade.level : 1;
 
-        return THEMES.filter(theme => {
+        let themes = THEMES.filter(theme => {
             if (theme.id === 'default') return false;
             if (theme.requirements?.minLevel && currentLevel < theme.requirements.minLevel) {
                 return false;
             }
             return true;
         });
+
+        if (profile.allowedThemeIds && profile.allowedThemeIds.length > 0) {
+            themes = themes.filter(t => profile.allowedThemeIds!.includes(t.id));
+        }
+
+        return themes;
     }
 
-    /**
-     * Иконка темы для экземпляра
-     */
+    // Иконка темы для экземпляра
     getThemeIcon(attractionId: string, cellX: number, cellY: number): string {
         const upgrade = this.getUpgrade(attractionId, cellX, cellY);
         if (!upgrade || !upgrade.theme) return '';
@@ -272,9 +271,7 @@ export class AttractionUpgradeService {
         return theme ? theme.icon : '';
     }
 
-    /**
-     * Статистика апгрейдов
-     */
+    // Статистика апгрейдов
     getAllUpgrades(): AttractionUpgrade[] {
         return Array.from(this.upgrades.values());
     }
@@ -308,25 +305,19 @@ export class AttractionUpgradeService {
         };
     }
 
-    /**
-     * Сбросить все улучшения
-     */
+    // Сбросить все улучшения
     clearAll(): void {
         this.upgrades.clear();
         localStorage.removeItem(this.STORAGE_KEY);
     }
 
-    /**
-     * Удалить улучшение для конкретного экземпляра
-     */
+    // Удалить улучшение для конкретного экземпляра
     removeUpgrade(attractionId: string, cellX: number, cellY: number): void {
         this.upgrades.delete(this.makeKey(attractionId, cellX, cellY));
         this.saveToStorage();
     }
 
-    /**
-     * Сохранить в localStorage
-     */
+    // Сохранить в localStorage
     private saveToStorage(): void {
         try {
             const data = Array.from(this.upgrades.entries());
@@ -336,9 +327,7 @@ export class AttractionUpgradeService {
         }
     }
 
-    /**
-     * Загрузить из localStorage (игнорируя старый формат без координат)
-     */
+    // Загрузить из localStorage (игнорируя старый формат без координат)
     private loadFromStorage(): void {
         try {
             const data = localStorage.getItem(this.STORAGE_KEY);
@@ -349,5 +338,9 @@ export class AttractionUpgradeService {
         } catch (e) {
             console.error('Failed to load upgrades:', e);
         }
+    }
+
+    private getProfile(attractionId: string): UpgradeProfile {
+        return UPGRADE_PROFILES[attractionId] || DEFAULT_UPGRADE_PROFILE;
     }
 }

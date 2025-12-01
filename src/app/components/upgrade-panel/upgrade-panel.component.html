@@ -19,7 +19,8 @@
                     <p>Откройте доступ, пока идет ремонт.</p>
                 </div>
             </div>
-            <button class="repair-btn" [disabled]="currentMoney() < repairCost()" (click)="onRepair.emit({ cost: repairCost() })">
+            <button class="repair-btn" [disabled]="currentMoney() < repairCost()"
+                (click)="onRepair.emit({ cost: repairCost() })">
                 Починить за ${{ repairCost() }}
             </button>
         </div>
@@ -28,13 +29,14 @@
         <!-- Tabs -->
         <div class="tabs">
             <button class="tab-btn" [class.active]="activeTab() === 'upgrade'" (click)="activeTab.set('upgrade')">
-                ⚙️ Улучшения
+                Улучшения
             </button>
             <button class="tab-btn" [class.active]="activeTab() === 'stats'" (click)="activeTab.set('stats')">
-                📊 Статистика
+                Статистика
             </button>
-            <button class="tab-btn" [class.active]="activeTab() === 'customization'" (click)="activeTab.set('customization')">
-                🎨 Темы
+            <button class="tab-btn" [class.active]="activeTab() === 'customization'"
+                (click)="activeTab.set('customization')">
+                Темы
             </button>
         </div>
 
@@ -46,17 +48,26 @@
                 <div class="section">
                     <h4>Текущие бонусы</h4>
                     <div class="stats-grid">
-                        <div class="stat-item">
+                        <div class="stat-item" *ngIf="upgrade?.upgrades?.speed as speed">
                             <span class="stat-label">Скорость</span>
-                            <span class="stat-value">+{{ upgrade?.upgrades?.speed || 0 }}%</span>
+                            <span class="stat-value">+{{ speed }}%</span>
                         </div>
-                        <div class="stat-item">
+                        <div class="stat-item" *ngIf="upgrade?.upgrades?.income as income">
                             <span class="stat-label">Доход</span>
-                            <span class="stat-value">+{{ upgrade?.upgrades?.income || 0 }}%</span>
+                            <span class="stat-value">+{{ income }}%</span>
                         </div>
-                        <div class="stat-item">
+                        <div class="stat-item" *ngIf="upgrade?.upgrades?.satisfaction as satisfaction">
                             <span class="stat-label">Удовлетворение</span>
-                            <span class="stat-value">+{{ upgrade?.upgrades?.satisfaction || 0 }}</span>
+                            <span class="stat-value">+{{ satisfaction }}</span>
+                        </div>
+                        <div class="stat-item" *ngIf="currentMaxUsage !== null">
+                            <span class="stat-label">Макс. посещений</span>
+                            <span class="stat-value">{{ currentMaxUsage }}</span>
+                        </div>
+
+                        <div class="stat-item" *ngIf="currentMaxUsage !== null">
+                            <span class="stat-label">Макс. посещений</span>
+                            <span class="stat-value">{{ currentMaxUsage }}</span>
                         </div>
                     </div>
                 </div>
@@ -84,8 +95,14 @@
                                 <span class="icon">😊</span>
                                 <span>+{{ getNextLevelBonus().satisfaction }} удовлетворение</span>
                             </div>
+                            <div class="bonus-item" *ngIf="upcomingMaxUsage.length">
+                                <span class="icon">🏗️</span>
+                                <span>Макс. посещений → {{ upcomingMaxUsage[0].value }} ({{ upcomingMaxUsage[0].delta >
+                                    0 ? '+' : '' }}{{ upcomingMaxUsage[0].delta }})</span>
+                            </div>
                         </div>
-                        <button class="action-btn upgrade-action" [disabled]="currentMoney() < nextUpgradeCost" (click)="upgradeLevel()">
+                        <button class="action-btn upgrade-action" [disabled]="currentMoney() < nextUpgradeCost"
+                            (click)="upgradeLevel()">
                             Улучшить (${{ nextUpgradeCost }})
                         </button>
                     </div>
@@ -159,7 +176,8 @@
 
                     <div class="tx-history" *ngIf="casinoStats!.transactions.length; else noTx">
                         <div class="tx-item" *ngFor="let tx of casinoStats!.transactions; trackBy: trackByTxId"
-                            [class.tx-win]="tx.type === 'win'" [class.tx-lose]="tx.type === 'lose'" [class.tx-payout]="tx.type === 'payout'">
+                            [class.tx-win]="tx.type === 'win'" [class.tx-lose]="tx.type === 'lose'"
+                            [class.tx-payout]="tx.type === 'payout'">
                             <div class="tx-row">
                                 <div class="tx-type">
                                     <span *ngIf="tx.type === 'win'">Выигрыш</span>
@@ -167,7 +185,8 @@
                                     <span *ngIf="tx.type === 'payout'">Выплата</span>
                                     <span *ngIf="tx.guestId !== undefined" class="tx-guest">Гость #{{tx.guestId}}</span>
                                 </div>
-                                <div class="tx-amount" [class.win]="tx.type === 'win'" [class.lose]="tx.type === 'lose'" [class.payout]="tx.type === 'payout'">
+                                <div class="tx-amount" [class.win]="tx.type === 'win'" [class.lose]="tx.type === 'lose'"
+                                    [class.payout]="tx.type === 'payout'">
                                     {{tx.type === 'lose' ? '-' : '+'}} ${{tx.amount.toFixed(2)}}
                                 </div>
                             </div>
@@ -198,11 +217,13 @@
                                 <div class="theme-name">{{ theme.name }}</div>
                                 <div class="theme-bonuses">
                                     @if (theme.bonuses.income) { <span>💰 +{{ theme.bonuses.income }}%</span> }
-                                    @if (theme.bonuses.satisfaction) { <span>😊 +{{ theme.bonuses.satisfaction }}</span> }
+                                    @if (theme.bonuses.satisfaction) { <span>😊 +{{ theme.bonuses.satisfaction }}</span>
+                                    }
                                 </div>
                             </div>
                             @if (currentTheme !== theme.id) {
-                            <button class="theme-select-btn" [disabled]="currentMoney() < theme.cost" (click)="applyTheme(theme.id)">
+                            <button class="theme-select-btn" [disabled]="currentMoney() < theme.cost"
+                                (click)="applyTheme(theme.id)">
                                 ${{ theme.cost }}
                             </button>
                             } @else {

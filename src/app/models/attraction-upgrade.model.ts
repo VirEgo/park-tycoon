@@ -118,3 +118,59 @@ export const UPGRADE_COSTS: UpgradeCost[] = [
         bonusPerLevel: { speed: 50, capacity: 5, income: 60, satisfaction: 25 }
     }
 ];
+
+
+export interface ServiceBehaviorConfig {
+    // сколько посещений выдерживает здание до поломки (если не задано - берётся из DEFAULT в сервисе)
+    visitsBeforeBreak?: number;
+    // множитель для расчёта стоимости ремонта относительно базовой цены здания
+    // (можно комбинировать с уровнями: профиль может иметь costMultiplier)
+    repairCostMultiplier?: number;
+    // если true - темы запрещены для этого типа здания
+    disableThemes?: boolean;
+    // можно переопределить максимальный уровень для сервисных зданий
+    maxLevel?: number;
+    // дополнительные поля для будущего расширения
+    notes?: string;
+}
+
+export interface ServiceStatus {
+    // сколько посещений накоплено с последнего ремонта
+    visitsSinceRepair: number;
+    // флаг поломки
+    isBroken: boolean;
+    // timestamp последнего ремонта
+    lastRepairAt?: number;
+}
+
+export interface AttractionUpgrade {
+    attractionId: string;
+    level: number;
+    totalInvested: number;
+    upgrades: {
+        speed: number;
+        capacity: number;
+        income: number;
+        satisfaction: number;
+    };
+    theme?: ThemeType;
+    hasStaff: boolean;
+
+    // optional service-related runtime state (для сервисных зданий)
+    service?: ServiceStatus;
+}
+
+// утилита расчёта стоимости ремонта (используется в сервисе/панели)
+export function calcRepairCost(basePrice: number, level: number, multiplier: number = 1): number {
+    // относительно базовой цены применяется коэффициент по уровню:
+    // level 1 -> 25%, 2 -> 60%, 3 -> 90%, 4 -> 110%, 5 -> 150%
+    const levelMap: Record<number, number> = {
+        1: 0.25,
+        2: 0.60,
+        3: 0.90,
+        4: 1.10,
+        5: 1.50
+    };
+    const coef = levelMap[level] ?? 1.0;
+    return Math.ceil(basePrice * coef * multiplier);
+}

@@ -37,6 +37,23 @@ export class BuildingStatusService {
         this.saveToStorage();
     }
 
+    updateMaxVisits(x: number, y: number, maxVisits: number) {
+        const key = this.getKey(x, y);
+        const status = this.statuses.get(key);
+        if (status) {
+            status.maxVisits = maxVisits;
+            // если текущее посещение превышает новый лимит — помечаем как сломанное
+            status.isBroken = status.visits >= status.maxVisits;
+            this.saveToStorage();
+        } else {
+            this.initStatus(x, y, maxVisits);
+        }
+    }
+
+    getDefaultMaxVisits() {
+        return this.DEFAULT_MAX_VISITS;
+    }
+
     recordVisit(x: number, y: number): boolean {
         const key = this.getKey(x, y);
         const status = this.statuses.get(key);

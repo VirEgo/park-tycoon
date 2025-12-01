@@ -1,4 +1,4 @@
-export type ToolType = 'none' | 'demolish' | 'path' | 'attraction' | 'shop' | 'decoration';
+export type ToolType = 'none' | 'demolish' | 'path' | 'attraction' | 'shop' | 'decoration' | 'service';
 
 export interface BuildingType {
     id: string;
@@ -18,6 +18,8 @@ export interface BuildingType {
     isGambling?: boolean;
     hidden?: boolean;
     isAvailableForVisit?: boolean;
+    maxUsageLimit?: number; // база прочности/посещений до поломки
+    allowContinuousBuild?: boolean; // можно ставить несколько подряд без сброса инструмента
 }
 
 export const BUILDINGS: BuildingType[] = [
@@ -44,9 +46,9 @@ export const BUILDINGS: BuildingType[] = [
     { id: 'balloons', name: 'Шарики', category: 'shop', price: 100, income: 0.3, color: '#ef4444', icon: '🎈', width: 2, height: 2, svgPath: '/assets/buildings/balloons.svg', description: 'Цветные эмоции', satisfies: 'fun', statValue: 15, isAvailableForVisit: true },
 
     // Декор
-    { id: 'fountain', name: 'Фонтан', category: 'decoration', price: 400, income: 0, color: '#3b82f6', icon: '⛲', width: 2, height: 2, svgPath: '/assets/buildings/fountain.svg', description: 'Оживляет площадь', satisfies: 'fun', statValue: 5, isAvailableForVisit: false },
-    { id: 'tree', name: 'Дерево', category: 'decoration', price: 50, income: 0, color: '#166534', icon: '🌳', width: 1, height: 1, svgPath: '/assets/buildings/tree.svg', description: 'Тень и зелень', allowedOnPath: false, isAvailableForVisit: false },
-    { id: 'bench', name: 'Скамейка', category: 'decoration', price: 50, income: 0, color: '#8B4513', icon: '🪑', width: 1, height: 1, svgPath: '/assets/buildings/bench.svg', description: 'Сесть и отдохнуть', satisfies: 'energy', statValue: 40, isAvailableForVisit: true },
+    { id: 'fountain', name: 'Фонтан', category: 'decoration', price: 400, income: 0, color: '#3b82f6', icon: '⛲', width: 2, height: 2, svgPath: '/assets/buildings/fountain.svg', description: 'Оживляет площадь', satisfies: 'fun', statValue: 5, isAvailableForVisit: false, allowContinuousBuild: true },
+    { id: 'tree', name: 'Дерево', category: 'decoration', price: 50, income: 0, color: '#166534', icon: '🌳', width: 1, height: 1, svgPath: '/assets/buildings/tree.svg', description: 'Тень и зелень', allowedOnPath: false, isAvailableForVisit: false, allowContinuousBuild: true },
+    { id: 'bench', name: 'Скамейка', category: 'decoration', price: 50, income: 0, color: '#8B4513', icon: '🪑', width: 1, height: 1, svgPath: '/assets/buildings/bench.svg', description: 'Сесть и отдохнуть', satisfies: 'energy', statValue: 40, isAvailableForVisit: true, maxUsageLimit: 1500, allowContinuousBuild: true },
 
     // Новые аттракционы
     { id: 'bumpers', name: 'Бамперные машинки', category: 'attraction', price: 900, income: 0.6, color: '#0ea5e9', icon: '🚗', width: 2, height: 2, svgPath: '/assets/buildings/bumpers.svg', description: 'Весёлый таран на машинках', satisfies: 'fun', statValue: 35, isAvailableForVisit: true },
@@ -60,12 +62,15 @@ export const BUILDINGS: BuildingType[] = [
     { id: 'souvenir', name: 'Сувениры', category: 'shop', price: 450, income: 1.6, color: '#a78bfa', icon: '🛍️', width: 2, height: 2, svgPath: '/assets/buildings/souvenir.svg', description: 'Памятные штучки', satisfies: 'fun', statValue: 20, isAvailableForVisit: true },
 
     // Новый декор
-    { id: 'statue', name: 'Статуя', category: 'decoration', price: 300, income: 0, color: '#9ca3af', icon: '🗿', width: 1, height: 1, svgPath: '/assets/buildings/statue.svg', description: 'Центр внимания', satisfies: 'fun', statValue: 8, isAvailableForVisit: false },
-    { id: 'lamp', name: 'Фонарь', category: 'decoration', price: 120, income: 0, color: '#f59e0b', icon: '💡', width: 1, height: 1, svgPath: '/assets/buildings/lamp.svg', description: 'Светит по вечерам', satisfies: 'energy', statValue: 5, isAvailableForVisit: false },
-    { id: 'flowerbed', name: 'Клумба', category: 'decoration', price: 90, income: 0, color: '#22c55e', icon: '🌸', width: 1, height: 1, svgPath: '/assets/buildings/flowerbed.svg', description: 'Яркие цветы', satisfies: 'fun', statValue: 6, isAvailableForVisit: false },
+    { id: 'statue', name: 'Статуя', category: 'decoration', price: 300, income: 0, color: '#9ca3af', icon: '🗿', width: 1, height: 1, svgPath: '/assets/buildings/statue.svg', description: 'Центр внимания', satisfies: 'fun', statValue: 8, isAvailableForVisit: false, allowContinuousBuild: true },
+    { id: 'lamp', name: 'Фонарь', category: 'decoration', price: 120, income: 0, color: '#f59e0b', icon: '💡', width: 1, height: 1, svgPath: '/assets/buildings/lamp.svg', description: 'Светит по вечерам', satisfies: 'energy', statValue: 5, isAvailableForVisit: false, allowContinuousBuild: true },
+    { id: 'flowerbed', name: 'Клумба', category: 'decoration', price: 90, income: 0, color: '#22c55e', icon: '🌸', width: 1, height: 1, svgPath: '/assets/buildings/flowerbed.svg', description: 'Яркие цветы', satisfies: 'fun', statValue: 6, isAvailableForVisit: false, allowContinuousBuild: true },
 
     // Служебные элементы рельефа (не отображаются в магазине)
-    { id: 'toilet', name: 'Туалет', category: 'shop', price: 100, income: 0.5, color: '#ffffff', icon: '🚽', width: 1, height: 1, svgPath: '/assets/buildings/toilet.svg', description: 'Место для важных дел', satisfies: 'toilet', statValue: 100, isAvailableForVisit: true },
-    { id: 'mountain', name: 'Гора', category: 'decoration', price: 0, income: 0, color: '#6b7280', icon: '⛰️', width: 7, height: 7, svgPath: '/assets/buildings/mountain.svg', description: 'Высокая гора', satisfies: 'fun', statValue: 2, hidden: true, isAvailableForVisit: false },
-    { id: 'pond', name: 'Пруд', category: 'decoration', price: 0, income: 0, color: '#38bdf8', icon: '🌊', width: 7, height: 7, svgPath: '/assets/buildings/pond.svg', description: 'Водная гладь', satisfies: 'fun', statValue: 3, hidden: true, isAvailableForVisit: false },
+    { id: 'toilet', name: 'Туалет', category: 'shop', price: 100, income: 0.5, color: '#ffffff', icon: '🚽', width: 1, height: 1, svgPath: '/assets/buildings/toilet.svg', description: 'Место для важных дел', satisfies: 'toilet', statValue: 100, isAvailableForVisit: true, maxUsageLimit: 1300 },
+    { id: 'mountain', name: 'Гора', category: 'decoration', price: 0, income: 0, color: '#6b7280', icon: '⛰️', width: 7, height: 7, svgPath: '/assets/buildings/mountain.svg', description: 'Высокая гора', satisfies: 'fun', statValue: 2, hidden: true, isAvailableForVisit: false, allowContinuousBuild: true },
+    { id: 'pond', name: 'Пруд', category: 'decoration', price: 0, income: 0, color: '#38bdf8', icon: '🌊', width: 7, height: 7, svgPath: '/assets/buildings/pond.svg', description: 'Водная гладь', satisfies: 'fun', statValue: 3, hidden: true, isAvailableForVisit: false, allowContinuousBuild: true },
+
+    // Служебные здания
+    { id: 'parkMaintenance', name: 'Ремонтная мастерская', category: 'service', price: 500, income: 0, color: '#374151', icon: '🛠️', width: 2, height: 2, svgPath: '/assets/buildings/parkMaintenance.svg', description: 'Обслуживание парка', hidden: false, isAvailableForVisit: false },
 ];

@@ -7,6 +7,7 @@ export class Guest {
     targetX: number;
     targetY: number;
     money: number;
+    isWorker: boolean = false;
 
     // Stats (0-100)
     happiness: number = 100;
@@ -15,6 +16,15 @@ export class Guest {
     energy: number = 100;    // Rest
     fun: number = 100;       // Entertainment
     toilet: number = 100;    // Bladder
+    workerHome: string | null = null;
+    workerTask?: {
+        targetX: number;
+        targetY: number;
+        buildingKey: string;
+        path?: Array<{ x: number, y: number }>;
+        pathIndex?: number;
+        isReturnToBase?: boolean;
+    };
 
     state: 'walking' | 'idle' | 'spending' | 'leaving' = 'idle';
     statusMessage: string | null = null;
@@ -52,10 +62,11 @@ export class Guest {
         this.emoji = this.getRandomEmoji();
         this.visualType = this.getRandomVisualType();
         this.skin = Guest.SKINS[this.visualType] || Guest.SKINS['visitor'];
+        this.isWorker = false;
     }
 
     private getRandomVisualType(): string {
-        const types = Object.keys(Guest.SKINS);
+        const types = Object.keys(Guest.SKINS).filter(key => !Guest.WORKER_SKIN_KEYS.includes(key));
         return types[Math.floor(Math.random() * types.length)];
     }
 
@@ -197,5 +208,14 @@ export class Guest {
         'donald': 'assets/guests/donald.svg',
         'goofy': 'assets/guests/goofy.svg',
         'shrek': 'assets/guests/shrek.svg',
-    }
+        'worker1': 'assets/workers/maintenance_worker_hazmat.svg',
+        'worker2': 'assets/workers/maintenance_worker_overalls.svg',
+        'worker3': 'assets/workers/maintenance_worker_vest.svg',
+    };
+
+    static WORKER_SKIN_KEYS: string[] = [
+        'worker1',
+        'worker2',
+        'worker3'
+    ];
 }

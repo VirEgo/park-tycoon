@@ -1,5 +1,4 @@
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { AfterViewInit, Component, computed, effect, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild, WritableSignal } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { interval, Subscription } from 'rxjs';
@@ -19,6 +18,8 @@ import { ExpansionService } from './services/expansion.service';
 import { GameStateService } from './services/game-state.service';
 import { GRID_H, GRID_W, GridService } from './services/grid.service';
 import { GuestService } from './services/guest.service';
+import { CanvasRenderService } from './services/canvas-render.service';
+import { MaintenanceService } from './services/maintenance.service';
 
 const TILE_SIZE = 40;
 const MIN_ZOOM = 0.5;
@@ -48,8 +49,6 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild('gameCanvas') gameCanvas!: ElementRef<HTMLCanvasElement>;
   private ctx!: CanvasRenderingContext2D;
   private renderLoopId: number | null = null;
-  private skinCache: Map<string, HTMLImageElement> = new Map();
-  private rawSkins: Map<string, string> = new Map();
   private handleEscapeListener = (event: KeyboardEvent) => this.handleEscape(event);
   private handleContextMenuListener = (event: MouseEvent) => this.handleGlobalRightClick(event);
   private stopPanListener = () => this.stopPanning();
@@ -110,7 +109,8 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   private expansionService = inject(ExpansionService);
   private upgradeService = inject(AttractionUpgradeService);
   private router = inject(Router);
-  private http = inject(HttpClient);
+  private canvasRenderService = inject(CanvasRenderService);
+  private maintenanceService = inject(MaintenanceService);
 
   guestStats = computed(() => {
     return this.guestService.calculateAverageStats(this.guests());
@@ -162,7 +162,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       this.initNewGame();
     }
 
-    this.preloadSkins();
+    this.canvasRenderService.preloadSkins();
     this.startGameLoop();
     this.startAutoSave();
 
@@ -194,21 +194,10 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     window.removeEventListener('resize', this.handleResize);
   }
 
-  private preloadSkins() {
-    Object.entries(Guest.SKINS).forEach(([key, path]) => {
-      this.http.get(path, { responseType: 'text' }).subscribe({
-        next: (svgContent) => {
-          this.rawSkins.set(key, svgContent);
-        },
-        error: (err) => console.error(`Failed to load skin: ${key}`, err)
-      });
-    });
-  }
-
   private startRenderLoop() {
     const loop = (timestamp: number) => {
       if (!this.lastFrameTime) this.lastFrameTime = timestamp;
-      const deltaTime = (timestamp - this.lastFrameTime) / 1000; // seconds
+      const deltaTime = (timestamp - this.lastFrameTime) / 1000;
       this.lastFrameTime = timestamp;
 
       if (!this.isPaused()) {
@@ -240,241 +229,22 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   private render() {
     if (!this.ctx || !this.gameCanvas?.nativeElement) return;
 
-    const width = this.gameCanvas.nativeElement.width;
-    const height = this.gameCanvas.nativeElement.height;
-    const scale = this.viewScale();
-    const panX = this.panX();
-    const panY = this.panY();
-    const dpr = this.dpr;
-    const grid = this.grid();
-    const guests = this.guests();
-    const selectedGuestId = this.selectedGuestId();
-    const hoveredCell = this.hoveredCell;
-
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-    this.ctx.clearRect(0, 0, width, height);
-    this.ctx.setTransform(scale * dpr, 0, 0, scale * dpr, panX * dpr, panY * dpr);
-
-    const startX = Math.floor((-panX / scale) / TILE_SIZE) * TILE_SIZE;
-    const startY = Math.floor((-panY / scale) / TILE_SIZE) * TILE_SIZE;
-    const endX = ((width / dpr - panX) / scale);
-    const endY = ((height / dpr - panY) / scale);
-
-    const tileBg = '#3bcf6f';
-
-    for (let y = startY; y < endY + TILE_SIZE; y += TILE_SIZE) {
-      for (let x = startX; x < endX + TILE_SIZE; x += TILE_SIZE) {
-        this.ctx.fillStyle = tileBg;
-        this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
-        this.ctx.strokeStyle = 'rgba(0,0,0,0.05)';
-        this.ctx.lineWidth = 1;
-        this.ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
-      }
-    }
-
-    // 1. Draw Grid
-    grid.forEach(cell => {
-      const x = cell.x * TILE_SIZE;
-      const y = cell.y * TILE_SIZE;
-
-      if (cell.type === 'grass') {
-        this.ctx.fillStyle = '#4ade80';
-        this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
-      } else if (cell.type === 'path') {
-        const pathImg = this.buildingService.getBuildingImage('path');
-        if (pathImg && pathImg.complete && pathImg.naturalWidth > 0) {
-          this.ctx.drawImage(pathImg, x, y, TILE_SIZE, TILE_SIZE);
-        } else {
-          this.ctx.fillStyle = '#9ca3af';
-          this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
-        }
-      } else if (cell.type === 'entrance') {
-        this.ctx.fillStyle = '#fbbf24';
-        this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
-      } else if (cell.type === 'exit') {
-        const exitImg = this.buildingService.getBuildingImage('exit');
-        if (exitImg && exitImg.complete && exitImg.naturalWidth > 0) {
-          this.ctx.drawImage(exitImg, x, y, TILE_SIZE, TILE_SIZE);
-        } else {
-          this.ctx.fillStyle = '#ef4444';
-          this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
-        }
-      } else if (cell.type === 'building') {
-        if (cell.isRoot) {
-          const bId = cell.buildingId;
-          if (bId) {
-            const building = this.buildingService.getBuildingById(bId);
-            if (building) {
-              const img = this.buildingService.getBuildingImage(bId);
-
-              this.ctx.fillStyle = '#4ade80';
-              this.ctx.fillRect(x, y, TILE_SIZE * building.width, TILE_SIZE * building.height);
-
-              if (img && img.complete && img.naturalWidth > 0) {
-                this.ctx.drawImage(img, x, y, TILE_SIZE * building.width, TILE_SIZE * building.height);
-              } else {
-                this.ctx.strokeStyle = '#4ade80';
-                this.ctx.lineWidth = 2;
-                this.ctx.strokeRect(x, y, TILE_SIZE * building.width, TILE_SIZE * building.height);
-
-                const icon = building.icon;
-                if (icon) {
-                  this.ctx.font = '24px Arial';
-                  this.ctx.textAlign = 'center';
-                  this.ctx.textBaseline = 'middle';
-                  this.ctx.fillStyle = '#000';
-                  this.ctx.fillText(icon, x + (TILE_SIZE * building.width) / 2, y + (TILE_SIZE * building.height) / 2);
-                }
-              }
-
-              const level = this.upgradeService.getLevel(bId, cell.x, cell.y);
-
-              const isBroken = this.buildingStatusService.isBroken(cell.x, cell.y);
-              if (isBroken) {
-                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-                this.ctx.fillRect(x, y, TILE_SIZE * building.width, TILE_SIZE * building.height);
-
-                this.ctx.font = '30px Arial';
-                this.ctx.textAlign = 'center';
-                this.ctx.textBaseline = 'middle';
-                this.ctx.fillStyle = '#FFF';
-                this.ctx.fillText('🔧', x + (TILE_SIZE * building.width) / 2, y + (TILE_SIZE * building.height) / 2);
-              }
-
-              if (level === 5) {
-                const centerX = x + (TILE_SIZE * building.width) / 2;
-                const starY = y - 10;
-                this.ctx.shadowColor = '#FFD700';
-                this.ctx.shadowBlur = 15;
-                this.ctx.font = '24px Arial';
-                this.ctx.textAlign = 'center';
-                this.ctx.textBaseline = 'bottom';
-                this.ctx.fillText('⭐', centerX, starY);
-                this.ctx.shadowBlur = 0;
-              } else if (level > 1) {
-                const starCount = level - 1;
-                const starSize = 12;
-                const startX = x + (TILE_SIZE * building.width) / 2 - ((starCount - 1) * starSize) / 2;
-                const starY = y - 5;
-
-                this.ctx.font = '12px Arial';
-                this.ctx.textAlign = 'center';
-                this.ctx.textBaseline = 'bottom';
-
-                for (let i = 0; i < starCount; i++) {
-                  this.ctx.fillText('⭐', startX + i * starSize, starY);
-                }
-              }
-
-              const themeIcon = this.upgradeService.getThemeIcon(bId, cell.x, cell.y);
-              if (themeIcon) {
-                this.ctx.font = '16px Arial';
-                this.ctx.textAlign = 'right';
-                this.ctx.textBaseline = 'top';
-                this.ctx.fillText(themeIcon, x + TILE_SIZE * building.width - 2, y + 2);
-              }
-            }
-          }
-        }
-      }
-
-      if (cell.type !== 'building') {
-        this.ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-        this.ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
-      }
-
-      if (cell.type === 'entrance') {
-        this.ctx.font = '20px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillStyle = '#000';
-        this.ctx.fillText('ENT', x + TILE_SIZE / 2, y + TILE_SIZE / 2);
-      } else if (cell.type === 'exit') {
-        this.ctx.font = '10px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'ideographic';
-        this.ctx.fillText('EXIT', x + TILE_SIZE / 3, y + TILE_SIZE / 3);
-      }
-
-      if (hoveredCell && hoveredCell.x === cell.x && hoveredCell.y === cell.y) {
-        const toolId = this.selectedToolId();
-        if (toolId && this.selectedToolCategory() !== 'none' && this.selectedToolCategory() !== 'demolish') {
-          const building = this.buildingService.getBuildingById(toolId);
-          if (building) {
-            const isValid = this.buildingService.checkPlacement(grid, cell.x, cell.y, building, this.GRID_W(), this.GRID_H());
-
-            for (let i = 0; i < building.width; i++) {
-              for (let j = 0; j < building.height; j++) {
-                const cellX = (cell.x + i) * TILE_SIZE;
-                const cellY = (cell.y + j) * TILE_SIZE;
-                const cellValid = (cell.x + i < this.GRID_W() && cell.y + j < this.GRID_H());
-
-                this.ctx.fillStyle = isValid && cellValid ? 'rgba(0, 255, 0, 0.35)' : 'rgba(255, 0, 0, 0.35)';
-                this.ctx.fillRect(cellX, cellY, TILE_SIZE, TILE_SIZE);
-
-                this.ctx.strokeStyle = isValid && cellValid ? 'rgba(0, 255, 0, 0.8)' : 'rgba(255, 0, 0, 0.8)';
-                this.ctx.lineWidth = 1;
-                this.ctx.strokeRect(cellX, cellY, TILE_SIZE, TILE_SIZE);
-              }
-            }
-
-            this.ctx.strokeStyle = isValid ? '#00ff00' : '#ff0000';
-            this.ctx.lineWidth = 3;
-            this.ctx.strokeRect(x, y, TILE_SIZE * building.width, TILE_SIZE * building.height);
-            this.ctx.lineWidth = 1;
-          }
-        } else {
-          this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-          this.ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
-        }
-      }
-    });
-
-    // 2. Draw Guests
-    guests.forEach(guest => {
-      const gx = guest.x * TILE_SIZE;
-      const gy = guest.y * TILE_SIZE;
-
-      if (selectedGuestId === guest.id) {
-        this.ctx.beginPath();
-        this.ctx.arc(gx + TILE_SIZE / 2, gy + TILE_SIZE / 2, TILE_SIZE / 1.5, 0, Math.PI * 2);
-        this.ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
-        this.ctx.fill();
-      }
-
-      const skinKey = guest.visualType;
-      const cacheKey = `${skinKey}_${guest.color}`;
-
-      let img = this.skinCache.get(cacheKey);
-
-      if (!img) {
-        const rawSvg = this.rawSkins.get(skinKey);
-        if (rawSvg) {
-          const coloredSvg = rawSvg.replace(/#FF00FF/gi, guest.color);
-          img = new Image();
-          img.src = 'data:image/svg+xml;base64,' + btoa(coloredSvg);
-          this.skinCache.set(cacheKey, img);
-        }
-      }
-
-      if (img && img.complete) {
-        this.ctx.drawImage(img, gx, gy, TILE_SIZE, TILE_SIZE);
-      } else {
-        this.ctx.fillStyle = guest.color;
-        this.ctx.beginPath();
-        this.ctx.arc(gx + TILE_SIZE / 2, gy + TILE_SIZE / 2, TILE_SIZE / 3, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.font = '12px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText(guest.emoji, gx + TILE_SIZE / 2, gy + TILE_SIZE / 2);
-      }
-
-      if (guest.happiness < 30) {
-        this.ctx.fillStyle = 'red';
-        this.ctx.beginPath();
-        this.ctx.arc(gx + TILE_SIZE - 5, gy + 5, 3, 0, Math.PI * 2);
-        this.ctx.fill();
-      }
+    this.canvasRenderService.render(this.ctx, {
+      canvasWidth: this.gameCanvas.nativeElement.width,
+      canvasHeight: this.gameCanvas.nativeElement.height,
+      scale: this.viewScale(),
+      panX: this.panX(),
+      panY: this.panY(),
+      dpr: this.dpr,
+      grid: this.grid(),
+      guests: this.guests(),
+      selectedGuestId: this.selectedGuestId(),
+      hoveredCell: this.hoveredCell,
+      gridWidth: this.GRID_W(),
+      gridHeight: this.GRID_H(),
+      tileSize: TILE_SIZE,
+      selectedToolCategory: this.selectedToolCategory(),
+      selectedToolId: this.selectedToolId(),
     });
   }
 
@@ -594,6 +364,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       const guests = this.guests();
       for (let i = guests.length - 1; i >= 0; i--) {
         const g = guests[i];
+        if (g.isWorker) continue;
         const gx = g.x * TILE_SIZE;
         const gy = g.y * TILE_SIZE;
         if (x >= gx && x <= gx + TILE_SIZE && y >= gy && y <= gy + TILE_SIZE) {
@@ -697,13 +468,19 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
     if (state.guests && Array.isArray(state.guests)) {
       const restored = state.guests.map(g => Guest.fromJSON(g));
+      restored.forEach(r => this.normalizeWorkerToHome(r));
       this.guests.set(restored);
+      this.maintenanceService.registerWorkers(restored.filter(g => g.isWorker));
     } else {
       this.guests.set([]);
     }
     this.guestIdCounter = state.guestIdCounter;
     this.entranceIndex = state.entranceIndex;
     this.casinoLastPayoutDay = state.casinoLastPayoutDay || 1;
+
+    this.buildingStatusService.getBrokenPositions().forEach(pos => {
+      this.maintenanceService.requestRepair(pos.x, pos.y);
+    });
 
     this.showNotification('Игра загружена!');
     return true;
@@ -754,7 +531,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     }
 
     const attractionCount = this.grid().filter(c => c.type === 'building').length;
-    const currentGuests = this.guests().length;
+    const currentGuests = this.guests().filter(g => !g.isWorker).length;
     const maxGuests = 5 + (attractionCount * 3);
 
     if (!this.isParkClosed() && currentGuests < maxGuests && Math.random() > 0.3) {
@@ -913,6 +690,37 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     this.pendingBuildId.set(null);
   }
 
+  private createMaintenanceWorkers(spawns: Array<{ x: number; y: number; homeKey: string }>): Guest[] {
+    if (!spawns.length) return [];
+
+    const workerSkins = Guest.WORKER_SKIN_KEYS;
+
+    return spawns.map((spawn, index) => {
+      const worker = new Guest(this.guestIdCounter++, spawn.x, spawn.y);
+      worker.isWorker = true;
+      worker.workerHome = spawn.homeKey;
+      worker.money = 0;
+      worker.happiness = worker.satiety = worker.hydration = worker.energy = worker.fun = worker.toilet = 100;
+      worker.targetX = spawn.x;
+      worker.targetY = spawn.y;
+      worker.state = 'idle';
+
+      const skinKey = workerSkins[index % workerSkins.length];
+      worker.visualType = skinKey;
+      worker.skin = Guest.SKINS[skinKey] || worker.skin;
+      worker.emoji = '🛠';
+
+      const home = this.parseMaintenanceHome(spawn.homeKey);
+      if (home) {
+        worker.x = home.x;
+        worker.y = home.y;
+        worker.targetX = home.x;
+        worker.targetY = home.y;
+      }
+      return worker;
+    });
+  }
+
   private executeBuild(cell: Cell, building: import('./models/building.model').BuildingType) {
     if (!this.buildingService.canBuild(building, this.money())) {
       this.showNotification('Недостаточно средств!');
@@ -921,11 +729,27 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
     this.money.update(m => m - building.price);
 
-    const newGrid = this.buildingService.buildBuilding(this.grid(), cell, building, this.GRID_W());
+    let newGrid: Cell[] = this.grid();
+    let spawnedWorkers: Guest[] = [];
+
+    if (building.id === 'parkMaintenance') {
+      const result = this.buildingService.buildMaintenanceWorkerBuilding(this.grid(), cell, this.GRID_W());
+      newGrid = result.grid;
+      spawnedWorkers = this.createMaintenanceWorkers(result.workerSpawns);
+    } else {
+      newGrid = this.buildingService.buildBuilding(this.grid(), cell, building, this.GRID_W());
+    }
+
     this.grid.set(newGrid);
+    if (spawnedWorkers.length) {
+      spawnedWorkers.forEach(w => this.normalizeWorkerToHome(w));
+      this.guests.update(gs => [...gs, ...spawnedWorkers]);
+      this.maintenanceService.registerWorkers(spawnedWorkers);
+    }
     this.saveGame();
 
-    if (building.category !== 'path') {
+    const keepSelected = building.category === 'path' || building.allowContinuousBuild;
+    if (!keepSelected) {
       this.selectTool('none', null);
     }
   }
@@ -943,6 +767,15 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     }
 
     this.money.update(m => m - 5);
+
+    const rootX = cell.isRoot ? cell.x : (cell.rootX ?? cell.x);
+    const rootY = cell.isRoot ? cell.y : (cell.rootY ?? cell.y);
+    if (cell.buildingId === 'parkMaintenance') {
+      const homeKey = this.buildingService.getMaintenanceHomeKey(rootX, rootY);
+      this.guests.update(gs => gs.filter(g => g.workerHome !== homeKey));
+      this.maintenanceService.unregisterWorkersByHome(homeKey);
+    }
+    this.maintenanceService.markBuildingRepaired(rootX, rootY);
 
     const newGrid = this.buildingService.demolishBuilding(this.grid(), cell, this.GRID_W());
     this.grid.set(newGrid);
@@ -964,13 +797,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   }
 
   getGuestImageSrc(guest: Guest): string {
-    const skinKey = guest.visualType;
-    const cacheKey = `${skinKey}_${guest.color}`;
-    const img = this.skinCache.get(cacheKey);
-    if (img) {
-      return img.src
-    }
-    return guest.skin;
+    return this.canvasRenderService.getGuestImageSrc(guest);
   }
 
   trackByGuestId(index: number, guest: Guest): number {
@@ -1151,7 +978,10 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     }
 
     this.money.update(m => m - totalCost);
-    repairs.forEach(r => this.buildingStatusService.repair(r.x, r.y));
+    repairs.forEach(r => {
+      this.buildingStatusService.repair(r.x, r.y);
+      this.maintenanceService.markBuildingRepaired(r.x, r.y);
+    });
     this.showNotification(`Отремонтировано: ${repairs.length}, затраты: $${totalCost}`);
     this.saveGame();
   }
@@ -1195,11 +1025,24 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     this.showNotification('✅ Аттракцион улучшен!');
     this.saveGame();
 
-    // Refresh panel data (e.g. repair cost might change if level up, though unlikely to upgrade while broken)
     const current = this.selectedBuildingForUpgrade();
     if (current) {
-      // Re-open to refresh or just update signal if we had granular signals
-      // For now, just keeping it open is fine, the component handles internal state updates via service
+      // авто-ремонт после улучшения
+      this.buildingStatusService.repair(current.cellX, current.cellY);
+      this.maintenanceService.markBuildingRepaired(current.cellX, current.cellY);
+
+      const maxVisits = this.buildingService.computeMaxUsageLimit(
+        current.building,
+        this.upgradeService.getLevel(current.building.id, current.cellX, current.cellY)
+      );
+      this.buildingStatusService.updateMaxVisits(current.cellX, current.cellY, maxVisits);
+
+      // обновим локальное состояние модалки, чтобы убрать баннер
+      this.selectedBuildingForUpgrade.set({
+        ...current,
+        isBroken: false,
+        repairCost: 0
+      });
     }
   }
 
@@ -1214,6 +1057,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     if (current && this.money() >= event.cost) {
       this.money.update(m => m - event.cost);
       this.buildingStatusService.repair(current.cellX, current.cellY);
+      this.maintenanceService.markBuildingRepaired(current.cellX, current.cellY);
       this.showNotification('🔧 Здание отремонтировано!');
       this.saveGame();
       this.closeUpgradePanel();
@@ -1371,5 +1215,26 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
     return updatedGrid;
   }
+
+  private parseMaintenanceHome(homeKey: string | null): { x: number; y: number } | null {
+    if (!homeKey) return null;
+    const parts = homeKey.split('_');
+    if (parts.length < 3) return null;
+    const x = Number(parts[1]);
+    const y = Number(parts[2]);
+    if (Number.isNaN(x) || Number.isNaN(y)) return null;
+    return { x, y };
+  }
+
+  private normalizeWorkerToHome(worker: Guest) {
+    if (!worker.isWorker) return;
+    const home = this.parseMaintenanceHome(worker.workerHome);
+    if (!home) return;
+    worker.x = home.x;
+    worker.y = home.y;
+    worker.targetX = home.x;
+    worker.targetY = home.y;
+  }
 }
+
 

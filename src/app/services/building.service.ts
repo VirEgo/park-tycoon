@@ -4,6 +4,7 @@ import { BuildingType, BUILDINGS } from '../models/building.model';
 import { GridService } from './grid.service';
 import { CasinoService } from './casino.service';
 import { BuildingStatusService } from './building-status.service';
+import { AttractionUpgradeService } from './attraction-upgrade.service';
 
 @Injectable({
     providedIn: 'root'
@@ -12,6 +13,7 @@ export class BuildingService {
     private gridService = inject(GridService);
     private casinoService = inject(CasinoService);
     private buildingStatusService = inject(BuildingStatusService);
+    private upgradeService = inject(AttractionUpgradeService);
     private buildingImages: Map<string, HTMLImageElement> = new Map();
 
     constructor() {
@@ -46,6 +48,13 @@ export class BuildingService {
 
     getBuildingIcon(id: string): string {
         return this.getBuildingById(id)?.icon || '';
+    }
+
+    computeMaxUsageLimit(building: BuildingType, level: number): number {
+        const base = building.maxUsageLimit ?? this.buildingStatusService.getDefaultMaxVisits();
+        const multipliers = [0, 0.05, 0.10, 0.15, 0.20, 0.30]; // уровни 1-5
+        const extra = multipliers[Math.min(level, multipliers.length - 1)] ?? 0;
+        return Math.round(base * (1 + extra));
     }
 
     canBuild(building: BuildingType, money: number): boolean {
@@ -121,8 +130,10 @@ export class BuildingService {
             this.casinoService.initCasino(cell.x, cell.y, 20);
         }
 
-        // Initialize durability
-        this.buildingStatusService.initStatus(cell.x, cell.y);
+        // Initialize durability with per-building max usage limit and level multiplier
+        const level = this.upgradeService.getLevel(building.id, cell.x, cell.y);
+        const maxVisits = this.computeMaxUsageLimit(building, level);
+        this.buildingStatusService.initStatus(cell.x, cell.y, maxVisits);
 
         return newGrid;
     }
@@ -196,5 +207,38 @@ export class BuildingService {
         });
 
         return { totalPayout, updatedGrid };
+    }
+
+    getMaintenanceHomeKey(x: number, y: number): string {
+        return `parkMaintenance_${x}_${y}`;
+    }
+
+    buildMaintenanceWorkerBuilding(grid: Cell[], cell: Cell, width: number): { grid: Cell[]; workerSpawns: Array<{ x: number; y: number; homeKey: string }> } {
+        const maintenanceBuilding = this.getBuildingById('parkMaintenance');
+        if (!maintenanceBuilding) return { grid, workerSpawns: [] };
+
+        const builtGrid = this.buildBuilding(grid, cell, maintenanceBuilding, width);
+        const homeKey = this.getMaintenanceHomeKey(cell.x, cell.y);
+
+        const workerSpawns = [
+            { x: cell.x, y: cell.y, homeKey },
+            {
+                x: Math.min(cell.x + maintenanceBuilding.width - 1, cell.x + 1),
+                y: Math.min(cell.y + maintenanceBuilding.height - 1, cell.y + 1),
+                homeKey
+            }
+        ];
+
+        const rootIdx = this.gridService.getCellIndex(cell.x, cell.y, width);
+        const rootCell = builtGrid[rootIdx];
+        builtGrid[rootIdx] = {
+            ...rootCell,
+            data: {
+                ...rootCell.data,
+                workerHome: homeKey
+            }
+        };
+
+        return { grid: builtGrid, workerSpawns };
     }
 }

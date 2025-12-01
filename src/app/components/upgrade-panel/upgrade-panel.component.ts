@@ -5,6 +5,7 @@ import { BuildingStatusService } from '../../services/building-status.service';
 import { CasinoService, CasinoStats } from '../../services/casino.service';
 import { AttractionUpgrade, THEMES, ThemeType } from '../../models/attraction-upgrade.model';
 import { BuildingType } from '../../models/building.model';
+import { BuildingService } from '../../services/building.service';
 
 type TabType = 'upgrade' | 'stats' | 'customization';
 
@@ -19,6 +20,7 @@ export class UpgradePanelComponent {
     private upgradeService = inject(AttractionUpgradeService);
     private buildingStatusService = inject(BuildingStatusService);
     private casinoService = inject(CasinoService);
+    private buildingService = inject(BuildingService);
 
     building = input.required<BuildingType>();
     cellX = input.required<number>();
@@ -33,7 +35,6 @@ export class UpgradePanelComponent {
     onUpgrade = output<{ cost: number }>();
     onThemeApplied = output<{ cost: number }>();
     onRepair = output<{ cost: number }>();
-
     activeTab = signal<TabType>('upgrade');
 
     get totalVisits(): number {
@@ -51,6 +52,24 @@ export class UpgradePanelComponent {
 
     get currentLevel(): number {
         return this.upgradeService.getLevel(this.building().id, this.cellX(), this.cellY());
+    }
+
+    get currentMaxUsage(): number {
+        const status = this.buildingStatusService.getStatus(this.cellX(), this.cellY());
+        if (status?.maxVisits) return status.maxVisits;
+        return this.buildingService.computeMaxUsageLimit(this.building(), this.currentLevel);
+    }
+
+    get upcomingMaxUsage(): Array<{ level: number; value: number; delta: number }> {
+        const data: Array<{ level: number; value: number; delta: number }> = [];
+        const baseLevel = this.currentLevel;
+        const baseValue = this.buildingService.computeMaxUsageLimit(this.building(), baseLevel);
+
+        for (let lvl = baseLevel + 1; lvl <= 5; lvl++) {
+            const value = this.buildingService.computeMaxUsageLimit(this.building(), lvl);
+            data.push({ level: lvl, value, delta: value - baseValue });
+        }
+        return data;
     }
 
     get nextUpgradeCost(): number | null {
@@ -83,6 +102,7 @@ export class UpgradePanelComponent {
             this.cellY(),
             this.currentMoney()
         );
+
 
         if (result.success && result.cost) {
             this.onUpgrade.emit({ cost: result.cost });
