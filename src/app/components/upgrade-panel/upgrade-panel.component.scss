@@ -130,12 +130,33 @@
 /* Tabs */
 .tabs {
     display: flex;
+    flex-wrap: nowrap;
     border-bottom: 1px solid #eee;
     padding: 0 20px;
     background: #f8f9fa;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+.tabs::-webkit-scrollbar {
+    height: 6px;
+}
+
+.tabs::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.tabs::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
 }
 
 .tab-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
     padding: 15px 20px;
     background: none;
     border: none;
