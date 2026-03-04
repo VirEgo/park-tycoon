@@ -20,6 +20,7 @@ export interface BuildingType {
     isAvailableForVisit?: boolean;
     maxUsageLimit?: number; // база прочности/посещений до поломки
     allowContinuousBuild?: boolean; // можно ставить несколько подряд без сброса инструмента
+    unlockAchievementId?: string;
 }
 
 export const BUILDINGS: BuildingType[] = [
@@ -65,6 +66,13 @@ export const BUILDINGS: BuildingType[] = [
     { id: 'statue', name: 'Статуя', category: 'decoration', price: 300, income: 0, color: '#9ca3af', icon: '🗿', width: 1, height: 1, svgPath: 'assets/buildings/statue.svg', description: 'Центр внимания', satisfies: 'fun', statValue: 8, isAvailableForVisit: false, allowContinuousBuild: true },
     { id: 'lamp', name: 'Фонарь', category: 'decoration', price: 120, income: 0, color: '#f59e0b', icon: '💡', width: 1, height: 1, svgPath: 'assets/buildings/lamp.svg', description: 'Светит по вечерам', satisfies: 'energy', statValue: 5, isAvailableForVisit: false, allowContinuousBuild: true },
     { id: 'flowerbed', name: 'Клумба', category: 'decoration', price: 90, income: 0, color: '#22c55e', icon: '🌸', width: 1, height: 1, svgPath: 'assets/buildings/flowerbed.svg', description: 'Яркие цветы', satisfies: 'fun', statValue: 6, isAvailableForVisit: false, allowContinuousBuild: true },
+
+    // Уникальные здания за достижения
+    { id: 'royalGarden', name: 'Королевский сад', category: 'decoration', price: 650, income: 0, color: '#34d399', icon: '🌺', width: 2, height: 2, svgPath: 'assets/buildings/royal-garden.svg', description: 'Элитная зона отдыха, которую можно получить только за достижения.', satisfies: 'fun', statValue: 20, isAvailableForVisit: false, hidden: true, allowContinuousBuild: true, unlockAchievementId: 'week_one' },
+    { id: 'gourmetPlaza', name: 'Гурме-плаза', category: 'shop', price: 1200, income: 2.4, color: '#f97316', icon: '🍽️', width: 3, height: 2, svgPath: 'assets/buildings/gourmet-plaza.svg', description: 'Премиальная гастро-зона для самых голодных гостей.', satisfies: 'satiety', statValue: 95, isAvailableForVisit: true, hidden: true, unlockAchievementId: 'food_district' },
+    { id: 'vipLounge', name: 'VIP-лаунж', category: 'service', price: 1600, income: 0.8, color: '#8b5cf6', icon: '🥂', width: 2, height: 2, svgPath: 'assets/buildings/vip-lounge.svg', description: 'Закрытая лаунж-зона, быстро восстанавливающая энергию гостей.', satisfies: 'energy', statValue: 85, isAvailableForVisit: true, hidden: true, unlockAchievementId: 'repair_brigade' },
+    { id: 'megaCoaster', name: 'Мега-горки', category: 'attraction', price: 7200, income: 2.7, color: '#dc2626', icon: '🎢', width: 3, height: 3, svgPath: 'assets/buildings/mega-coaster.svg', description: 'Редкий аттракцион для настоящих фанатов адреналина.', satisfies: 'fun', statValue: 145, isAvailableForVisit: true, hidden: true, unlockAchievementId: 'builder_25' },
+    { id: 'moonPalace', name: 'Лунный дворец', category: 'attraction', price: 12000, income: 3.8, color: '#a78bfa', icon: '🌙', width: 3, height: 3, svgPath: 'assets/buildings/moon-palace.svg', description: 'Легендарный аттракцион высокого класса с огромной прибылью.', satisfies: 'fun', statValue: 180, isAvailableForVisit: true, hidden: true, unlockAchievementId: 'capital_30000' },
 
     // Служебные элементы рельефа (не отображаются в магазине)
     { id: 'toilet', name: 'Туалет', category: 'shop', price: 100, income: 0.5, color: '#ffffff', icon: '🚽', width: 1, height: 1, svgPath: 'assets/buildings/toilet.svg', description: 'Место для важных дел', satisfies: 'toilet', statValue: 100, isAvailableForVisit: true, maxUsageLimit: 1300 },

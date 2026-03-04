@@ -1,4 +1,11 @@
-import { GuestTypeId } from './guest-type.model';
+import { GUEST_TYPES, GuestTypeDefinition, GuestTypeId } from './guest-type.model';
+
+export type GuestNeedKey = 'satiety' | 'hydration' | 'energy' | 'fun' | 'toilet';
+type VisitContext = {
+    category?: string;
+    satisfies?: GuestNeedKey;
+    isGambling?: boolean;
+};
 
 export class Guest {
     id: number;
@@ -63,6 +70,7 @@ export class Guest {
         this.visualType = this.getRandomVisualType(ownedPremiumSkins);
         this.skin = this.getSkinPath(this.visualType);
         this.isWorker = false;
+        this.updateHappinessFromNeeds();
     }
 
     private getRandomVisualType(ownedPremiumSkins: string[]): string {
@@ -83,65 +91,181 @@ export class Guest {
         return emojis[Math.floor(Math.random() * emojis.length)];
     }
 
-    updateNeeds() {
-        // Decrease stats slowly
-        this.satiety = Math.max(0, this.satiety - 0.05);
-        this.hydration = Math.max(0, this.hydration - 0.08);
-        this.energy = Math.max(0, this.energy - 0.02);
-        this.fun = Math.max(0, this.fun - 0.1);
-        this.toilet = Math.max(0, this.toilet - 0.04);
-
-        // Happiness decays slightly
-        this.happiness = Math.max(0, this.happiness - 0.05);
+    private getTypeDefinition(): GuestTypeDefinition {
+        return GUEST_TYPES.find(type => type.id === this.guestType) || GUEST_TYPES[0];
     }
 
-    visitAttraction(stats: { fun?: number, satiety?: number, hydration?: number, energy?: number, happiness?: number, toilet?: number }) {
-        if (stats.fun) this.fun = Math.min(100, this.fun + stats.fun);
+    private clampStat(value: number): number {
+        return Math.max(0, Math.min(100, value));
+    }
+
+    private getNeedEntries(): Array<[GuestNeedKey, number]> {
+        return [
+            ['satiety', this.satiety],
+            ['hydration', this.hydration],
+            ['energy', this.energy],
+            ['fun', this.fun],
+            ['toilet', this.toilet]
+        ];
+    }
+
+    private getDecayProfile(): Record<GuestNeedKey, number> {
+        switch (this.guestType) {
+            case 'family':
+                return { satiety: 0.07, hydration: 0.09, energy: 0.03, fun: 0.08, toilet: 0.06 };
+            case 'teen':
+                return { satiety: 0.06, hydration: 0.1, energy: 0.025, fun: 0.14, toilet: 0.045 };
+            case 'elder':
+                return { satiety: 0.045, hydration: 0.07, energy: 0.04, fun: 0.07, toilet: 0.055 };
+            case 'vip':
+                return { satiety: 0.04, hydration: 0.06, energy: 0.018, fun: 0.085, toilet: 0.035 };
+            default:
+                return { satiety: 0.05, hydration: 0.08, energy: 0.02, fun: 0.1, toilet: 0.04 };
+        }
+    }
+
+    private updateHappinessFromNeeds(instantModifier: number = 0) {
+        const weightedNeeds =
+            this.satiety * 0.22 +
+            this.hydration * 0.2 +
+            this.energy * 0.18 +
+            this.fun * 0.24 +
+            this.toilet * 0.16;
+
+        let targetHappiness = weightedNeeds;
+        const criticalNeeds = this.getNeedEntries().filter(([, value]) => value < 15).length;
+        const lowNeeds = this.getNeedEntries().filter(([, value]) => value < 30).length;
+
+        if (criticalNeeds > 0) {
+            targetHappiness -= criticalNeeds * 12;
+        }
+
+        if (lowNeeds >= 3) {
+            targetHappiness -= 8;
+        }
+
+        if (this.money < 10) {
+            targetHappiness -= 5;
+        }
+
+        if (this.daysInPark >= this.MAX_DAYS - 1) {
+            targetHappiness -= 6;
+        }
+
+        targetHappiness += instantModifier;
+        this.happiness = this.clampStat((this.happiness * 0.6) + (targetHappiness * 0.4));
+    }
+
+    private getPreferenceBoost(
+        stats: { fun?: number, satiety?: number, hydration?: number, energy?: number, happiness?: number, toilet?: number },
+        context?: VisitContext
+    ): number {
+        const preferences = this.getTypeDefinition().preferences;
+        let boost = 1;
+
+        if (stats.fun && context?.category === 'attraction' && preferences.includes('thrill')) {
+            boost += 0.25;
+        }
+
+        if ((stats.satiety || stats.hydration) && preferences.includes('food')) {
+            boost += 0.2;
+        }
+
+        if ((stats.energy || stats.toilet) && preferences.includes('relax')) {
+            boost += 0.2;
+        }
+
+        if (this.guestType === 'family' && !context?.isGambling && stats.fun) {
+            boost += 0.1;
+        }
+
+        if (this.guestType === 'elder' && context?.isGambling) {
+            boost -= 0.1;
+        }
+
+        return Math.max(0.75, boost);
+    }
+
+    getMostUrgentNeed(): GuestNeedKey | null {
+        const urgentNeeds = this.getNeedEntries()
+            .filter(([, value]) => value < 45)
+            .sort((a, b) => a[1] - b[1]);
+
+        return urgentNeeds[0]?.[0] ?? null;
+    }
+
+    getAverageNeeds(): number {
+        const needs = this.getNeedEntries();
+        return needs.reduce((sum, [, value]) => sum + value, 0) / needs.length;
+    }
+
+    updateNeeds() {
+        const profile = this.getDecayProfile();
+        const movementFactor = 0.9 + (this.speedModifier * 0.15);
+
+        this.satiety = this.clampStat(this.satiety - profile.satiety * movementFactor);
+        this.hydration = this.clampStat(this.hydration - profile.hydration * movementFactor);
+        this.energy = this.clampStat(this.energy - profile.energy * movementFactor);
+        this.fun = this.clampStat(this.fun - profile.fun);
+        this.toilet = this.clampStat(this.toilet - profile.toilet * movementFactor);
+
+        this.updateHappinessFromNeeds();
+    }
+
+    visitAttraction(
+        stats: { fun?: number, satiety?: number, hydration?: number, energy?: number, happiness?: number, toilet?: number },
+        context?: VisitContext
+    ) {
+        const boost = this.getPreferenceBoost(stats, context);
+
+        if (stats.fun) this.fun = this.clampStat(this.fun + stats.fun * boost);
         if (stats.satiety) {
-            this.satiety = Math.min(100, this.satiety + stats.satiety);
-            this.toilet = Math.max(0, this.toilet - (stats.satiety * 0.2)); // Eating makes you need toilet
+            this.satiety = this.clampStat(this.satiety + stats.satiety * boost);
+            this.toilet = this.clampStat(this.toilet - (stats.satiety * 0.2));
         }
         if (stats.hydration) {
-            this.hydration = Math.min(100, this.hydration + stats.hydration);
-            this.toilet = Math.max(0, this.toilet - (stats.hydration * 0.3)); // Drinking makes you need toilet
+            this.hydration = this.clampStat(this.hydration + stats.hydration * boost);
+            this.toilet = this.clampStat(this.toilet - (stats.hydration * 0.3));
         }
-        if (stats.energy) this.energy = Math.min(100, this.energy + stats.energy);
-        if (stats.toilet) this.toilet = Math.min(100, this.toilet + stats.toilet);
+        if (stats.energy) this.energy = this.clampStat(this.energy + stats.energy * boost);
+        if (stats.toilet) this.toilet = this.clampStat(this.toilet + stats.toilet * boost);
 
-        if (stats.happiness) {
-            this.happiness = Math.min(100, this.happiness + stats.happiness);
-        } else if (stats.fun) {
-            this.happiness = Math.min(100, this.happiness + (stats.fun / 2));
-        }
+        const explicitHappiness = stats.happiness ? stats.happiness * boost : 0;
+        const derivedHappiness = stats.fun ? stats.fun * 0.35 * boost : 0;
+        this.updateHappinessFromNeeds(explicitHappiness + derivedHappiness);
     }
 
     checkMood() {
-        // Returns true if guest wants to leave
-
-        // Check time
         if (this.daysInPark >= this.MAX_DAYS) {
             this.wantsToLeave = true;
+            this.emoji = '😫';
             return;
         }
 
-        // Check needs
-        // "If all or at least two main needs are below 20"
-        let lowNeeds = 0;
-        if (this.satiety < 20) lowNeeds++;
-        if (this.hydration < 20) lowNeeds++;
-        if (this.energy < 20) lowNeeds++;
-        if (this.fun < 20) lowNeeds++;
-        if (this.toilet < 20) lowNeeds++;
+        const averageNeeds = this.getAverageNeeds();
+        const criticalNeeds = this.getNeedEntries().filter(([, value]) => value < 10).length;
+        const lowNeeds = this.getNeedEntries().filter(([, value]) => value < 25).length;
 
-        if (lowNeeds >= 2 || this.happiness < 20) {
-            this.emoji = '🤬'; // Angry
+        if (criticalNeeds >= 2 || averageNeeds < 15) {
             this.wantsToLeave = true;
+            this.emoji = '🤬';
             return;
         }
 
-        if (this.money <= 5) {
+        if ((criticalNeeds >= 1 && this.happiness < 35) || (lowNeeds >= 3 && this.happiness < 45)) {
             this.wantsToLeave = true;
+            this.emoji = criticalNeeds > 0 ? '😫' : '😞';
             return;
+        }
+
+        if (this.money <= 1 && averageNeeds < 40) {
+            this.wantsToLeave = true;
+            this.emoji = '😞';
+            return;
+        }
+
+        if (criticalNeeds > 0 || lowNeeds >= 2) {
+            this.emoji = '😟';
         }
     }
 

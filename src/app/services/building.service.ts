@@ -1,10 +1,11 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, computed, inject } from '@angular/core';
 import { Cell } from '../models/cell.model';
 import { BuildingType, BUILDINGS } from '../models/building.model';
 import { GridService } from './grid.service';
 import { CasinoService } from './casino.service';
 import { BuildingStatusService } from './building-status.service';
 import { AttractionUpgradeService } from './attraction-upgrade.service';
+import { GamificationService } from './gamification.service';
 
 @Injectable({
     providedIn: 'root'
@@ -14,7 +15,28 @@ export class BuildingService {
     private casinoService = inject(CasinoService);
     private buildingStatusService = inject(BuildingStatusService);
     private upgradeService = inject(AttractionUpgradeService);
+    private gamificationService = inject(GamificationService);
     private buildingImages: Map<string, HTMLImageElement> = new Map();
+    private readonly buildingsByCategory = computed(() => {
+        const unlockedAchievementIds = this.gamificationService.unlockedAchievementIds();
+        const grouped = new Map<string, BuildingType[]>();
+
+        for (const building of BUILDINGS) {
+            if (building.unlockAchievementId && !unlockedAchievementIds.has(building.unlockAchievementId)) {
+                continue;
+            }
+
+            if (!building.unlockAchievementId && building.hidden) {
+                continue;
+            }
+
+            const items = grouped.get(building.category) ?? [];
+            items.push(building);
+            grouped.set(building.category, items);
+        }
+
+        return grouped;
+    });
 
     constructor() {
         this.preloadBuildingImages();
@@ -35,7 +57,7 @@ export class BuildingService {
     }
 
     getBuildingsByCategory(category: string): BuildingType[] {
-        return BUILDINGS.filter(b => b.category === category && !b.hidden);
+        return this.buildingsByCategory().get(category) ?? [];
     }
 
     getBuildingById(id: string): BuildingType | undefined {
@@ -52,8 +74,7 @@ export class BuildingService {
 
     computeMaxUsageLimit(building: BuildingType, level: number): number {
         const base = building.maxUsageLimit ?? this.buildingStatusService.getDefaultMaxVisits();
-        const multipliers = [0, 0.05, 0.10, 0.15, 0.20, 0.30]; // уровни 1-5
-        const extra = multipliers[Math.min(level, multipliers.length - 1)] ?? 0;
+        const extra = this.upgradeService.calculateCapacityMultiplierForLevel(building.id, level);
         return Math.round(base * (1 + extra));
     }
 
@@ -81,6 +102,7 @@ export class BuildingService {
 
                 const idx = this.gridService.getCellIndex(checkX, checkY, gridWidth);
                 const cell = grid[idx];
+                if (cell.locked) return false;
                 // Allow building on grass.
                 // TODO: Allow paths on paths? For now, strict check.
                 if (cell.type !== 'grass') return false;

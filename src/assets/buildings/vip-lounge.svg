@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" shape-rendering="crispEdges">
+  <!-- Back wall -->
+  <rect x="12" y="24" width="56" height="34" fill="#8b5cf6"/>
+  <rect x="12" y="24" width="6" height="34" fill="#6d28d9"/>
+
+  <!-- Neon sign -->
+  <rect x="28" y="12" width="24" height="8" fill="#fde68a"/>
+  <rect x="32" y="16" width="16" height="4" fill="#f59e0b"/>
+
+  <!-- Left couch -->
+  <rect x="14" y="44" width="22" height="12" fill="#5b21b6"/>
+  <rect x="14" y="40" width="22" height="6" fill="#7c3aed"/>
+  <rect x="18" y="56" width="4" height="6" fill="#312e81"/>
+  <rect x="28" y="56" width="4" height="6" fill="#312e81"/>
+
+  <!-- Right couch -->
+  <rect x="44" y="44" width="22" height="12" fill="#5b21b6"/>
+  <rect x="44" y="40" width="22" height="6" fill="#7c3aed"/>
+  <rect x="48" y="56" width="4" height="6" fill="#312e81"/>
+  <rect x="58" y="56" width="4" height="6" fill="#312e81"/>
+
+  <!-- Table -->
+  <rect x="34" y="48" width="12" height="6" fill="#e9d5ff"/>
+  <rect x="38" y="54" width="4" height="8" fill="#6b7280"/>
+
+  <!-- Glasses -->
+  <rect x="36" y="44" width="3" height="4" fill="#f9a8d4"/>
+  <rect x="41" y="44" width="3" height="4" fill="#bfdbfe"/>
+</svg>

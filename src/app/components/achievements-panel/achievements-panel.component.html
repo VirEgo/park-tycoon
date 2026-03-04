@@ -1,0 +1,127 @@
+<div class="achievements-backdrop" (click)="close.emit()">
+  <section class="achievements-panel" (click)="$event.stopPropagation()">
+    <header class="achievements-panel__header">
+      <div>
+        <div class="achievements-panel__eyebrow">🏆 {{ localeBundle().ui.panelTitle }}</div>
+        <h2 class="achievements-panel__title">{{ localeBundle().ui.panelSubtitle }}</h2>
+      </div>
+
+      <button type="button" class="achievements-panel__close" (click)="close.emit()">✕</button>
+    </header>
+
+    <section class="achievements-panel__summary">
+      <article class="summary-card summary-card--primary">
+        <div class="summary-card__label">{{ localeBundle().ui.totalProgress }}</div>
+        <div class="summary-card__value">{{ completionPercent() }}%</div>
+        <div class="summary-card__bar">
+          <div class="summary-card__bar-fill" [style.width.%]="completionPercent()"></div>
+        </div>
+      </article>
+
+      <article class="summary-card">
+        <div class="summary-card__label">{{ localeBundle().ui.unlockedCount }}</div>
+        <div class="summary-card__value">{{ unlockedCount() }}/{{ totalCount() }}</div>
+      </article>
+    </section>
+
+    <section class="achievements-panel__filters">
+      <div class="filter-group">
+        <button
+          type="button"
+          class="filter-chip"
+          [class.is-active]="statusFilter() === 'all'"
+          (click)="setStatusFilter('all')">
+          {{ localeBundle().ui.allStatuses }}
+        </button>
+        <button
+          type="button"
+          class="filter-chip"
+          [class.is-active]="statusFilter() === 'unlocked'"
+          (click)="setStatusFilter('unlocked')">
+          {{ localeBundle().ui.onlyUnlocked }}
+        </button>
+        <button
+          type="button"
+          class="filter-chip"
+          [class.is-active]="statusFilter() === 'locked'"
+          (click)="setStatusFilter('locked')">
+          {{ localeBundle().ui.onlyLocked }}
+        </button>
+      </div>
+
+      <div class="filter-group filter-group--wrap">
+        <button
+          type="button"
+          class="filter-chip"
+          [class.is-active]="categoryFilter() === 'all'"
+          (click)="setCategoryFilter('all')">
+          {{ localeBundle().ui.allCategories }}
+        </button>
+
+        @for (category of categorySummaries(); track category.id) {
+          <button
+            type="button"
+            class="filter-chip filter-chip--category"
+            [class.is-active]="categoryFilter() === category.id"
+            (click)="setCategoryFilter(category.id)">
+            <span>{{ category.icon }}</span>
+            <span>{{ category.label }}</span>
+            <span class="filter-chip__counter">{{ category.unlocked }}/{{ category.total }}</span>
+          </button>
+        }
+      </div>
+    </section>
+
+    <section class="achievements-panel__list custom-scrollbar">
+      @if (filteredAchievements().length) {
+        @for (achievement of filteredAchievements(); track achievement.id) {
+          <article class="achievement-card" [class.is-unlocked]="achievement.unlocked" [class]="'rarity-' + achievement.rarity">
+            <div class="achievement-card__top">
+              <div class="achievement-card__meta">
+                <span class="meta-badge meta-badge--rarity">
+                  {{ achievement.rarityIcon }} {{ achievement.rarityLabel }}
+                </span>
+                <span class="meta-badge">
+                  {{ achievement.categoryIcon }} {{ achievement.categoryLabel }}
+                </span>
+              </div>
+              <div class="achievement-card__status" [class.is-unlocked]="achievement.unlocked">
+                {{ achievement.unlocked ? localeBundle().ui.statusUnlocked : localeBundle().ui.statusLocked }}
+              </div>
+            </div>
+
+            <div class="achievement-card__body">
+              <h3 class="achievement-card__title">{{ achievement.title }}</h3>
+              <p class="achievement-card__description">{{ achievement.description }}</p>
+
+              <div class="achievement-card__reward">
+                <span class="achievement-card__caption">{{ localeBundle().ui.reward }}</span>
+                <span>{{ achievement.rewardLabel }}</span>
+              </div>
+
+              <div class="achievement-card__progress">
+                <div class="achievement-card__progress-row">
+                  <span class="achievement-card__caption">{{ localeBundle().ui.progress }}</span>
+                  <span>{{ achievement.progress }}/{{ achievement.target }}</span>
+                </div>
+                <div class="achievement-card__progress-bar">
+                  <div class="achievement-card__progress-fill" [style.width.%]="achievement.progressPercent"></div>
+                </div>
+              </div>
+
+              @if (achievement.unlocked && achievement.unlockedAt) {
+                <div class="achievement-card__timestamp">
+                  {{ localeBundle().ui.unlockedAt }}: {{ achievement.unlockedAt }}
+                </div>
+              }
+            </div>
+          </article>
+        }
+      } @else {
+        <div class="achievements-panel__empty">
+          {{ localeBundle().ui.noAchievements }}
+        </div>
+      }
+    </section>
+  </section>
+</div>

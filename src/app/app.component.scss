@@ -1,76 +1,105 @@
 .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
+  width: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-    background: #1f2937;
+  background: #1f2937;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #4b5563;
-    border-radius: 3px;
+  background: #4b5563;
+  border-radius: 3px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #6b7280;
+  background: #6b7280;
 }
 
 @keyframes pop-in {
-    0% {
-        transform: scale(0);
-        opacity: 0;
-    }
-    80% {
-        transform: scale(1.1);
-    }
-    100% {
-        transform: scale(1);
-        opacity: 1;
-    }
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  80% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 .animate-pop-in {
-    animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 @keyframes slide-in {
-    0% {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    100% {
-        transform: translateX(0);
-        opacity: 1;
-    }
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 .animate-slide-in {
-    animation: slide-in 0.3s ease-out;
+  animation: slide-in 0.3s ease-out;
 }
 
 .guest {
-    &:hover,
-    &.ring-2 {
-        sup {
-            opacity: 1;
-        }
+  &:hover,
+  &.ring-2 {
+    sup {
+      opacity: 1;
     }
+  }
 }
 
 .main-wrapper {
-    &:has(app-sidebar) {
-        .content-wrapper {
-            max-width: 100%;
-        }
+  &:has(app-sidebar) {
+    .content-wrapper {
+      max-width: calc(100% - 260px);
     }
+  }
 }
 
 .content-wrapper {
-    max-width: 100%;
-    transition: max-width 0.3s ease;
+  max-width: 100%;
+  transition: max-width 0.3s ease;
 }
 
 .park-wrapper {
-    position: relative;
-    .zoom-btn {
-        position: absolute;
-        bottom: 16px;
-        left: 16px;
-        z-index: 20;
-    }
+  position: relative;
+  .zoom-btn {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    z-index: 20;
+  }
+}
+
+.ai-panel {
+  max-height: min(56rem, calc(100vh - 7rem));
+  overflow-y: auto;
+}
+
+.ai-messages {
+  min-height: 8rem;
+}
+
+.ai-diagnosis {
+  max-height: 18rem;
+  min-height: 8rem;
+  overflow-y: auto;
+}
+
+.ai-history {
+  max-height: 12rem;
+}
+
+.ai-message-user {
+  background: rgba(8, 145, 178, 0.2);
+  border-color: #155e75;
+}
+
+.ai-message-assistant {
+  background: #1f2937;
+  border-color: #374151;
 }

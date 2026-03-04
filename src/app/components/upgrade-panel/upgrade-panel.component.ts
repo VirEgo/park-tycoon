@@ -2,7 +2,7 @@ import { Component, computed, inject, input, output, signal } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { AttractionUpgradeService } from '../../services/attraction-upgrade.service';
 import { BuildingStatusService } from '../../services/building-status.service';
-import { CasinoService, CasinoStats } from '../../services/casino.service';
+import { CasinoService, CasinoStats, CasinoTransaction } from '../../services/casino.service';
 import { AttractionUpgrade, THEMES, ThemeType } from '../../models/attraction-upgrade.model';
 import { BuildingType } from '../../models/building.model';
 import { BuildingService } from '../../services/building.service';
@@ -51,6 +51,11 @@ export class UpgradePanelComponent {
         return this.upgradeService.getLevel(this.building().id, this.cellX(), this.cellY());
     });
 
+    maxLevel = computed(() => {
+        this.refreshTrigger();
+        return this.upgradeService.getMaxLevel(this.building().id);
+    });
+
     nextUpgradeCost = computed(() => {
         this.refreshTrigger(); // Subscribe to refresh trigger
         return this.upgradeService.getNextUpgradeCost(this.building().id, this.cellX(), this.cellY());
@@ -86,7 +91,7 @@ export class UpgradePanelComponent {
         const baseLevel = this.currentLevel();
         const baseValue = this.buildingService.computeMaxUsageLimit(this.building(), baseLevel);
 
-        for (let lvl = baseLevel + 1; lvl <= 5; lvl++) {
+        for (let lvl = baseLevel + 1; lvl <= this.maxLevel(); lvl++) {
             const value = this.buildingService.computeMaxUsageLimit(this.building(), lvl);
             data.push({ level: lvl, value, delta: value - baseValue });
         }
@@ -99,13 +104,7 @@ export class UpgradePanelComponent {
 
     getNextLevelBonus() {
         const nextLevel = this.currentLevel() + 1;
-        const costs = [
-            { level: 2, income: 10, speed: 10, satisfaction: 5 },
-            { level: 3, income: 25, speed: 20, satisfaction: 10 },
-            { level: 4, income: 40, speed: 35, satisfaction: 15 },
-            { level: 5, income: 60, speed: 50, satisfaction: 25 }
-        ];
-        return costs.find(c => c.level === nextLevel) || { income: 0, speed: 0, satisfaction: 0 };
+        return this.upgradeService.getUpgradeBonusForLevel(this.building().id, nextLevel);
     }
 
     upgradeLevel(): void {
@@ -168,5 +167,31 @@ export class UpgradePanelComponent {
 
     trackByTxId(index: number, tx: any): number {
         return tx.id ?? index;
+    }
+
+    getCasinoTransactionLabel(type: CasinoTransaction['type']): string {
+        switch (type) {
+            case 'jackpot':
+                return 'Джек-пот';
+            case 'bankrupt':
+                return 'Проиграл всё';
+            case 'win':
+                return 'Выигрыш';
+            case 'lose':
+                return 'Проигрыш';
+            case 'payout':
+                return 'Выплата';
+        }
+    }
+
+    isCasinoPositiveTransaction(type: CasinoTransaction['type']): boolean {
+        return type === 'win' || type === 'jackpot' || type === 'payout';
+    }
+
+    getCasinoTransactionAmountClass(type: CasinoTransaction['type']): string {
+        if (type === 'jackpot') return 'jackpot';
+        if (type === 'bankrupt' || type === 'lose') return 'lose';
+        if (type === 'payout') return 'payout';
+        return 'win';
     }
 }

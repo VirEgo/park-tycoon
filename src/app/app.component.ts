@@ -6,11 +6,24 @@ import { ExpansionPanelComponent } from './components/expansion-panel/expansion-
 import { GuestDetailsComponent } from './components/guest-details/guest-details.component';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { UpgradePanelComponent } from './components/upgrade-panel/upgrade-panel.component';
+import { AchievementsPanelComponent } from './components/achievements-panel/achievements-panel.component';
+import { LM_STUDIO_CONFIG } from './config/lm-studio.config';
 import { BuildingType, ToolType } from './models/building.model';
 import { Cell } from './models/cell.model';
-import { ExpansionState, LandPlot } from './models/expansion.model';
+import {
+  ExpansionState,
+  FIXED_GRID_OFFSET_X,
+  FIXED_GRID_OFFSET_Y,
+  FULL_GRID_HEIGHT,
+  FULL_GRID_WIDTH,
+  LandPlot,
+  PLOT_HEIGHT,
+  PLOT_WIDTH,
+  TerrainType
+} from './models/expansion.model';
 import { GameSaveState } from './models/game-state.model';
 import { Guest } from './models/guest.model';
+import { createInitialLifetimeStats, GamificationSnapshot, ParkLifetimeStats } from './models/achievement.model';
 import { AttractionUpgradeService } from './services/attraction-upgrade.service';
 import { BuildingStatusService } from './services/building-status.service';
 import { BuildingService } from './services/building.service';
@@ -19,10 +32,13 @@ import { ExpansionService } from './services/expansion.service';
 import { GameStateService } from './services/game-state.service';
 import { GRID_H, GRID_W, GridService } from './services/grid.service';
 import { GuestService } from './services/guest.service';
+import { LmStudioChatMessage, LmStudioModelSummary, LmStudioService } from './services/lm-studio.service';
+import { AiDiagnosisHistoryService, DiagnosisHistoryEntry } from './services/ai-diagnosis-history.service';
 import { CanvasRenderService } from './services/canvas-render.service';
 import { MaintenanceService } from './services/maintenance.service';
 import { SpatialHash, FrameRateLimiter } from './utils/performance.utils';
 import { PremiumSkinsService } from './services/guest/primium-skins';
+import { GamificationService } from './services/gamification.service';
 
 const TILE_SIZE = 40;
 const MIN_ZOOM = 0.5;
@@ -30,6 +46,17 @@ const MAX_ZOOM = 2;
 const ZOOM_STEP = 0.25;
 const MAX_CANVAS_HEIGHT = 700;
 const MAX_CANVAS_WIDTH = 1200;
+
+interface AiPanelMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+interface AiAdvisorAction {
+  id: 'overview' | 'build' | 'income' | 'happiness' | 'needs';
+  label: string;
+  hint: string;
+}
 
 @Component({
   selector: 'app-root',
@@ -44,7 +71,7 @@ export class AppComponent {
 @Component({
   selector: 'app-tycoon',
   standalone: true,
-  imports: [CommonModule, RouterModule, UpgradePanelComponent, GuestDetailsComponent, SidebarComponent, ExpansionPanelComponent],
+  imports: [CommonModule, RouterModule, UpgradePanelComponent, GuestDetailsComponent, SidebarComponent, ExpansionPanelComponent, AchievementsPanelComponent],
   templateUrl: './app.component.html',
   styleUrl: 'app.component.scss'
 })
@@ -59,8 +86,8 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   private handleMouseDown = () => this.mouseIsDown = true;
   private handleMouseUp = () => this.mouseIsDown = false;
 
-  GRID_W = signal<number>(GRID_W);
-  GRID_H = signal<number>(GRID_H);
+  GRID_W = signal<number>(FULL_GRID_WIDTH);
+  GRID_H = signal<number>(FULL_GRID_HEIGHT);
   TILE_SIZE = TILE_SIZE;
   viewScale = signal<number>(1);
   panX = signal<number>(0);
@@ -75,6 +102,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   isPaused = signal<boolean>(false);
   isParkClosed = signal<boolean>(false);
   premiumSkinsOwned = signal<string[]>([]);
+  parkLifetimeStats = signal<ParkLifetimeStats>(createInitialLifetimeStats());
 
   // Tool Selection
   selectedToolCategory = signal<ToolType | string>('none');
@@ -85,6 +113,24 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   selectedGuestId = signal<number | null>(null);
   showExpansionPanel = signal<boolean>(false);
   showUpgradePanel = signal<boolean>(false);
+  showAiPanel = signal<boolean>(false);
+  showAchievementsPanel = signal<boolean>(false);
+  aiPrompt = signal<string>('');
+  aiLoading = signal<boolean>(false);
+  aiError = signal<string | null>(null);
+  aiMessages = signal<AiPanelMessage[]>([]);
+  aiDiagnosisReport = signal<string | null>(null);
+  aiDiagnosisGeneratedAt = signal<string | null>(null);
+  aiDiagnosisHistory = signal<DiagnosisHistoryEntry[]>([]);
+  availableLmStudioModels = signal<LmStudioModelSummary[]>([]);
+  selectedLmStudioModel = signal<string>(LM_STUDIO_CONFIG.defaultModel);
+  readonly aiAdvisorActions: AiAdvisorAction[] = [
+    { id: 'overview', label: 'Что делать дальше', hint: '3 шага развития' },
+    { id: 'build', label: 'Что строить', hint: 'лучшее следующее здание' },
+    { id: 'income', label: 'Как поднять доход', hint: 'окупаемость и деньги' },
+    { id: 'happiness', label: 'Почему падает счастье', hint: 'поиск причин и решений' },
+    { id: 'needs', label: 'Чего не хватает гостям', hint: 'главный дефицит потребностей' }
+  ];
 
   // Updated to include repair info
   selectedBuildingForUpgrade = signal<{
@@ -118,9 +164,23 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   private canvasRenderService = inject(CanvasRenderService);
   private maintenanceService = inject(MaintenanceService);
   private premiumSkinsService = inject(PremiumSkinsService);
+  private lmStudioService = inject(LmStudioService);
+  private aiDiagnosisHistoryService = inject(AiDiagnosisHistoryService);
+  private gamificationService = inject(GamificationService);
+  readonly getBuildingsByCategory = (cat: string): BuildingType[] => this.buildingService.getBuildingsByCategory(cat);
+
+  achievements = this.gamificationService.achievements;
+  achievementLocaleBundle = this.gamificationService.localeBundle;
+  achievementUnlockedCount = this.gamificationService.unlockedCount;
+  achievementTotalCount = this.gamificationService.totalCount;
+  achievementCompletionPercent = this.gamificationService.completionPercent;
 
   guestStats = computed(() => {
     return this.guestService.calculateAverageStats(this.guests());
+  });
+
+  canSendAiPrompt = computed(() => {
+    return !this.aiLoading() && !!this.aiPrompt().trim() && !!this.selectedLmStudioModel().trim();
   });
 
   selectedGuest = computed(() => {
@@ -165,6 +225,16 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
   // Expansion State
   expansionState = signal<ExpansionState>(this.expansionService.getInitialState());
+  visibleGridBounds = computed(() => {
+    const { minPlotX, maxPlotX, minPlotY, maxPlotY } = this.expansionService.getPurchasedBounds(this.expansionState());
+
+    const startX = Math.max(0, FIXED_GRID_OFFSET_X + minPlotX * PLOT_WIDTH);
+    const startY = Math.max(0, FIXED_GRID_OFFSET_Y + minPlotY * PLOT_HEIGHT);
+    const endX = Math.min(FULL_GRID_WIDTH, FIXED_GRID_OFFSET_X + (maxPlotX + 1) * PLOT_WIDTH);
+    const endY = Math.min(FULL_GRID_HEIGHT, FIXED_GRID_OFFSET_Y + (maxPlotY + 1) * PLOT_HEIGHT);
+
+    return { startX, startY, endX, endY };
+  });
 
   // Logic Variables
   private gameLoopSub: Subscription | null = null;
@@ -216,6 +286,8 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     this.canvasRenderService.preloadSkins();
     this.startGameLoop();
     this.startAutoSave();
+    this.loadLmStudioModels();
+    this.aiDiagnosisHistory.set(this.aiDiagnosisHistoryService.loadHistory());
 
     window.addEventListener('mousedown', this.handleMouseDown);
     window.addEventListener('mouseup', this.handleMouseUp);
@@ -291,6 +363,8 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   private render() {
     if (!this.ctx || !this.gameCanvas?.nativeElement) return;
 
+    const visibleBounds = this.visibleGridBounds();
+
     this.canvasRenderService.render(this.ctx, {
       canvasWidth: this.gameCanvas.nativeElement.width,
       canvasHeight: this.gameCanvas.nativeElement.height,
@@ -307,6 +381,10 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       tileSize: TILE_SIZE,
       selectedToolCategory: this.selectedToolCategory(),
       selectedToolId: this.selectedToolId(),
+      visibleStartX: visibleBounds.startX,
+      visibleStartY: visibleBounds.startY,
+      visibleEndX: visibleBounds.endX,
+      visibleEndY: visibleBounds.endY
     });
   }
 
@@ -367,20 +445,33 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     const parent = canvasEl.parentElement;
     const containerW = parent?.getBoundingClientRect().width ?? canvasEl?.width ?? 0;
     const containerH = parent?.getBoundingClientRect().height ?? canvasEl?.height ?? 0;
-    const mapW = this.GRID_W() * TILE_SIZE * this.viewScale();
-    const mapH = this.GRID_H() * TILE_SIZE * this.viewScale();
+    const scale = this.viewScale();
+    const bounds = this.visibleGridBounds();
+    const left = bounds.startX * TILE_SIZE * scale;
+    const top = bounds.startY * TILE_SIZE * scale;
+    const right = bounds.endX * TILE_SIZE * scale;
+    const bottom = bounds.endY * TILE_SIZE * scale;
+    const mapW = Math.max(0, right - left);
+    const mapH = Math.max(0, bottom - top);
+
+    let clampedX = x;
+    let clampedY = y;
 
     if (mapW <= containerW) {
-      x = (containerW - mapW) / 2;
-    }
-    if (mapH <= containerH) {
-      y = (containerH - mapH) / 2;
+      clampedX = (containerW - mapW) / 2 - left;
+    } else {
+      const minX = containerW - right;
+      const maxX = -left;
+      clampedX = Math.min(maxX, Math.max(minX, x));
     }
 
-    const minX = Math.min(0, containerW - mapW);
-    const minY = Math.min(0, containerH - mapH);
-    const clampedX = Math.min(0, Math.max(minX, x));
-    const clampedY = Math.min(0, Math.max(minY, y));
+    if (mapH <= containerH) {
+      clampedY = (containerH - mapH) / 2 - top;
+    } else {
+      const minY = containerH - bottom;
+      const maxY = -top;
+      clampedY = Math.min(maxY, Math.max(minY, y));
+    }
 
     return { x: clampedX, y: clampedY };
   }
@@ -390,11 +481,15 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     if (!canvasEl) return;
     const cssW = canvasWidth ?? canvasEl.width / this.dpr;
     const cssH = canvasHeight ?? canvasEl.height / this.dpr;
-    const mapW = this.GRID_W() * TILE_SIZE * this.viewScale();
-    const mapH = this.GRID_H() * TILE_SIZE * this.viewScale();
+    const scale = this.viewScale();
+    const bounds = this.visibleGridBounds();
+    const left = bounds.startX * TILE_SIZE * scale;
+    const top = bounds.startY * TILE_SIZE * scale;
+    const mapW = (bounds.endX - bounds.startX) * TILE_SIZE * scale;
+    const mapH = (bounds.endY - bounds.startY) * TILE_SIZE * scale;
 
-    const centerX = (cssW - mapW) / 2;
-    const centerY = (cssH - mapH) / 2;
+    const centerX = (cssW - mapW) / 2 - left;
+    const centerY = (cssH - mapH) / 2 - top;
     this.setPan(centerX, centerY);
   }
 
@@ -451,13 +546,19 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     const gridX = Math.floor(x / TILE_SIZE);
     const gridY = Math.floor(y / TILE_SIZE);
     const currentTool = this.selectedToolCategory();
+    const bounds = this.visibleGridBounds();
 
     if (isRightClick) {
       this.selectTool('none', null);
       return;
     }
 
-    if (gridX < 0 || gridX >= this.GRID_W() || gridY < 0 || gridY >= this.GRID_H()) {
+    if (
+      gridX < bounds.startX ||
+      gridX >= bounds.endX ||
+      gridY < bounds.startY ||
+      gridY >= bounds.endY
+    ) {
       this.selectTool('none', null);
       return;
     }
@@ -478,7 +579,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     }
 
     const cell = this.gridService.getCell(this.grid(), gridX, gridY, this.GRID_W(), this.GRID_H());
-    if (cell) {
+    if (cell && !cell.locked) {
       this.onCellClick(cell);
     }
   }
@@ -504,9 +605,20 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
     const gridX = Math.floor(x / TILE_SIZE);
     const gridY = Math.floor(y / TILE_SIZE);
+    const bounds = this.visibleGridBounds();
+
+    if (
+      gridX < bounds.startX ||
+      gridX >= bounds.endX ||
+      gridY < bounds.startY ||
+      gridY >= bounds.endY
+    ) {
+      this.hoveredCell = null;
+      return;
+    }
 
     const cell = this.gridService.getCell(this.grid(), gridX, gridY, this.GRID_W(), this.GRID_H());
-    this.hoveredCell = cell || null;
+    this.hoveredCell = cell && !cell.locked ? cell : null;
   }
 
   handleCanvasDoubleClick(event: MouseEvent) {
@@ -515,21 +627,14 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   initNewGame() {
     // Reset all per-building upgrades so new games start from base level
     this.upgradeService.clearAll();
+    const initialExpansionState = this.expansionService.getInitialState();
+    const { grid, entranceIndex } = this.createInitialParkGrid(initialExpansionState);
 
-    const newGrid = this.gridService.createEmptyGrid(GRID_W, GRID_H);
-
-    const entryX = Math.floor(GRID_W / 2);
-    const entryY = GRID_H - 1;
-    const entryIdx = this.gridService.getCellIndex(entryX, entryY, GRID_W);
-    newGrid[entryIdx] = { x: entryX, y: entryY, type: 'entrance' };
-    this.entranceIndex = entryIdx;
-
-    const pathIdx = this.gridService.getCellIndex(entryX, entryY - 1, GRID_W);
-    newGrid[pathIdx] = { x: entryX, y: entryY - 1, type: 'path' };
-
-    this.grid.set(newGrid);
-    this.GRID_W.set(GRID_W);
-    this.GRID_H.set(GRID_H);
+    this.expansionState.set(initialExpansionState);
+    this.grid.set(grid);
+    this.GRID_W.set(FULL_GRID_WIDTH);
+    this.GRID_H.set(FULL_GRID_HEIGHT);
+    this.entranceIndex = entranceIndex;
     this.money.set(5000);
     this.dayCount.set(1);
     this.guests.set([]);
@@ -537,9 +642,151 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     this.tickCounter = 0;
     this.casinoLastPayoutDay = 1;
     this.isParkClosed.set(false);
+    this.parkLifetimeStats.set(createInitialLifetimeStats());
+    this.premiumSkinsOwned.set(this.premiumSkinsService.getOwnedSkins());
+    this.gamificationService.resetState();
+  }
+
+  private createInitialParkGrid(state: ExpansionState): { grid: Cell[]; entranceIndex: number } {
+    const newGrid = this.buildExpansionLayoutGrid(state);
+    const entryX = FIXED_GRID_OFFSET_X + Math.floor(PLOT_WIDTH / 2);
+    const entryY = FIXED_GRID_OFFSET_Y + PLOT_HEIGHT - 1;
+    const entryIdx = this.gridService.getCellIndex(entryX, entryY, FULL_GRID_WIDTH);
+    newGrid[entryIdx] = { ...newGrid[entryIdx], x: entryX, y: entryY, type: 'entrance', locked: false };
+
+    const pathIdx = this.gridService.getCellIndex(entryX, entryY - 1, FULL_GRID_WIDTH);
+    newGrid[pathIdx] = { ...newGrid[pathIdx], x: entryX, y: entryY - 1, type: 'path', locked: false };
+
+    return { grid: newGrid, entranceIndex: entryIdx };
+  }
+
+  private buildExpansionLayoutGrid(state: ExpansionState): Cell[] {
+    const grid = this.gridService.createEmptyGrid(FULL_GRID_WIDTH, FULL_GRID_HEIGHT).map(cell => ({
+      ...cell,
+      locked: true,
+      terrain: 'grass' as TerrainType
+    }));
+
+    this.applyPlotLayout(grid, 0, 0, 'grass', false);
+    state.plots.forEach(plot => {
+      this.applyPlotLayout(grid, plot.gridX, plot.gridY, plot.terrain, !plot.purchased);
+    });
+
+    return grid;
+  }
+
+  private applyPlotLayout(
+    grid: Cell[],
+    plotGridX: number,
+    plotGridY: number,
+    terrain: TerrainType,
+    locked: boolean
+  ) {
+    const startX = FIXED_GRID_OFFSET_X + plotGridX * PLOT_WIDTH;
+    const startY = FIXED_GRID_OFFSET_Y + plotGridY * PLOT_HEIGHT;
+
+    for (let y = startY; y < startY + PLOT_HEIGHT; y++) {
+      for (let x = startX; x < startX + PLOT_WIDTH; x++) {
+        const idx = this.gridService.getCellIndex(x, y, FULL_GRID_WIDTH);
+        grid[idx] = {
+          ...grid[idx],
+          terrain,
+          locked
+        };
+      }
+    }
+  }
+
+  private normalizeSavedGridToExpansionLayout(
+    savedGrid: Cell[],
+    savedWidth: number,
+    savedHeight: number,
+    state: ExpansionState,
+    savedEntranceIndex: number
+  ): { grid: Cell[]; entranceIndex: number } {
+    if (savedWidth === FULL_GRID_WIDTH && savedHeight === FULL_GRID_HEIGHT) {
+      const normalizedGrid = this.buildExpansionLayoutGrid(state);
+
+      savedGrid.forEach(cell => {
+        if (cell.x < 0 || cell.x >= FULL_GRID_WIDTH || cell.y < 0 || cell.y >= FULL_GRID_HEIGHT) {
+          return;
+        }
+
+        const idx = this.gridService.getCellIndex(cell.x, cell.y, FULL_GRID_WIDTH);
+        normalizedGrid[idx] = {
+          ...normalizedGrid[idx],
+          ...cell,
+          x: cell.x,
+          y: cell.y,
+          locked: normalizedGrid[idx].locked,
+          terrain: cell.terrain ?? normalizedGrid[idx].terrain
+        };
+      });
+
+      return {
+        grid: normalizedGrid,
+        entranceIndex: this.resolveEntranceIndex(normalizedGrid, savedEntranceIndex, savedWidth, savedHeight)
+      };
+    }
+
+    return this.migrateLegacyGridToExpansionLayout(savedGrid, state, savedEntranceIndex);
+  }
+
+  private migrateLegacyGridToExpansionLayout(
+    savedGrid: Cell[],
+    state: ExpansionState,
+    savedEntranceIndex: number
+  ): { grid: Cell[]; entranceIndex: number } {
+    const migratedGrid = this.buildExpansionLayoutGrid(state);
+    const { minPlotX, minPlotY } = this.expansionService.getPurchasedBounds(state);
+    let entranceIndex = -1;
+
+    savedGrid.forEach((cell, index) => {
+      const worldX = cell.x + minPlotX * PLOT_WIDTH;
+      const worldY = cell.y + minPlotY * PLOT_HEIGHT;
+      const targetX = worldX + FIXED_GRID_OFFSET_X;
+      const targetY = worldY + FIXED_GRID_OFFSET_Y;
+
+      if (targetX < 0 || targetX >= FULL_GRID_WIDTH || targetY < 0 || targetY >= FULL_GRID_HEIGHT) {
+        return;
+      }
+
+      const targetIdx = this.gridService.getCellIndex(targetX, targetY, FULL_GRID_WIDTH);
+      migratedGrid[targetIdx] = {
+        ...migratedGrid[targetIdx],
+        ...cell,
+        x: targetX,
+        y: targetY,
+        locked: migratedGrid[targetIdx].locked,
+        terrain: cell.terrain ?? migratedGrid[targetIdx].terrain
+      };
+
+      if (index === savedEntranceIndex || cell.type === 'entrance') {
+        entranceIndex = targetIdx;
+      }
+    });
+
+    return {
+      grid: migratedGrid,
+      entranceIndex: entranceIndex >= 0
+        ? entranceIndex
+        : this.resolveEntranceIndex(migratedGrid, savedEntranceIndex, FULL_GRID_WIDTH, FULL_GRID_HEIGHT)
+    };
+  }
+
+  private resolveEntranceIndex(grid: Cell[], savedEntranceIndex: number, savedWidth: number, savedHeight: number): number {
+    if (savedEntranceIndex >= 0 && savedEntranceIndex < savedWidth * savedHeight) {
+      const savedEntranceCell = grid.find(cell => cell.type === 'entrance');
+      if (savedEntranceCell) {
+        return this.gridService.getCellIndex(savedEntranceCell.x, savedEntranceCell.y, FULL_GRID_WIDTH);
+      }
+    }
+
+    return grid.findIndex(cell => cell.type === 'entrance');
   }
 
   saveGame() {
+    this.premiumSkinsOwned.set(this.premiumSkinsService.getOwnedSkins());
     const state: GameSaveState = {
       money: this.money(),
       dayCount: this.dayCount(),
@@ -552,6 +799,10 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       casinoLastPayoutDay: this.casinoLastPayoutDay,
       isParkClosed: this.isParkClosed(),
       premiumSkinsOwned: this.premiumSkinsOwned(),
+      premiumSkinState: this.premiumSkinsService.exportState(),
+      achievementProgress: this.gamificationService.exportState(),
+      parkLifetimeStats: this.parkLifetimeStats(),
+      expansionState: this.expansionState()
     };
 
     const success = this.gameStateService.saveGame(state);
@@ -565,18 +816,30 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     const state = this.gameStateService.loadGame();
     if (!state) return false;
 
+    const normalizedExpansionState = this.expansionService.normalizeState(
+      state.expansionState
+      ?? this.expansionService.loadFromStorage()
+      ?? this.expansionService.getInitialState()
+    );
+    const savedWidth = state.gridWidth ?? GRID_W;
+    const savedHeight = state.gridHeight ?? GRID_H;
+    const normalizedGridState = this.normalizeSavedGridToExpansionLayout(
+      state.grid,
+      savedWidth,
+      savedHeight,
+      normalizedExpansionState,
+      state.entranceIndex
+    );
+
     this.money.set(state.money);
     this.dayCount.set(state.dayCount);
-    this.grid.set(state.grid);
+    this.grid.set(this.normalizeGridBuildingReferences(normalizedGridState.grid, FULL_GRID_WIDTH, FULL_GRID_HEIGHT));
     this.isParkClosed.set(!!state.isParkClosed);
-
-    if (state.gridWidth && state.gridHeight) {
-      this.GRID_W.set(state.gridWidth);
-      this.GRID_H.set(state.gridHeight);
-    } else {
-      this.GRID_W.set(GRID_W);
-      this.GRID_H.set(GRID_H);
-    }
+    this.premiumSkinsOwned.set(this.premiumSkinsService.getOwnedSkins());
+    this.parkLifetimeStats.set(state.parkLifetimeStats ?? createInitialLifetimeStats());
+    this.expansionState.set(normalizedExpansionState);
+    this.GRID_W.set(FULL_GRID_WIDTH);
+    this.GRID_H.set(FULL_GRID_HEIGHT);
 
     if (state.guests && Array.isArray(state.guests)) {
       const restored = state.guests.map(g => Guest.fromJSON(g));
@@ -587,12 +850,17 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       this.guests.set([]);
     }
     this.guestIdCounter = state.guestIdCounter;
-    this.entranceIndex = state.entranceIndex;
+    this.entranceIndex = normalizedGridState.entranceIndex;
     this.casinoLastPayoutDay = state.casinoLastPayoutDay || 1;
+    this.syncBuildingUpgradeEffects();
 
     this.buildingStatusService.getBrokenPositions().forEach(pos => {
       this.maintenanceService.requestRepair(pos.x, pos.y);
     });
+
+    if (this.refreshGamification() > 0) {
+      this.saveGame();
+    }
 
     this.showNotification('Игра загружена!');
     return true;
@@ -603,6 +871,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       this.gameStateService.resetGame();
       this.initNewGame();
       this.showNotification('Новая игра начата');
+      this.saveGame();
     }
   }
 
@@ -661,6 +930,9 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     }
 
     this.updateGuests();
+    if (this.refreshGamification() > 0) {
+      this.saveGame();
+    }
   }
 
   spawnGuest() {
@@ -670,6 +942,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     const attractionCount = this.grid().filter(c => c.type === 'building').length;
     const newGuest = this.guestService.spawnGuest(this.guestIdCounter++, entrance.x, entrance.y, attractionCount);
     this.guests.update(gs => [...gs, newGuest]);
+    this.recordGuestSpawn();
   }
 
   updateGuests() {
@@ -692,6 +965,125 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   openSkinsGallery() {
     this.saveGame();
     this.router.navigate(['/skins']);
+  }
+
+  private syncBuildingUpgradeEffects() {
+    for (const cell of this.grid()) {
+      if (cell.type !== 'building' || !cell.isRoot || !cell.buildingId) {
+        continue;
+      }
+
+      const building = this.buildingService.getBuildingById(cell.buildingId);
+      if (!building) {
+        continue;
+      }
+
+      const level = this.upgradeService.getLevel(building.id, cell.x, cell.y);
+      const maxVisits = this.buildingService.computeMaxUsageLimit(building, level);
+      this.buildingStatusService.updateMaxVisits(cell.x, cell.y, maxVisits);
+    }
+  }
+
+  toggleAiPanel() {
+    const next = !this.showAiPanel();
+    this.showAiPanel.set(next);
+
+    if (next && this.availableLmStudioModels().length === 0) {
+      this.loadLmStudioModels();
+    }
+  }
+
+  toggleAchievementsPanel() {
+    this.showAchievementsPanel.update((value) => !value);
+  }
+
+  updateAiPrompt(value: string) {
+    this.aiPrompt.set(value);
+  }
+
+  updateSelectedLmStudioModel(modelId: string) {
+    this.selectedLmStudioModel.set(modelId);
+  }
+
+  clearAiConversation() {
+    this.aiMessages.set([]);
+    this.aiError.set(null);
+  }
+
+  loadDiagnosisFromHistory(entry: DiagnosisHistoryEntry) {
+    this.aiDiagnosisReport.set(entry.report);
+    this.aiDiagnosisGeneratedAt.set(entry.createdAt);
+    this.aiError.set(null);
+  }
+
+  clearDiagnosisHistory() {
+    this.aiDiagnosisHistoryService.clearHistory();
+    this.aiDiagnosisHistory.set([]);
+  }
+
+  askAiForParkAdvice() {
+    this.sendAiPrompt('Проанализируй текущее состояние парка и дай 3 приоритетных следующих шага развития.');
+  }
+
+  generateAiDiagnosisReport() {
+    if (this.aiLoading()) return;
+
+    const modelId = this.selectedLmStudioModel().trim();
+    if (!modelId) {
+      this.aiError.set('LM Studio не вернула модель. Загрузите модель в локальном сервере.');
+      return;
+    }
+
+    this.aiError.set(null);
+    this.aiLoading.set(true);
+    this.aiDiagnosisReport.set('');
+    this.aiDiagnosisGeneratedAt.set(null);
+
+    const createdAt = new Date().toLocaleString();
+    const snapshot = this.buildParkSnapshot();
+
+    this.lmStudioService.streamChat(modelId, [
+      {
+        role: 'system',
+        content: this.buildAiSystemPrompt()
+      },
+      {
+        role: 'user',
+        content: [
+          'Сформируй диагностический отчет по парку.',
+          'Структура ответа:',
+          '1. Общая оценка состояния парка',
+          '2. Критические проблемы',
+          '3. Сильные стороны',
+          '4. Узкие места по потребностям гостей',
+          '5. Экономика и окупаемость',
+          '6. Топ-3 действия с приоритетами',
+          'Пиши кратко, в формате готового отчета, на русском языке.'
+        ].join('\n')
+      }
+    ]).subscribe({
+      next: (chunk) => {
+        this.aiDiagnosisReport.update((current) => `${current ?? ''}${chunk}`);
+      },
+      complete: () => {
+        const finalReport = this.aiDiagnosisReport()?.trim() || 'LM Studio вернула пустой диагностический отчет.';
+        this.aiDiagnosisReport.set(finalReport);
+        this.aiDiagnosisGeneratedAt.set(createdAt);
+        this.aiDiagnosisHistory.set(
+          this.aiDiagnosisHistoryService.addEntry(finalReport, snapshot, createdAt)
+        );
+        this.aiLoading.set(false);
+      },
+      error: () => {
+        this.aiError.set('Не удалось сгенерировать диагностику парка. Проверьте доступность LM Studio на 127.0.0.1:1234.');
+        this.aiDiagnosisReport.set(null);
+        this.aiLoading.set(false);
+      }
+    });
+  }
+
+  runAiAdvisorAction(actionId: AiAdvisorAction['id']) {
+    this.sendAiPrompt(this.buildAdvisorPrompt(actionId));
   }
 
   toggleSidebar() {
@@ -728,11 +1120,233 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     this.selectedGuestId.set(null);
   }
 
+  sendAiPrompt(promptOverride?: string) {
+    const prompt = (promptOverride ?? this.aiPrompt()).trim();
+    if (!prompt || this.aiLoading()) return;
+
+    const modelId = this.selectedLmStudioModel().trim();
+    if (!modelId) {
+      this.aiError.set('LM Studio не вернула модель. Загрузите модель в локальном сервере.');
+      return;
+    }
+
+    const userMessage: AiPanelMessage = { role: 'user', content: prompt };
+    const assistantPlaceholder: AiPanelMessage = { role: 'assistant', content: '' };
+    const conversation = [...this.aiMessages(), userMessage, assistantPlaceholder];
+
+    this.aiMessages.set(conversation);
+    this.aiError.set(null);
+    this.aiLoading.set(true);
+
+    if (!promptOverride) {
+      this.aiPrompt.set('');
+    }
+
+    const messages: LmStudioChatMessage[] = [
+      {
+        role: 'system',
+        content: this.buildAiSystemPrompt()
+      },
+      ...conversation
+        .filter((message) => !(message.role === 'assistant' && !message.content))
+        .map((message) => ({
+        role: message.role,
+        content: message.content
+      }))
+    ];
+
+    this.lmStudioService.streamChat(modelId, messages).subscribe({
+      next: (chunk) => {
+        this.aiMessages.update((current) => this.appendChunkToLastAssistantMessage(current, chunk));
+      },
+      complete: () => {
+        this.aiMessages.update((current) => this.finalizeLastAssistantMessage(current));
+        this.aiLoading.set(false);
+      },
+      error: () => {
+        this.aiError.set('Не удалось получить ответ от LM Studio. Проверьте, что локальный сервер доступен на 127.0.0.1:1234.');
+        this.aiMessages.update((current) => this.finalizeLastAssistantMessage(current));
+        this.aiLoading.set(false);
+      }
+    });
+  }
+
+  private appendChunkToLastAssistantMessage(messages: AiPanelMessage[], chunk: string): AiPanelMessage[] {
+    const next = [...messages];
+    for (let i = next.length - 1; i >= 0; i--) {
+      if (next[i].role === 'assistant') {
+        next[i] = {
+          ...next[i],
+          content: `${next[i].content}${chunk}`
+        };
+        break;
+      }
+    }
+    return next;
+  }
+
+  private finalizeLastAssistantMessage(messages: AiPanelMessage[]): AiPanelMessage[] {
+    const next = [...messages];
+    for (let i = next.length - 1; i >= 0; i--) {
+      if (next[i].role === 'assistant') {
+        next[i] = {
+          ...next[i],
+          content: next[i].content.trim() || 'LM Studio вернула пустой ответ.'
+        };
+        break;
+      }
+    }
+    return next;
+  }
+
+  private buildAiSystemPrompt(): string {
+    return [
+      'Ты игровой ассистент для симулятора парка развлечений.',
+      'Отвечай кратко, конкретно и по делу на русском языке.',
+      'Опирайся только на состояние парка и давай практические советы игроку.',
+      `Состояние парка:\n${this.buildParkSnapshot()}`
+    ].join('\n\n');
+  }
+
+  private loadLmStudioModels() {
+    this.lmStudioService.getModels().subscribe({
+      next: (models) => {
+        this.availableLmStudioModels.set(models);
+
+        if (!models.length) {
+          this.aiError.set('LM Studio доступна, но в локальный сервер не загружена ни одна модель.');
+          return;
+        }
+
+        this.aiError.set(null);
+
+        const currentModelId = this.selectedLmStudioModel();
+        const hasCurrentModel = models.some((model) => model.id === currentModelId);
+        if (!hasCurrentModel) {
+          this.selectedLmStudioModel.set(models[0].id);
+        }
+      },
+      error: () => {
+        this.aiError.set('Не удалось подключиться к LM Studio. Убедитесь, что локальный сервер запущен на 127.0.0.1:1234.');
+      }
+    });
+  }
+
+  private buildParkSnapshot(): string {
+    const stats = this.guestStats() ?? {
+      happiness: 0,
+      satiety: 0,
+      hydration: 0,
+      energy: 0,
+      fun: 0,
+      toilet: 0,
+      money: 0
+    };
+    const buildings = this.buildingStats();
+    const categories = Object.entries(buildings.byCategory)
+      .map(([category, count]) => `${category}: ${count}`)
+      .join(', ') || 'нет зданий';
+    const topTypes = Object.values(buildings.byType)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+      .map((item) => `${item.name}: ${item.count}`)
+      .join(', ') || 'нет данных';
+    const weakestNeed = this.getWeakestGuestNeed(stats);
+    const brokenBuildings = this.buildingStatusService.getBrokenPositions().length;
+
+    return [
+      `День: ${this.dayCount()}`,
+      `Бюджет: ${Math.round(this.money())}`,
+      `Гостей всего: ${this.guests().length}`,
+      `Парк закрыт: ${this.isParkClosed() ? 'да' : 'нет'}`,
+      `Всего зданий: ${buildings.total}`,
+      `Категории зданий: ${categories}`,
+      `Топ типов зданий: ${topTypes}`,
+      `Поврежденных зданий: ${brokenBuildings}`,
+      `Среднее счастье гостей: ${stats.happiness.toFixed(0)}%`,
+      `Средняя сытость гостей: ${stats.satiety.toFixed(0)}%`,
+      `Средняя жажда гостей: ${stats.hydration.toFixed(0)}%`,
+      `Средняя энергия гостей: ${stats.energy.toFixed(0)}%`,
+      `Среднее веселье гостей: ${stats.fun.toFixed(0)}%`,
+      `Средняя потребность в туалете: ${stats.toilet.toFixed(0)}%`,
+      `Самая слабая потребность: ${weakestNeed.label} (${weakestNeed.value.toFixed(0)}%)`
+    ].join('\n');
+  }
+
+  private buildAdvisorPrompt(actionId: AiAdvisorAction['id']): string {
+    const stats = this.guestStats() ?? {
+      happiness: 0,
+      satiety: 0,
+      hydration: 0,
+      energy: 0,
+      fun: 0,
+      toilet: 0,
+      money: 0
+    };
+    const weakestNeed = this.getWeakestGuestNeed(stats);
+
+    switch (actionId) {
+      case 'overview':
+        return 'Проанализируй парк и дай 3 конкретных следующих шага. Для каждого шага укажи приоритет и ожидаемую пользу.';
+      case 'build':
+        return 'Какое здание лучше построить следующим именно сейчас? Дай 3 варианта с объяснением по влиянию на гостей, доход и стоимости.';
+      case 'income':
+        return 'Как быстрее увеличить доход парка? Предложи план из 3-5 действий с упором на окупаемость и узкие места.';
+      case 'happiness':
+        return 'Почему у гостей может падать счастье в текущем состоянии парка? Назови вероятные причины и конкретные исправления.';
+      case 'needs':
+        return `Сейчас самая слабая потребность гостей: ${weakestNeed.label}. Какие здания или изменения лучше всего исправят именно эту проблему?`;
+      default:
+        return 'Проанализируй текущее состояние парка и дай практический совет.';
+    }
+  }
+
+  private getWeakestGuestNeed(stats: {
+    happiness: number;
+    satiety: number;
+    hydration: number;
+    energy: number;
+    fun: number;
+    toilet: number;
+    money: number;
+  }): { label: string; value: number } {
+    const needs = [
+      { label: 'счастье', value: stats.happiness },
+      { label: 'сытость', value: stats.satiety },
+      { label: 'жажда', value: stats.hydration },
+      { label: 'энергия', value: stats.energy },
+      { label: 'веселье', value: stats.fun },
+      { label: 'туалет', value: stats.toilet }
+    ];
+
+    return needs.reduce((lowest, current) => current.value < lowest.value ? current : lowest, needs[0]);
+  }
+
   onCellHover(event: MouseEvent) {
   }
 
   private handleEscape(event: KeyboardEvent) {
     if (event.key !== 'Escape') return;
+    if (this.showAchievementsPanel()) {
+      this.showAchievementsPanel.set(false);
+      event.preventDefault();
+      return;
+    }
+    if (this.showAiPanel()) {
+      this.showAiPanel.set(false);
+      event.preventDefault();
+      return;
+    }
+    if (this.showExpansionPanel()) {
+      this.closeExpansionPanel();
+      event.preventDefault();
+      return;
+    }
+    if (this.showUpgradePanel()) {
+      this.closeUpgradePanel();
+      event.preventDefault();
+      return;
+    }
     if (this.shouldCancelTool()) {
       this.selectTool('none', null);
       event.preventDefault();
@@ -755,6 +1369,13 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   onCellClick(cell: Cell) {
     const cat = this.selectedToolCategory();
     const id = this.selectedToolId();
+
+    if (cell.locked) {
+      if (cat !== 'none') {
+        this.showNotification('Сначала откройте этот участок');
+      }
+      return;
+    }
 
     if (cat === 'none' && cell.type === 'grass') {
       return;
@@ -868,6 +1489,8 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       this.guests.update(gs => [...gs, ...spawnedWorkers]);
       this.maintenanceService.registerWorkers(spawnedWorkers);
     }
+    this.recordBuild(building);
+    this.refreshGamification();
     this.saveGame();
 
     const keepSelected = building.category === 'path' || building.allowContinuousBuild;
@@ -877,6 +1500,11 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   }
 
   demolish(cell: Cell) {
+    if (cell.locked) {
+      this.showNotification('Этот участок ещё не открыт');
+      return;
+    }
+
     if (cell.buildingId === 'mountain' || cell.buildingId === 'pond' || cell.terrain === 'water' || cell.terrain === 'mountain') {
       this.showNotification('Этот участок нельзя изменить');
       return;
@@ -901,13 +1529,14 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
     const newGrid = this.buildingService.demolishBuilding(this.grid(), cell, this.GRID_W());
     this.grid.set(newGrid);
+    this.parkLifetimeStats.update((stats) => ({
+      ...stats,
+      totalDemolitions: stats.totalDemolitions + 1
+    }));
+    this.refreshGamification();
     this.saveGame();
 
     this.selectTool('none', null);
-  }
-
-  getBuildingsByCategory(cat: string) {
-    return this.buildingService.getBuildingsByCategory(cat);
   }
 
   getBuildingColor(id: string): string {
@@ -961,9 +1590,11 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     if (result.success && result.newState) {
       this.expansionState.set(result.newState);
       this.money.update(m => m - event.cost);
-      this.expandGrid(event.plotId);
+      this.unlockPurchasedPlot(event.plotId);
+      this.setPan(this.panX(), this.panY());
       this.showNotification(result.message);
       this.saveGame();
+      this.refreshGamification();
 
       const unlockedBuildings = this.expansionService.getUnlockedBuildings(result.newState);
       if (unlockedBuildings.length > 0) {
@@ -972,6 +1603,29 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     } else {
       this.showNotification(result.message);
     }
+  }
+
+  private unlockPurchasedPlot(plotId: string) {
+    const plot = this.expansionState().plots.find(currentPlot => currentPlot.id === plotId);
+    if (!plot) {
+      return;
+    }
+
+    const nextGrid = this.grid().map(cell => ({
+      ...cell,
+      data: cell.data ? { ...cell.data } : cell.data
+    }));
+
+    this.applyPlotLayout(nextGrid, plot.gridX, plot.gridY, plot.terrain, false);
+    const seededGrid = this.seedTerrainForPlot(
+      plot,
+      nextGrid,
+      FULL_GRID_WIDTH,
+      FULL_GRID_HEIGHT,
+      FIXED_GRID_OFFSET_X,
+      FIXED_GRID_OFFSET_Y
+    );
+    this.grid.set(seededGrid);
   }
 
 
@@ -1012,6 +1666,8 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       this.buildingStatusService.repair(r.x, r.y);
       this.maintenanceService.markBuildingRepaired(r.x, r.y);
     });
+    this.recordRepairs(repairs.length);
+    this.refreshGamification();
     this.showNotification(`Отремонтировано: ${repairs.length}, затраты: $${totalCost}`);
     this.saveGame();
   }
@@ -1074,6 +1730,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
         repairCost: 0
       });
     }
+    this.refreshGamification();
   }
 
   handleThemeApplied(event: { cost: number }) {
@@ -1088,6 +1745,8 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       this.money.update(m => m - event.cost);
       this.buildingStatusService.repair(current.cellX, current.cellY);
       this.maintenanceService.markBuildingRepaired(current.cellX, current.cellY);
+      this.recordRepairs(1);
+      this.refreshGamification();
       this.showNotification('🔧 Здание отремонтировано!');
       this.saveGame();
       this.closeUpgradePanel();
@@ -1096,106 +1755,12 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  private expandGrid(plotId: string) {
-    const state = this.expansionState();
-    const plot = state.plots.find(p => p.id === plotId);
-    if (!plot) return;
-
-    const currentGrid = this.grid();
-    const currentW = this.GRID_W();
-    const currentH = this.GRID_H();
-
-    let minX = 0;
-    let maxX = 20;
-    let minY = 0;
-    let maxY = 15;
-
-    const updateBounds = (p: import('./models/expansion.model').LandPlot) => {
-      const pX = p.gridX * 20;
-      const pY = p.gridY * 15;
-
-      minX = Math.min(minX, pX);
-      maxX = Math.max(maxX, pX + p.size.w);
-      minY = Math.min(minY, pY);
-      maxY = Math.max(maxY, pY + p.size.h);
-    };
-
-    state.plots.filter(p => p.purchased).forEach(updateBounds);
-
-    const newW = maxX - minX;
-    const newH = maxY - minY;
-
-    const targetOffsetX = -minX;
-    const targetOffsetY = -minY;
-
-    let oldMinX = 0;
-    let oldMinY = 0;
-
-    const oldPlots = state.plots.filter(p => p.purchased && p.id !== plotId);
-    if (oldPlots.length > 0) {
-      let oldMaxX = 20;
-      let oldMaxY = 15;
-      oldPlots.forEach(p => {
-        const pX = p.gridX * 20;
-        const pY = p.gridY * 15;
-        oldMinX = Math.min(oldMinX, pX);
-        oldMaxX = Math.max(oldMaxX, pX + p.size.w);
-        oldMinY = Math.min(oldMinY, pY);
-        oldMaxY = Math.max(oldMaxY, pY + p.size.h);
-      });
-    }
-
-    const oldOffsetX = -oldMinX;
-    const oldOffsetY = -oldMinY;
-
-    const shiftX = targetOffsetX - oldOffsetX;
-    const shiftY = targetOffsetY - oldOffsetY;
-
-    const newGrid: Cell[] = [];
-
-    for (let y = 0; y < newH; y++) {
-      for (let x = 0; x < newW; x++) {
-        const oldGridX = x - shiftX;
-        const oldGridY = y - shiftY;
-
-        if (oldGridX >= 0 && oldGridX < currentW && oldGridY >= 0 && oldGridY < currentH) {
-          const oldIdx = oldGridY * currentW + oldGridX;
-          const oldCell = currentGrid[oldIdx];
-          newGrid.push({ ...oldCell, x, y });
-
-          if (oldIdx === this.entranceIndex) {
-            this.entranceIndex = y * newW + x;
-          }
-        } else {
-          newGrid.push({ x, y, type: 'grass', terrain: plot.terrain });
-        }
-      }
-    }
-
-    if (shiftX > 0 || shiftY > 0) {
-      this.guests.update(gs => {
-        gs.forEach(guest => {
-          guest.x += shiftX;
-          guest.y += shiftY;
-          guest.targetX += shiftX;
-          guest.targetY += shiftY;
-        });
-        return [...gs];
-      });
-    }
-
-    this.GRID_W.set(newW);
-    this.GRID_H.set(newH);
-    const seededGrid = this.seedTerrainForPlot(plot, newGrid, newW, newH, targetOffsetX, targetOffsetY);
-    this.grid.set(seededGrid);
-  }
-
   private seedTerrainForPlot(plot: LandPlot, grid: Cell[], gridW: number, gridH: number, offsetX: number, offsetY: number): Cell[] {
     const area = {
-      startX: plot.gridX * 20 + offsetX,
-      startY: plot.gridY * 15 + offsetY,
-      endX: plot.gridX * 20 + offsetX + plot.size.w,
-      endY: plot.gridY * 15 + offsetY + plot.size.h
+      startX: plot.gridX * PLOT_WIDTH + offsetX,
+      startY: plot.gridY * PLOT_HEIGHT + offsetY,
+      endX: plot.gridX * PLOT_WIDTH + offsetX + plot.size.w,
+      endY: plot.gridY * PLOT_HEIGHT + offsetY + plot.size.h
     };
 
     if (plot.terrain === 'forest') {
@@ -1256,14 +1821,109 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     return { x, y };
   }
 
+  private isValidMaintenanceHome(home: { x: number; y: number } | null): home is { x: number; y: number } {
+    if (!home) {
+      return false;
+    }
+
+    const cell = this.gridService.getCell(this.grid(), home.x, home.y, this.GRID_W(), this.GRID_H());
+    return !!cell && cell.type === 'building' && cell.isRoot === true && cell.buildingId === 'parkMaintenance';
+  }
+
+  private findNearestMaintenanceHome(originX: number, originY: number): { x: number; y: number; homeKey: string } | null {
+    let closest: { x: number; y: number; homeKey: string } | null = null;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    for (const cell of this.grid()) {
+      if (cell.type !== 'building' || !cell.isRoot || cell.buildingId !== 'parkMaintenance') {
+        continue;
+      }
+
+      const distance = Math.hypot(cell.x - originX, cell.y - originY);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closest = {
+          x: cell.x,
+          y: cell.y,
+          homeKey: this.buildingService.getMaintenanceHomeKey(cell.x, cell.y)
+        };
+      }
+    }
+
+    return closest;
+  }
+
+  private normalizeGridBuildingReferences(grid: Cell[], width: number, height: number): Cell[] {
+    const normalized = grid.map((cell) => ({
+      ...cell,
+      data: cell.data ? { ...cell.data } : cell.data
+    }));
+
+    for (const cell of normalized) {
+      if (cell.type !== 'building' || !cell.isRoot || !cell.buildingId) {
+        continue;
+      }
+
+      const building = this.buildingService.getBuildingById(cell.buildingId);
+      if (!building) {
+        continue;
+      }
+
+      for (let offsetY = 0; offsetY < building.height; offsetY++) {
+        for (let offsetX = 0; offsetX < building.width; offsetX++) {
+          const x = cell.x + offsetX;
+          const y = cell.y + offsetY;
+          const index = this.gridService.getCellIndex(x, y, width);
+          const target = normalized[index];
+          if (!target || target.type !== 'building' || target.buildingId !== cell.buildingId) {
+            continue;
+          }
+
+          normalized[index] = {
+            ...target,
+            x,
+            y,
+            isRoot: offsetX === 0 && offsetY === 0,
+            rootX: cell.x,
+            rootY: cell.y,
+            data: target.data ? { ...target.data } : target.data
+          };
+        }
+      }
+
+      if (cell.buildingId === 'parkMaintenance') {
+        const rootIndex = this.gridService.getCellIndex(cell.x, cell.y, width);
+        normalized[rootIndex] = {
+          ...normalized[rootIndex],
+          data: {
+            ...(normalized[rootIndex].data ?? {}),
+            workerHome: this.buildingService.getMaintenanceHomeKey(cell.x, cell.y)
+          }
+        };
+      }
+    }
+
+    return normalized;
+  }
+
   private normalizeWorkerToHome(worker: Guest) {
     if (!worker.isWorker) return;
-    const home = this.parseMaintenanceHome(worker.workerHome);
-    if (!home) return;
+    let home = this.parseMaintenanceHome(worker.workerHome);
+
+    if (!this.isValidMaintenanceHome(home)) {
+      const nearestHome = this.findNearestMaintenanceHome(worker.x, worker.y);
+      if (!nearestHome) {
+        return;
+      }
+      worker.workerHome = nearestHome.homeKey;
+      home = { x: nearestHome.x, y: nearestHome.y };
+    }
+
     worker.x = home.x;
     worker.y = home.y;
     worker.targetX = home.x;
     worker.targetY = home.y;
+    worker.workerTask = undefined;
   }
 
   // 2. Метод обработки покупки (вызывается из SkinsGalleryComponent)
@@ -1279,11 +1939,74 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
         this.premiumSkinsOwned.set(result.updatedOwnedList);
       }
 
+      this.refreshGamification();
       this.showNotification(result.message);
       this.saveGame();
     } else {
       this.showNotification(result.message);
     }
+  }
+
+  private recordBuild(building: BuildingType) {
+    this.parkLifetimeStats.update((stats) => ({
+      ...stats,
+      totalBuildsPlaced: stats.totalBuildsPlaced + 1,
+      totalPathsPlaced: stats.totalPathsPlaced + (building.id === 'path' ? 1 : 0),
+      totalAttractionsBuilt: stats.totalAttractionsBuilt + (building.category === 'attraction' ? 1 : 0),
+      totalShopsBuilt: stats.totalShopsBuilt + (building.category === 'shop' ? 1 : 0),
+      totalDecorationsBuilt: stats.totalDecorationsBuilt + (building.category === 'decoration' ? 1 : 0),
+      totalServicesBuilt: stats.totalServicesBuilt + (building.category === 'service' ? 1 : 0)
+    }));
+  }
+
+  private recordGuestSpawn() {
+    this.parkLifetimeStats.update((stats) => ({
+      ...stats,
+      totalGuestsSpawned: stats.totalGuestsSpawned + 1
+    }));
+  }
+
+  private recordRepairs(count: number) {
+    this.parkLifetimeStats.update((stats) => ({
+      ...stats,
+      totalRepairsCompleted: stats.totalRepairsCompleted + count
+    }));
+  }
+
+  private buildGamificationSnapshot(): GamificationSnapshot {
+    return {
+      money: this.money(),
+      dayCount: this.dayCount(),
+      grid: this.grid(),
+      guests: this.guests(),
+      premiumOwnedSkins: this.premiumSkinsService.getOwnedSkins(),
+      lifetimeStats: {
+        ...this.parkLifetimeStats(),
+        highestMoneyReached: Math.max(this.parkLifetimeStats().highestMoneyReached, this.money())
+      }
+    };
+  }
+
+  private refreshGamification(): number {
+    const unlocks = this.gamificationService.evaluate(this.buildGamificationSnapshot(), {
+      addMoney: (amount) => this.money.update((money) => money + amount),
+      unlockSkin: (skinId) => {
+        const result = this.premiumSkinsService.grantSkin(skinId);
+        this.premiumSkinsOwned.set(this.premiumSkinsService.getOwnedSkins());
+        return result.success;
+      }
+    });
+
+    this.parkLifetimeStats.update((stats) => ({
+      ...stats,
+      highestMoneyReached: Math.max(stats.highestMoneyReached, this.money())
+    }));
+
+    for (const unlock of unlocks) {
+      this.showNotification(`🏆 ${unlock.achievement.title}. ${unlock.rewardMessage}`);
+    }
+
+    return unlocks.length;
   }
 }
 

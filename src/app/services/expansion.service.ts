@@ -14,11 +14,90 @@ export class ExpansionService {
     private readonly STORAGE_KEY = 'park-expansion-v1';
 
     getInitialState(): ExpansionState {
-        return {
-            plots: [...INITIAL_LAND_PLOTS],
+        return this.updatePlotPrices({
+            plots: INITIAL_LAND_PLOTS.map(plot => ({ ...plot })),
             purchasedCount: 0,
             totalSpent: 0
-        };
+        });
+    }
+
+    normalizeState(state: ExpansionState | null | undefined): ExpansionState {
+        if (!state) {
+            return this.getInitialState();
+        }
+
+        const plotById = new Map(state.plots.map(plot => [plot.id, plot]));
+        const plots = INITIAL_LAND_PLOTS.map((initialPlot) => {
+            const savedPlot = plotById.get(initialPlot.id);
+            return {
+                ...initialPlot,
+                purchased: savedPlot?.purchased ?? false
+            };
+        });
+
+        return this.updatePlotPrices({
+            plots,
+            purchasedCount: plots.filter(plot => plot.purchased).length,
+            totalSpent: state.totalSpent ?? 0
+        });
+    }
+
+    isCenterPlot(gridX: number, gridY: number): boolean {
+        return gridX === 0 && gridY === 0;
+    }
+
+    isPlotPurchasedOrCenter(state: ExpansionState, gridX: number, gridY: number): boolean {
+        if (this.isCenterPlot(gridX, gridY)) {
+            return true;
+        }
+
+        return state.plots.some(plot => plot.gridX === gridX && plot.gridY === gridY && plot.purchased);
+    }
+
+    isPlotAvailable(state: ExpansionState, plot: LandPlot): boolean {
+        if (plot.purchased) {
+            return false;
+        }
+
+        const orthogonalNeighbors = [
+            { x: plot.gridX - 1, y: plot.gridY },
+            { x: plot.gridX + 1, y: plot.gridY },
+            { x: plot.gridX, y: plot.gridY - 1 },
+            { x: plot.gridX, y: plot.gridY + 1 }
+        ];
+
+        return orthogonalNeighbors.some(neighbor =>
+            this.isPlotPurchasedOrCenter(state, neighbor.x, neighbor.y)
+        );
+    }
+
+    getPlotAt(state: ExpansionState, gridX: number, gridY: number): LandPlot | undefined {
+        return state.plots.find(plot => plot.gridX === gridX && plot.gridY === gridY);
+    }
+
+    getPlotLabel(plot: LandPlot): string {
+        const horizontal = plot.gridX < 0 ? 'слева' : plot.gridX > 0 ? 'справа' : '';
+        const vertical = plot.gridY < 0 ? 'сверху' : plot.gridY > 0 ? 'снизу' : '';
+
+        return [vertical, horizontal].filter(Boolean).join('-');
+    }
+
+    getPurchasedBounds(state: ExpansionState): { minPlotX: number; maxPlotX: number; minPlotY: number; maxPlotY: number } {
+        let minPlotX = 0;
+        let maxPlotX = 0;
+        let minPlotY = 0;
+        let maxPlotY = 0;
+
+        state.plots
+            .filter(plot => plot.purchased)
+            .forEach(plot => {
+                minPlotX = Math.min(minPlotX, plot.gridX);
+                maxPlotX = Math.max(maxPlotX, plot.gridX);
+                minPlotY = Math.min(minPlotY, plot.gridY);
+                maxPlotY = Math.max(maxPlotY, plot.gridY);
+            });
+
+        return { minPlotX, maxPlotX, minPlotY, maxPlotY };
     }
 
     /**
@@ -51,7 +130,8 @@ export class ExpansionService {
         newState?: ExpansionState;
         message: string;
     } {
-        const plot = state.plots.find(p => p.id === plotId);
+        const normalizedState = this.normalizeState(state);
+        const plot = normalizedState.plots.find(p => p.id === plotId);
 
         if (!plot) {
             return { success: false, message: 'Участок не найден' };
@@ -61,6 +141,10 @@ export class ExpansionService {
             return { success: false, message: 'Участок уже куплен' };
         }
 
+        if (!this.isPlotAvailable(normalizedState, plot)) {
+            return { success: false, message: 'Этот участок пока нельзя открыть' };
+        }
+
         if (currentMoney < plot.currentPrice) {
             return {
                 success: false,
@@ -68,26 +152,22 @@ export class ExpansionService {
             };
         }
 
-        // Покупаем участок
-        const updatedPlots = state.plots.map(p =>
-            p.id === plotId
-                ? { ...p, purchased: true }
-                : p
+        const updatedPlots = normalizedState.plots.map(currentPlot =>
+            currentPlot.id === plotId
+                ? { ...currentPlot, purchased: true }
+                : currentPlot
         );
 
-        let newState: ExpansionState = {
+        const newState = this.updatePlotPrices({
             plots: updatedPlots,
-            purchasedCount: state.purchasedCount + 1,
-            totalSpent: state.totalSpent + plot.currentPrice
-        };
-
-        // Обновляем цены для оставшихся участков
-        newState = this.updatePlotPrices(newState);
+            purchasedCount: normalizedState.purchasedCount + 1,
+            totalSpent: normalizedState.totalSpent + plot.currentPrice
+        });
 
         return {
             success: true,
             newState,
-            message: `Участок "${plotId}" куплен за $${plot.currentPrice}!`
+            message: `Участок ${this.getPlotLabel(plot) || `"${plot.id}"`} куплен за $${plot.currentPrice}!`
         };
     }
 
@@ -95,14 +175,16 @@ export class ExpansionService {
      * Получить список доступных участков для покупки
      */
     getAvailablePlots(state: ExpansionState): LandPlot[] {
-        return state.plots.filter(p => !p.purchased);
+        const normalizedState = this.normalizeState(state);
+        return normalizedState.plots.filter(plot => this.isPlotAvailable(normalizedState, plot));
     }
 
     /**
      * Получить список купленных участков
      */
     getPurchasedPlots(state: ExpansionState): LandPlot[] {
-        return state.plots.filter(p => p.purchased);
+        const normalizedState = this.normalizeState(state);
+        return normalizedState.plots.filter(plot => plot.purchased);
     }
 
     /**
@@ -117,7 +199,7 @@ export class ExpansionService {
             }
         });
 
-        return [...new Set(unlocked)]; // Убираем дубликаты
+        return [...new Set(unlocked)];
     }
 
     /**
@@ -173,7 +255,7 @@ export class ExpansionService {
             const data = localStorage.getItem(this.STORAGE_KEY);
             if (!data) return null;
 
-            return JSON.parse(data) as ExpansionState;
+            return this.normalizeState(JSON.parse(data) as ExpansionState);
         } catch (e) {
             console.error('Failed to load expansion state:', e);
             return null;
@@ -197,7 +279,8 @@ export class ExpansionService {
         totalSpent: number;
         nextCheapestPlot: LandPlot | null;
     } {
-        const available = this.getAvailablePlots(state);
+        const normalizedState = this.normalizeState(state);
+        const available = this.getAvailablePlots(normalizedState);
         const nextCheapest = available.length > 0
             ? available.reduce((min, plot) =>
                 plot.currentPrice < min.currentPrice ? plot : min
@@ -205,10 +288,10 @@ export class ExpansionService {
             : null;
 
         return {
-            totalPlots: state.plots.length,
-            purchased: state.purchasedCount,
+            totalPlots: normalizedState.plots.length,
+            purchased: normalizedState.purchasedCount,
             available: available.length,
-            totalSpent: state.totalSpent,
+            totalSpent: normalizedState.totalSpent,
             nextCheapestPlot: nextCheapest
         };
     }

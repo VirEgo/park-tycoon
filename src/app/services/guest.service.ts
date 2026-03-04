@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Guest } from '../models/guest.model';
+import { Guest, GuestNeedKey } from '../models/guest.model';
 import { Cell } from '../models/cell.model';
 import { GridService } from './grid.service';
 import { BUILDINGS, BuildingType } from '../models/building.model';
@@ -80,7 +80,7 @@ export class GuestService {
     spawnGuest(guestId: number, entranceX: number, entranceY: number, attractionCount: number = 0): Guest {
         const guestType = this.determineGuestType(attractionCount);
         const typeData = GUEST_TYPES.find(t => t.id === guestType) || GUEST_TYPES[0];
-        const ownedSkins = this.premiumSkinsService.getOwnedSkins();
+        const ownedSkins = this.premiumSkinsService.getEnabledSkins();
 
         return new Guest(
             guestId,
@@ -107,21 +107,167 @@ export class GuestService {
         if (guest.wantsToLeave) {
             return 'Покидает парк';
         }
-        if (guest.toilet < 30) {
-            return 'Поиск туалета';
+
+        const urgentNeed = guest.getMostUrgentNeed();
+        if (urgentNeed) {
+            return this.getNeedStatusMessage(urgentNeed);
         }
-        if (guest.hydration < 30) {
-            return 'Ищу напитки';
+
+        if (guest.happiness < 45) {
+            return 'Хочу что-то получше';
         }
-        if (guest.satiety < 30) {
-            return 'Ищу еду';
+
+        return null;
+    }
+
+    private getNeedStatusMessage(need: GuestNeedKey): string {
+        switch (need) {
+            case 'toilet':
+                return 'Срочно ищу туалет';
+            case 'hydration':
+                return 'Хочу пить';
+            case 'satiety':
+                return 'Хочу есть';
+            case 'fun':
+                return 'Ищу развлечения';
+            case 'energy':
+                return 'Нужен отдых';
+            default:
+                return 'Осматриваю парк';
         }
-        if (guest.fun < 30) {
-            return 'Ищу развлечения';
+    }
+
+    private shouldPrioritizeNeed(guest: Guest): GuestNeedKey | null {
+        const urgentNeed = guest.getMostUrgentNeed();
+        if (!urgentNeed) {
+            return null;
         }
-        if (guest.energy < 30) {
-            return 'Ищу отдых';
+
+        const needsPriority: Record<GuestNeedKey, number> = {
+            toilet: guest.toilet,
+            hydration: guest.hydration,
+            satiety: guest.satiety,
+            energy: guest.energy,
+            fun: guest.fun
+        };
+
+        return needsPriority[urgentNeed] < 40 ? urgentNeed : null;
+    }
+
+    private findNextStepToNeedTarget(
+        startX: number,
+        startY: number,
+        need: GuestNeedKey,
+        guest: Guest,
+        grid: Cell[],
+        width: number,
+        height: number
+    ): { x: number, y: number } | null {
+        const encode = (x: number, y: number) => `${x}_${y}`;
+        const queue: Array<{ x: number, y: number }> = [{ x: startX, y: startY }];
+        const visited = new Set<string>([encode(startX, startY)]);
+        const parents = new Map<string, { x: number, y: number }>();
+
+        const canWalkTo = (cell: Cell | null | undefined): boolean => {
+            if (!cell) {
+                return false;
+            }
+
+            if (cell.type === 'path' || cell.type === 'entrance' || cell.type === 'exit') {
+                return true;
+            }
+
+            if (cell.type !== 'building' || !cell.buildingId) {
+                return false;
+            }
+
+            const building = this.getBuildingByIdFast(cell.buildingId);
+            if (!building) {
+                return false;
+            }
+
+            const rootX = cell.isRoot ? cell.x : (cell.rootX ?? cell.x);
+            const rootY = cell.isRoot ? cell.y : (cell.rootY ?? cell.y);
+            const isBroken = this.buildingStatusService.isBroken(rootX, rootY);
+            const canVisit = building.isAvailableForVisit !== false;
+            const allowedOnPath = building.allowedOnPath !== false;
+
+            return canVisit && allowedOnPath && !isBroken;
+        };
+
+        const isMatchingTarget = (cell: Cell | null | undefined): boolean => {
+            if (!cell || cell.type !== 'building' || !cell.buildingId) {
+                return false;
+            }
+
+            const building = this.getBuildingByIdFast(cell.buildingId);
+            if (!building) {
+                return false;
+            }
+
+            const rootX = cell.isRoot ? cell.x : (cell.rootX ?? cell.x);
+            const rootY = cell.isRoot ? cell.y : (cell.rootY ?? cell.y);
+            const isBroken = this.buildingStatusService.isBroken(rootX, rootY);
+            const canVisit = building.isAvailableForVisit !== false;
+            const allowedOnPath = building.allowedOnPath !== false;
+
+            if (!canVisit || !allowedOnPath || isBroken) {
+                return false;
+            }
+
+            if (building.satisfies !== need) {
+                return false;
+            }
+
+            const adjustedIncome = building.income > 0
+                ? this.upgradeService.calculateModifiedIncome(building.id, rootX, rootY, building.income)
+                : 0;
+
+            if (guest.money < adjustedIncome) {
+                return false;
+            }
+
+            if (need === 'fun' && building.isGambling && guest.money < Math.max(1, adjustedIncome * 3)) {
+                return false;
+            }
+
+            return true;
+        };
+
+        while (queue.length > 0) {
+            const node = queue.shift()!;
+            const currentCell = this.gridService.getCell(grid, node.x, node.y, width, height);
+
+            if ((node.x !== startX || node.y !== startY) && isMatchingTarget(currentCell)) {
+                let backtrack = { x: node.x, y: node.y };
+                let parent = parents.get(encode(backtrack.x, backtrack.y));
+
+                while (parent && !(parent.x === startX && parent.y === startY)) {
+                    backtrack = parent;
+                    parent = parents.get(encode(backtrack.x, backtrack.y));
+                }
+
+                return backtrack;
+            }
+
+            const neighbors = this.gridService.getNeighbors(node.x, node.y, width, height);
+            for (const neighbor of neighbors) {
+                const key = encode(neighbor.x, neighbor.y);
+                if (visited.has(key)) {
+                    continue;
+                }
+
+                const neighborCell = this.gridService.getCell(grid, neighbor.x, neighbor.y, width, height);
+                if (!canWalkTo(neighborCell)) {
+                    continue;
+                }
+
+                visited.add(key);
+                parents.set(key, { x: node.x, y: node.y });
+                queue.push(neighbor);
+            }
         }
+
         return null;
     }
 
@@ -260,8 +406,11 @@ export class GuestService {
                 guest.targetX = nextStep.x;
                 guest.targetY = nextStep.y;
 
-                const baseSpeed = 1.0;
-                const speed = baseSpeed * guest.speedModifier * deltaTime;
+                const home = this.parseWorkerHome(guest.workerHome);
+                const workerBaseSpeed = home
+                    ? this.upgradeService.calculateModifiedSpeed('parkMaintenance', home.x, home.y, 1.0)
+                    : 1.0;
+                const speed = workerBaseSpeed * guest.speedModifier * deltaTime;
                 const dx = nextStep.x - guest.x;
                 const dy = nextStep.y - guest.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
@@ -346,7 +495,8 @@ export class GuestService {
                             ? this.upgradeService.calculateModifiedIncome(bInfo.id, checkX, checkY, bInfo.income)
                             : 0;
                         // Достаточно ли денег
-                        const enoughMoney = g.money >= (adjustedIncome || bInfo?.income || 0);
+                        const visitCost = adjustedIncome;
+                        const enoughMoney = g.money >= visitCost;
 
                         // Если можно посещать, здание не сломано, хватает денег и разрешено движение по дорожке
                         if (canVisit && !isBroken && bInfo && enoughMoney && bInfo.allowedOnPath !== false) {
@@ -360,7 +510,7 @@ export class GuestService {
 
                             // Логика казино
                             if (bInfo.isGambling && currentCell.data && typeof currentCell.data.bank === "number") {
-                                const bet = Math.max(0.1, adjustedIncome || bInfo.income || 0.25);
+                                const bet = Math.max(0.1, visitCost);
 
                                 // Если хватает денег на ставку
                                 if (g.money >= bet) {
@@ -370,20 +520,26 @@ export class GuestService {
                                         currentCell.x,
                                         currentCell.y,
                                         g.id,
-                                        bet
+                                        bet,
+                                        g.money
                                     );
 
-                                    // Если выиграл
-                                    if (result.outcome === "win") {
+                                    if (result.outcome === 'win') {
                                         g.money += result.payout;
                                         onNotification(`Гость выиграл $${result.payout.toFixed(2)}!`);
+                                    } else if (result.outcome === 'jackpot') {
+                                        g.money += result.payout;
+                                        onNotification(`Гость сорвал джек-пот: $${result.payout.toFixed(2)}!`);
+                                    } else if (result.outcome === 'bankrupt') {
+                                        g.money = Math.max(0, g.money - result.extraLoss);
+                                        onNotification(`Гость проиграл все деньги в казино.`);
                                     }
 
                                     currentCell.data.bank = result.bankAfter;
                                 }
                             } else {
                                 // Стандартная логика
-                                const cost = adjustedIncome || bInfo.income;
+                                const cost = visitCost;
                                 g.money -= cost;
                                 onMoneyEarned(cost);
                             }
@@ -403,7 +559,11 @@ export class GuestService {
                             if (bInfo.category === 'attraction') {
                                 stats.fun = adjustedStat || bInfo.statValue || 30;
                             }
-                            g.visitAttraction(stats);
+                            g.visitAttraction(stats, {
+                                category: bInfo.category,
+                                satisfies: bInfo.satisfies,
+                                isGambling: !!bInfo.isGambling
+                            });
                         } else {
                             g.visitingBuildingRoot = null;
                         }
@@ -413,18 +573,28 @@ export class GuestService {
                 }
 
                 // Получить соседние клетки, по которым можно пройти
-                const neighbors = this.getWalkableNeighbors(Math.round(g.x), Math.round(g.y), wantsToLeave, grid, exits, width, height);
+                const urgentNeed = wantsToLeave ? null : this.shouldPrioritizeNeed(g);
+                const nextNeedStep = urgentNeed
+                    ? this.findNextStepToNeedTarget(Math.round(g.x), Math.round(g.y), urgentNeed, g, grid, width, height)
+                    : null;
 
-                if (neighbors.length > 0) {
-                    // Случайный выбор, если не хочет уйти (если хочет - сортировка по расстоянию до выхода)
-                    const chosenNeighbor = wantsToLeave
-                        ? neighbors[0]
-                        : neighbors[Math.floor(Math.random() * neighbors.length)];
-                    g.targetX = chosenNeighbor.x;
-                    g.targetY = chosenNeighbor.y;
+                if (nextNeedStep) {
+                    g.targetX = nextNeedStep.x;
+                    g.targetY = nextNeedStep.y;
                     g.state = 'walking';
                 } else {
-                    g.state = 'idle';
+                    const neighbors = this.getWalkableNeighbors(Math.round(g.x), Math.round(g.y), wantsToLeave, grid, exits, width, height);
+
+                    if (neighbors.length > 0) {
+                        const chosenNeighbor = wantsToLeave
+                            ? neighbors[0]
+                            : neighbors[Math.floor(Math.random() * neighbors.length)];
+                        g.targetX = chosenNeighbor.x;
+                        g.targetY = chosenNeighbor.y;
+                        g.state = 'walking';
+                    } else {
+                        g.state = 'idle';
+                    }
                 }
 
             } else {

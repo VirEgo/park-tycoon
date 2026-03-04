@@ -56,6 +56,10 @@
                             <span class="stat-label">Скорость</span>
                             <span class="stat-value">+{{ speed }}%</span>
                         </div>
+                        <div class="stat-item" *ngIf="upgrade()?.upgrades?.capacity as capacity">
+                            <span class="stat-label">Вместимость</span>
+                            <span class="stat-value">+{{ capacity }}</span>
+                        </div>
                         <div class="stat-item" *ngIf="upgrade()?.upgrades?.income as income">
                             <span class="stat-label">Доход</span>
                             <span class="stat-value">+{{ income }}%</span>
@@ -91,6 +95,10 @@
                             <div class="bonus-item">
                                 <span class="icon">⚡</span>
                                 <span>+{{ getNextLevelBonus().speed }}% скорость</span>
+                            </div>
+                            <div class="bonus-item" *ngIf="getNextLevelBonus().capacity">
+                                <span class="icon">🧱</span>
+                                <span>+{{ getNextLevelBonus().capacity }} вместимость</span>
                             </div>
                             <div class="bonus-item">
                                 <span class="icon">😊</span>
@@ -220,19 +228,22 @@
 
                             <div class="tx-history" *ngIf="casinoStats!.transactions.length; else noTx">
                                 <div class="tx-item" *ngFor="let tx of casinoStats!.transactions; trackBy: trackByTxId"
-                                    [class.tx-win]="tx.type === 'win'" [class.tx-lose]="tx.type === 'lose'"
+                                    [class.tx-win]="tx.type === 'win'"
+                                    [class.tx-lose]="tx.type === 'lose' || tx.type === 'bankrupt'"
+                                    [class.tx-jackpot]="tx.type === 'jackpot'"
                                     [class.tx-payout]="tx.type === 'payout'">
                                     <div class="tx-row">
                                         <div class="tx-type">
-                                            <span *ngIf="tx.type === 'win'">Выигрыш</span>
-                                            <span *ngIf="tx.type === 'lose'">Проигрыш</span>
-                                            <span *ngIf="tx.type === 'payout'">Выплата</span>
+                                            <span>{{ getCasinoTransactionLabel(tx.type) }}</span>
                                             <span *ngIf="tx.guestId !== undefined" class="tx-guest">Гость
                                                 #{{tx.guestId}}</span>
                                         </div>
-                                        <div class="tx-amount" [class.win]="tx.type === 'win'"
-                                            [class.lose]="tx.type === 'lose'" [class.payout]="tx.type === 'payout'">
-                                            {{tx.type === 'lose' ? '-' : '+'}} ${{tx.amount.toFixed(2)}}
+                                        <div class="tx-amount"
+                                            [class.win]="getCasinoTransactionAmountClass(tx.type) === 'win'"
+                                            [class.lose]="getCasinoTransactionAmountClass(tx.type) === 'lose'"
+                                            [class.jackpot]="getCasinoTransactionAmountClass(tx.type) === 'jackpot'"
+                                            [class.payout]="getCasinoTransactionAmountClass(tx.type) === 'payout'">
+                                            {{ isCasinoPositiveTransaction(tx.type) ? '+' : '-' }} ${{tx.amount.toFixed(2)}}
                                         </div>
                                     </div>
                                     <div class="tx-meta">

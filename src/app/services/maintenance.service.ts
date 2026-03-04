@@ -20,6 +20,33 @@ export class MaintenanceService {
         return `${x}_${y}`;
     }
 
+    private shiftTask(task: RepairTask, shiftX: number, shiftY: number): RepairTask {
+        return {
+            x: task.x + shiftX,
+            y: task.y + shiftY,
+            key: this.toKey(task.x + shiftX, task.y + shiftY)
+        };
+    }
+
+    private shiftHomeKey(homeKey: string | null, shiftX: number, shiftY: number): string | null {
+        if (!homeKey) {
+            return homeKey;
+        }
+
+        const parts = homeKey.split('_');
+        if (parts.length < 3) {
+            return homeKey;
+        }
+
+        const y = Number(parts.pop());
+        const x = Number(parts.pop());
+        if (Number.isNaN(x) || Number.isNaN(y)) {
+            return homeKey;
+        }
+
+        return `${parts.join('_')}_${x + shiftX}_${y + shiftY}`;
+    }
+
     private enqueueTask(task: RepairTask) {
         const alreadyQueued = this.tasksQueue.some(t => t.key === task.key);
         const isActive = this.activeByBuilding.has(task.key);
@@ -36,6 +63,32 @@ export class MaintenanceService {
     registerWorkers(workers: Guest[]) {
         workers.forEach(w => this.workerHomes.set(w.id, w.workerHome ?? null));
         this.assignAll();
+    }
+
+    rebaseCoordinates(shiftX: number, shiftY: number) {
+        if (shiftX === 0 && shiftY === 0) {
+            return;
+        }
+
+        this.tasksQueue = this.tasksQueue.map(task => this.shiftTask(task, shiftX, shiftY));
+
+        const updatedActiveByWorker = new Map<number, RepairTask>();
+        this.activeByWorker.forEach((task, workerId) => {
+            updatedActiveByWorker.set(workerId, this.shiftTask(task, shiftX, shiftY));
+        });
+        this.activeByWorker = updatedActiveByWorker;
+
+        const updatedActiveByBuilding = new Map<string, number>();
+        this.activeByWorker.forEach((task, workerId) => {
+            updatedActiveByBuilding.set(task.key, workerId);
+        });
+        this.activeByBuilding = updatedActiveByBuilding;
+
+        const updatedWorkerHomes = new Map<number, string | null>();
+        this.workerHomes.forEach((homeKey, workerId) => {
+            updatedWorkerHomes.set(workerId, this.shiftHomeKey(homeKey, shiftX, shiftY));
+        });
+        this.workerHomes = updatedWorkerHomes;
     }
 
     unregisterWorkersByHome(homeKey: string) {

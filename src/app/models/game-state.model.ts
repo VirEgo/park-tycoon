@@ -1,5 +1,8 @@
 import { Cell } from './cell.model';
 import { Guest } from './guest.model';
+import { AchievementProgressState, ParkLifetimeStats } from './achievement.model';
+import { ExpansionState } from './expansion.model';
+import { PremiumSkinStorageData } from '../services/guest/primium-skins';
 
 export interface GameSaveState {
     money: number;
@@ -14,6 +17,10 @@ export interface GameSaveState {
     casinoData?: string;
     isParkClosed?: boolean;
     premiumSkinsOwned?: string[];
+    premiumSkinState?: PremiumSkinStorageData;
+    achievementProgress?: AchievementProgressState[];
+    parkLifetimeStats?: ParkLifetimeStats;
+    expansionState?: ExpansionState;
 }
 
 export interface GuestStats {

@@ -37,6 +37,8 @@ export class SidebarComponent {
   @Input() selectedToolCategory: ToolType | string = 'none';
   @Input() getBuildingsByCategory!: (category: string) => BuildingType[];
   @Input() buildingStats: BuildingStats = { total: 0, byCategory: {}, byType: {} };
+  @Input() achievementUnlockedCount = 0;
+  @Input() achievementTotalCount = 0;
 
   @Output() toolSelected = new EventEmitter<{ category: ToolType | string; id: string | null }>();
   @Output() togglePark = new EventEmitter<void>();

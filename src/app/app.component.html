@@ -3,7 +3,8 @@
   <!-- Sidebar (Tools) -->
   <app-sidebar *ngIf="showSidebar()" [isParkClosed]="isParkClosed()" [money]="money()"
     [selectedToolId]="selectedToolId()" [selectedToolCategory]="selectedToolCategory()"
-    [getBuildingsByCategory]="getBuildingsByCategory.bind(this)" [buildingStats]="buildingStats()"
+    [getBuildingsByCategory]="getBuildingsByCategory" [buildingStats]="buildingStats()"
+    [achievementUnlockedCount]="achievementUnlockedCount()" [achievementTotalCount]="achievementTotalCount"
     (toolSelected)="selectTool($event.category, $event.id)" (togglePark)="toggleParkState()" (reset)="resetGame()"
     (closeSidebar)="toggleSidebar()">
   </app-sidebar>
@@ -84,6 +85,25 @@
           <span class="hidden md:inline">Скины</span>
           <span class="md:hidden">Скины</span>
         </button>
+
+        <button (click)="toggleAchievementsPanel()" [class.bg-amber-700]="showAchievementsPanel()"
+          class="px-2 md:px-4 py-1 md:py-2 rounded bg-gray-700 hover:bg-amber-700 font-medium text-xs md:text-sm transition-colors border border-amber-600 flex items-center gap-1 md:gap-2">
+          <span class="hidden md:inline">🏆</span>
+          <span class="hidden md:inline">Ачивки</span>
+          <span class="md:hidden">Ачивки</span>
+          <span class="rounded-full bg-black/20 px-2 py-0.5 text-[11px] font-bold text-amber-100">
+            {{ achievementUnlockedCount() }}/{{ achievementTotalCount }}
+          </span>
+        </button>
+
+        @if(false) {
+        <button (click)="toggleAiPanel()" [class.bg-cyan-700]="showAiPanel()"
+          class="px-2 md:px-4 py-1 md:py-2 rounded bg-gray-700 hover:bg-cyan-700 font-medium text-xs md:text-sm transition-colors border border-cyan-600 flex items-center gap-1 md:gap-2">
+          <span class="hidden md:inline">🤖</span>
+          <span class="hidden md:inline">AI советник</span>
+          <span class="md:hidden">AI</span>
+        </button>
+        }
 
         <button (click)="repairAllBroken()"
           class="px-2 md:px-4 py-1 md:py-2 rounded bg-amber-700 hover:bg-amber-600 font-medium text-xs md:text-sm transition-colors border border-amber-600 flex items-center gap-1 md:gap-2">
@@ -193,10 +213,154 @@
       </div>
     </div>
 
+    <div *ngIf="showAiPanel()"
+      class="ai-panel absolute top-20 right-6 w-[22rem] max-w-[calc(100vw-3rem)] bg-gray-900/95 backdrop-blur border border-cyan-700 rounded-lg shadow-2xl p-4 z-30 animate-slide-in">
+      <div class="flex justify-between items-start gap-3 border-b border-gray-700 pb-3 mb-3">
+        <div>
+          <h3 class="font-bold text-white">LM Studio</h3>
+          <p class="text-xs text-gray-400">Локальный AI-помощник для парка</p>
+        </div>
+        <button (click)="toggleAiPanel()" class="text-gray-400 hover:text-white">✕</button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs uppercase tracking-wide text-gray-400 mb-1">Модель</label>
+          <select class="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"
+            [value]="selectedLmStudioModel()" (change)="updateSelectedLmStudioModel($any($event.target).value)">
+            @if (availableLmStudioModels().length) {
+            @for (model of availableLmStudioModels(); track model.id) {
+            <option [value]="model.id">{{ model.id }}</option>
+            }
+            } @else {
+            <option [value]="selectedLmStudioModel()">{{ selectedLmStudioModel() }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="rounded border border-cyan-800 bg-cyan-950/20 p-3">
+          <div class="mb-3 flex items-start justify-between gap-3">
+            <div>
+              <div class="text-xs uppercase tracking-wide text-cyan-300">Диагностика парка</div>
+              <div class="mt-1 text-sm text-gray-300">Автоматический отчет по текущему состоянию без ручного ввода.
+              </div>
+            </div>
+            <button (click)="generateAiDiagnosisReport()" [disabled]="aiLoading()"
+              class="shrink-0 rounded border border-cyan-700 bg-cyan-900/50 px-3 py-2 text-sm text-cyan-100 transition-colors hover:bg-cyan-800 disabled:cursor-not-allowed disabled:opacity-50">
+              {{ aiLoading() ? 'Генерация...' : 'Сформировать' }}
+            </button>
+          </div>
+
+          @if (aiDiagnosisGeneratedAt()) {
+          <div class="mb-2 text-[11px] uppercase tracking-wide text-gray-500">
+            Обновлено: {{ aiDiagnosisGeneratedAt() }}
+          </div>
+          }
+
+          <div class="ai-diagnosis custom-scrollbar rounded border border-gray-800 bg-gray-950/80 p-3">
+            @if (aiDiagnosisReport()) {
+            <div class="whitespace-pre-wrap text-sm text-gray-100">{{ aiDiagnosisReport() }}</div>
+            } @else if (aiLoading()) {
+            <p class="text-sm text-cyan-200">LM Studio формирует диагностический отчет...</p>
+            } @else {
+            <p class="text-sm text-gray-400">Нажмите “Сформировать”, чтобы получить диагностический отчет по парку.</p>
+            }
+          </div>
+        </div>
+
+        <div class="rounded border border-gray-800 bg-gray-950/60 p-3">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <div class="text-xs uppercase tracking-wide text-gray-400">История диагностик</div>
+            <button (click)="clearDiagnosisHistory()" [disabled]="!aiDiagnosisHistory().length"
+              class="rounded border border-gray-700 bg-gray-800 px-2 py-1 text-xs text-gray-300 transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50">
+              Очистить
+            </button>
+          </div>
+
+          <div class="ai-history custom-scrollbar space-y-2 overflow-y-auto">
+            @if (aiDiagnosisHistory().length) {
+            @for (entry of aiDiagnosisHistory(); track entry.id) {
+            <button (click)="loadDiagnosisFromHistory(entry)"
+              class="block w-full rounded border border-gray-800 bg-gray-900 px-3 py-2 text-left transition-colors hover:border-cyan-700 hover:bg-gray-800">
+              <div class="mb-1 text-xs text-gray-400">{{ entry.createdAt }}</div>
+              <div class="line-clamp-3 text-sm text-gray-200">{{ entry.report }}</div>
+            </button>
+            }
+            } @else {
+            <p class="text-sm text-gray-500">Сохраненных отчетов пока нет.</p>
+            }
+          </div>
+        </div>
+
+        <div>
+          <div class="mb-2 text-xs uppercase tracking-wide text-gray-400">Быстрые сценарии</div>
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            @for (action of aiAdvisorActions; track action.id) {
+            <button (click)="runAiAdvisorAction(action.id)" [disabled]="aiLoading()"
+              class="rounded border border-gray-700 bg-gray-800 px-3 py-2 text-left text-sm transition-colors hover:border-cyan-600 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50">
+              <div class="font-medium text-white">{{ action.label }}</div>
+              <div class="mt-1 text-xs text-gray-400">{{ action.hint }}</div>
+            </button>
+            }
+          </div>
+        </div>
+
+        <div
+          class="ai-messages custom-scrollbar max-h-72 overflow-y-auto rounded border border-gray-800 bg-gray-950/80 p-3">
+          @if (aiMessages().length) {
+          <div class="space-y-3">
+            @for (message of aiMessages(); track $index) {
+            <div class="rounded border px-3 py-2 text-sm" [class.ai-message-user]="message.role === 'user'"
+              [class.ai-message-assistant]="message.role === 'assistant'">
+              <div class="mb-1 text-[11px] uppercase tracking-wide text-gray-400">
+                {{ message.role === 'user' ? 'Вы' : 'AI' }}
+              </div>
+              <div class="whitespace-pre-wrap text-gray-100">{{ message.content }}</div>
+            </div>
+            }
+          </div>
+          } @else {
+          <p class="text-sm text-gray-400">Используйте быстрые сценарии выше или задайте свой вопрос о балансе парка,
+            доходе и развитии.</p>
+          }
+        </div>
+
+        @if (aiError()) {
+        <div class="rounded border border-red-700 bg-red-950/50 px-3 py-2 text-sm text-red-200">
+          {{ aiError() }}
+        </div>
+        }
+
+        <textarea class="min-h-24 w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"
+          [value]="aiPrompt()" (input)="updateAiPrompt($any($event.target).value)"
+          placeholder="Например: что мне выгоднее построить следующим?"></textarea>
+
+        <div class="flex flex-wrap gap-2">
+          <button (click)="askAiForParkAdvice()"
+            class="rounded border border-cyan-700 bg-cyan-900/50 px-3 py-2 text-sm text-cyan-100 transition-colors hover:bg-cyan-800">
+            Совет по парку
+          </button>
+          <button (click)="clearAiConversation()"
+            class="rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-200 transition-colors hover:bg-gray-700">
+            Очистить
+          </button>
+          <button (click)="sendAiPrompt()" [disabled]="!canSendAiPrompt()"
+            class="ml-auto rounded border border-emerald-700 bg-emerald-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">
+            {{ aiLoading() ? 'Отправка...' : 'Спросить' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Детальная информация о госте -->
     <app-guest-details *ngIf="selectedGuest() as guest" [guest]="guest" [guestImageSrc]="getGuestImageSrc(guest)"
       (close)="closeGuestDetails()">
     </app-guest-details>
+
+    <app-achievements-panel *ngIf="showAchievementsPanel()" [achievements]="achievements()"
+      [localeBundle]="achievementLocaleBundle()" [unlockedCount]="achievementUnlockedCount()"
+      [totalCount]="achievementTotalCount" [completionPercent]="achievementCompletionPercent()"
+      (close)="toggleAchievementsPanel()" />
 
     <!-- Уведомления (Toast) -->
     <div class="absolute bottom-4 right-4 flex flex-col items-end space-y-2 pointer-events-none">

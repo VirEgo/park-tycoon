@@ -1,6 +1,6 @@
 import { Component, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CasinoStats } from '../../services/casino.service';
+import { CasinoStats, CasinoTransaction } from '../../services/casino.service';
 
 @Component({
   selector: 'app-casino-stats',
@@ -72,14 +72,18 @@ import { CasinoStats } from '../../services/casino.service';
                  class="bg-gray-700/30 rounded p-2 text-xs border-l-2"
                  [ngClass]="{
                    'border-green-500': tx.type === 'win',
-                   'border-red-500': tx.type === 'lose',
-                   'border-blue-500': tx.type === 'payout'
+                   'border-red-500': tx.type === 'lose' || tx.type === 'bankrupt',
+                   'border-yellow-500': tx.type === 'jackpot',
+                   'border-blue-500': tx.type === 'payout',
+                   'jackpot-tx': tx.type === 'jackpot'
                  }">
               
               <div class="flex justify-between items-start mb-1">
                 <div class="flex items-center gap-2">
                   <span *ngIf="tx.type === 'win'" class="text-green-400">🎉 Выигрыш</span>
                   <span *ngIf="tx.type === 'lose'" class="text-red-400">💸 Проигрыш</span>
+                  <span *ngIf="tx.type === 'jackpot'" class="text-yellow-400">💰 Джек-пот</span>
+                  <span *ngIf="tx.type === 'bankrupt'" class="text-red-400">🧨 Проиграл всё</span>
                   <span *ngIf="tx.type === 'payout'" class="text-blue-400">
                     <img src="assets/staff/coin.svg" alt="Payout" class="inline w-4 h-4"/>  
                     Выплата
@@ -93,10 +97,11 @@ import { CasinoStats } from '../../services/casino.service';
                 <span class="font-mono font-bold"
                       [ngClass]="{
                         'text-green-400': tx.type === 'win',
-                        'text-red-400': tx.type === 'lose',
+                        'text-red-400': tx.type === 'lose' || tx.type === 'bankrupt',
+                        'text-yellow-400': tx.type === 'jackpot',
                         'text-blue-400': tx.type === 'payout'
                       }">
-                  {{tx.type === 'lose' ? '-' : '+'}} \${{tx.amount.toFixed(2)}}
+                  {{isPositiveTransaction(tx.type) ? '+' : '-'}} \${{tx.amount.toFixed(2)}}
                 </span>
               </div>
               
@@ -131,6 +136,10 @@ import { CasinoStats } from '../../services/casino.service';
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: #6b7280;
     }
+    .jackpot-tx {
+      background: linear-gradient(90deg, rgba(250, 204, 21, 0.18) 0%, rgba(245, 158, 11, 0.10) 50%, rgba(55, 65, 81, 0.35) 100%);
+      box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.18), 0 10px 24px rgba(245, 158, 11, 0.12);
+    }
   `]
 })
 export class CasinoStatsComponent {
@@ -154,5 +163,9 @@ export class CasinoStatsComponent {
 
   trackByTxId(index: number, tx: any): number {
     return tx.id;
+  }
+
+  isPositiveTransaction(type: CasinoTransaction['type']): boolean {
+    return type === 'win' || type === 'jackpot' || type === 'payout';
   }
 }

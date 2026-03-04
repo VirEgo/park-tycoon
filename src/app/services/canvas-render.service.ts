@@ -23,6 +23,10 @@ export interface CanvasRenderParams {
   tileSize: number;
   selectedToolCategory: ToolType | string;
   selectedToolId: string | null;
+  visibleStartX: number;
+  visibleStartY: number;
+  visibleEndX: number;
+  visibleEndY: number;
 }
 
 @Injectable({
@@ -42,6 +46,19 @@ export class CanvasRenderService {
     BUILDINGS.forEach(b => this.buildingCache.set(b.id, b));
   }
 
+  private getGroundColor(cell: Cell): string {
+    switch (cell.terrain) {
+      case 'forest':
+        return '#2f855a';
+      case 'mountain':
+        return '#6b7280';
+      case 'water':
+        return '#2563eb';
+      default:
+        return '#4ade80';
+    }
+  }
+
   private getBuildingByIdFast(id: string): BuildingType | undefined {
     return this.buildingCache.get(id);
   }
@@ -55,14 +72,18 @@ export class CanvasRenderService {
     canvasWidth: number,
     canvasHeight: number,
     tileSize: number,
-    dpr: number
+    dpr: number,
+    visibleStartX: number,
+    visibleStartY: number,
+    visibleEndX: number,
+    visibleEndY: number
   ): { startX: number; startY: number; endX: number; endY: number } {
     const scaledTileSize = tileSize * scale;
 
-    const startX = Math.max(0, Math.floor(-panX / scaledTileSize) - 1);
-    const startY = Math.max(0, Math.floor(-panY / scaledTileSize) - 1);
-    const endX = Math.min(gridWidth, Math.ceil((canvasWidth / dpr - panX) / scaledTileSize) + 2);
-    const endY = Math.min(gridHeight, Math.ceil((canvasHeight / dpr - panY) / scaledTileSize) + 2);
+    const startX = Math.max(visibleStartX, Math.floor(-panX / scaledTileSize) - 1);
+    const startY = Math.max(visibleStartY, Math.floor(-panY / scaledTileSize) - 1);
+    const endX = Math.min(visibleEndX, Math.ceil((canvasWidth / dpr - panX) / scaledTileSize) + 2);
+    const endY = Math.min(visibleEndY, Math.ceil((canvasHeight / dpr - panY) / scaledTileSize) + 2);
 
     return { startX, startY, endX, endY };
   }
@@ -106,31 +127,30 @@ export class CanvasRenderService {
       tileSize,
       selectedToolCategory,
       selectedToolId,
+      visibleStartX,
+      visibleStartY,
+      visibleEndX,
+      visibleEndY
     } = params;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     ctx.setTransform(scale * dpr, 0, 0, scale * dpr, panX * dpr, panY * dpr);
 
-    const startX = Math.floor((-panX / scale) / tileSize) * tileSize;
-    const startY = Math.floor((-panY / scale) / tileSize) * tileSize;
-    const endX = ((canvasWidth / dpr - panX) / scale);
-    const endY = ((canvasHeight / dpr - panY) / scale);
-
-    const tileBg = '#3bcf6f';
-
-    for (let y = startY; y < endY + tileSize; y += tileSize) {
-      for (let x = startX; x < endX + tileSize; x += tileSize) {
-        ctx.fillStyle = tileBg;
-        ctx.fillRect(x, y, tileSize, tileSize);
-        ctx.strokeStyle = 'rgba(0,0,0,0.05)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x, y, tileSize, tileSize);
-      }
-    }
-
     const visible = this.getVisibleCellIndices(
-      gridWidth, gridHeight, panX, panY, scale, canvasWidth, canvasHeight, tileSize, dpr
+      gridWidth,
+      gridHeight,
+      panX,
+      panY,
+      scale,
+      canvasWidth,
+      canvasHeight,
+      tileSize,
+      dpr,
+      visibleStartX,
+      visibleStartY,
+      visibleEndX,
+      visibleEndY
     );
 
     for (let cellY = visible.startY; cellY < visible.endY; cellY++) {
@@ -138,12 +158,13 @@ export class CanvasRenderService {
         const cellIndex = cellY * gridWidth + cellX;
         const cell = grid[cellIndex];
         if (!cell) continue;
+        if (cell.locked) continue;
 
         const x = cell.x * tileSize;
         const y = cell.y * tileSize;
 
         if (cell.type === 'grass') {
-          ctx.fillStyle = '#4ade80';
+          ctx.fillStyle = this.getGroundColor(cell);
           ctx.fillRect(x, y, tileSize, tileSize);
         } else if (cell.type === 'path') {
           const pathImg = this.buildingService.getBuildingImage('path');

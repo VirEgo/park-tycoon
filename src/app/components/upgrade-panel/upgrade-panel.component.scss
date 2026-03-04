@@ -410,6 +410,12 @@
 .tx-item.tx-lose {
     border-left-color: #ef4444;
 }
+.tx-item.tx-jackpot {
+    border-left-color: #eab308;
+    background:
+        linear-gradient(90deg, rgba(234, 179, 8, 0.16) 0%, rgba(245, 158, 11, 0.08) 45%, #f8fafc 100%);
+    box-shadow: 0 0 0 1px rgba(234, 179, 8, 0.18), 0 8px 18px rgba(202, 138, 4, 0.12);
+}
 .tx-item.tx-payout {
     border-left-color: #3b82f6;
 }
@@ -443,7 +449,20 @@
 
 .tx-amount.win { color: #16a34a; }
 .tx-amount.lose { color: #dc2626; }
+.tx-amount.jackpot {
+    color: #a16207;
+    text-shadow: 0 0 12px rgba(250, 204, 21, 0.28);
+}
 .tx-amount.payout { color: #2563eb; }
+
+.tx-item.tx-jackpot .tx-type {
+    color: #92400e;
+}
+
+.tx-item.tx-jackpot .tx-guest,
+.tx-item.tx-jackpot .tx-meta {
+    color: #a16207;
+}
 
 .tx-meta {
     display: flex;

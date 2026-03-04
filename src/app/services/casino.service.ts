@@ -3,7 +3,7 @@ import { Injectable, signal, computed } from '@angular/core';
 export interface CasinoTransaction {
     id: number;
     casinoId: string;
-    type: 'win' | 'lose' | 'payout';
+    type: 'win' | 'lose' | 'jackpot' | 'bankrupt' | 'payout';
     amount: number;
     bank: number;
     timestamp: Date;
@@ -21,6 +21,15 @@ export interface CasinoStats {
     transactions: CasinoTransaction[];
 }
 
+export type CasinoOutcome = 'win' | 'lose' | 'jackpot' | 'bankrupt';
+
+export interface CasinoBetResult {
+    payout: number;
+    extraLoss: number;
+    outcome: CasinoOutcome;
+    bankAfter: number;
+}
+
 @Injectable({
     providedIn: 'root'
 })
@@ -28,11 +37,11 @@ export class CasinoService {
     // Базовый банк казино (можно вынести в конфиг)
     private readonly INITIAL_BANK = 20;
     private readonly MAX_HISTORY = 50;
-    // Рулетка (ставка на красное: 18 красных, 18 черных, 0 зеленый)
-    private readonly ROULETTE_NUMBERS = {
-        red: new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]),
-        black: new Set([2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35])
-    };
+    private readonly JACKPOT_CHANCE = 0.01;
+    private readonly BANKRUPT_CHANCE = 0.015;
+    private readonly REGULAR_WIN_CHANCE = 0.22;
+    private readonly JACKPOT_MULTIPLIER = 20;
+    private readonly JACKPOT_BANK_SHARE = 0.8;
 
     private casinos = signal<Map<string, CasinoStats>>(new Map());
     private transactionIdCounter = 0;
@@ -81,32 +90,52 @@ export class CasinoService {
         x: number,
         y: number,
         guestId: number,
-        bet: number
-    ): { payout: number; outcome: 'win' | 'lose'; bankAfter: number } {
+        bet: number,
+        guestMoneyAfterBet: number
+    ): CasinoBetResult {
         const casinoId = this.getCasinoId(x, y);
-        let result: { payout: number; outcome: 'win' | 'lose'; bankAfter: number } = { payout: 0, outcome: 'lose', bankAfter: 0 };
+        let result: CasinoBetResult = {
+            payout: 0,
+            extraLoss: 0,
+            outcome: 'lose',
+            bankAfter: 0
+        };
 
         this.casinos.update(map => {
             const casino = map.get(casinoId);
 
             if (!casino) {
                 const newStats = this.createDefaultStats(x, y, casinoId);
-                return this.applyBetLogic(new Map(map).set(casinoId, newStats), casinoId, guestId, bet, r => result = r);
+                return this.applyBetLogic(
+                    new Map(map).set(casinoId, newStats),
+                    casinoId,
+                    guestId,
+                    bet,
+                    guestMoneyAfterBet,
+                    r => result = r
+                );
             }
 
-            return this.applyBetLogic(new Map(map), casinoId, guestId, bet, r => result = r);
+            return this.applyBetLogic(
+                new Map(map),
+                casinoId,
+                guestId,
+                bet,
+                guestMoneyAfterBet,
+                r => result = r
+            );
         });
 
         return result;
     }
 
-    // Рулетка: ставка на красное, шанс 18/37, выплата 2x (ставка + выигрыш)
     private applyBetLogic(
         map: Map<string, CasinoStats>,
         casinoId: string,
         guestId: number,
         bet: number,
-        setResult: (r: { payout: number; outcome: 'win' | 'lose'; bankAfter: number }) => void
+        guestMoneyAfterBet: number,
+        setResult: (r: CasinoBetResult) => void
     ): Map<string, CasinoStats> {
         const casino = map.get(casinoId)!;
 
@@ -115,24 +144,53 @@ export class CasinoService {
             transactions: [...casino.transactions]
         };
 
-        const spin = Math.floor(Math.random() * 37); // 0..36
-        const isRed = this.ROULETTE_NUMBERS.red.has(spin);
-        const won = isRed; // ставка всегда на красное
-
         // Касса принимает ставку
         updatedCasino.currentBank += bet;
+        const roll = Math.random();
 
-        if (won) {
+        if (roll < this.JACKPOT_CHANCE) {
+            const payout = this.calculateJackpotPayout(updatedCasino.currentBank, bet);
+            updatedCasino.currentBank -= payout;
+            updatedCasino.totalWins++;
+            this.pushTransaction(updatedCasino, 'jackpot', payout, guestId);
+            setResult({
+                payout,
+                extraLoss: 0,
+                outcome: 'jackpot',
+                bankAfter: updatedCasino.currentBank
+            });
+        } else if (roll < this.JACKPOT_CHANCE + this.BANKRUPT_CHANCE && guestMoneyAfterBet > 0) {
+            const extraLoss = guestMoneyAfterBet;
+            updatedCasino.currentBank += extraLoss;
+            updatedCasino.totalLoses++;
+            this.pushTransaction(updatedCasino, 'bankrupt', bet + extraLoss, guestId);
+            setResult({
+                payout: 0,
+                extraLoss,
+                outcome: 'bankrupt',
+                bankAfter: updatedCasino.currentBank
+            });
+        } else if (roll < this.JACKPOT_CHANCE + this.BANKRUPT_CHANCE + this.REGULAR_WIN_CHANCE) {
             const desiredPayout = bet * 2;
             const payout = Math.min(desiredPayout, updatedCasino.currentBank);
             updatedCasino.currentBank -= payout;
             updatedCasino.totalWins++;
             this.pushTransaction(updatedCasino, 'win', payout, guestId);
-            setResult({ payout, outcome: 'win', bankAfter: updatedCasino.currentBank });
+            setResult({
+                payout,
+                extraLoss: 0,
+                outcome: 'win',
+                bankAfter: updatedCasino.currentBank
+            });
         } else {
             updatedCasino.totalLoses++;
             this.pushTransaction(updatedCasino, 'lose', bet, guestId);
-            setResult({ payout: 0, outcome: 'lose', bankAfter: updatedCasino.currentBank });
+            setResult({
+                payout: 0,
+                extraLoss: 0,
+                outcome: 'lose',
+                bankAfter: updatedCasino.currentBank
+            });
         }
 
         updatedCasino.totalVisits++;
@@ -240,6 +298,12 @@ export class CasinoService {
             currentBank: this.INITIAL_BANK,
             transactions: []
         };
+    }
+
+    private calculateJackpotPayout(currentBank: number, bet: number): number {
+        const byMultiplier = bet * this.JACKPOT_MULTIPLIER;
+        const byBankShare = currentBank * this.JACKPOT_BANK_SHARE;
+        return Math.max(0, Math.min(currentBank, Math.max(byMultiplier, byBankShare)));
     }
 
     private pushTransaction(casino: CasinoStats, type: CasinoTransaction['type'], amount: number, guestId?: number) {

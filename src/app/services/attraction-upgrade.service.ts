@@ -24,6 +24,15 @@ export class AttractionUpgradeService {
         return `${attractionId}@${cellX},${cellY}`;
     }
 
+    private normalizeBonusPerLevel(bonus: Partial<UpgradeCost['bonusPerLevel']> | undefined): UpgradeCost['bonusPerLevel'] {
+        return {
+            speed: Number(bonus?.speed ?? 0),
+            capacity: Number(bonus?.capacity ?? 0),
+            income: Number(bonus?.income ?? 0),
+            satisfaction: Number(bonus?.satisfaction ?? 0)
+        };
+    }
+
     // Получить улучшение конкретного экземпляра аттракциона
 
     getUpgrade(attractionId: string, cellX: number, cellY: number): AttractionUpgrade | null {
@@ -42,6 +51,47 @@ export class AttractionUpgradeService {
         return upgrade ? upgrade.level : 1;
     }
 
+    getMaxLevel(attractionId: string): number {
+        return this.getProfile(attractionId).maxLevel ?? 5;
+    }
+
+    getUpgradeBonusForLevel(attractionId: string, level: number): UpgradeCost['bonusPerLevel'] {
+        const profile = this.getProfile(attractionId);
+        const sourceCosts = profile.upgradeCosts ?? UPGRADE_COSTS;
+        const upgradeCost = sourceCosts.find(item => item.level === level);
+        return this.normalizeBonusPerLevel(upgradeCost?.bonusPerLevel);
+    }
+
+    getLevelBonuses(attractionId: string, level: number): UpgradeCost['bonusPerLevel'] {
+        const totalBonuses: UpgradeCost['bonusPerLevel'] = {
+            speed: 0,
+            capacity: 0,
+            income: 0,
+            satisfaction: 0
+        };
+
+        for (let currentLevel = 2; currentLevel <= level; currentLevel++) {
+            const levelBonus = this.getUpgradeBonusForLevel(attractionId, currentLevel);
+            totalBonuses.speed += levelBonus.speed;
+            totalBonuses.capacity += levelBonus.capacity;
+            totalBonuses.income += levelBonus.income;
+            totalBonuses.satisfaction += levelBonus.satisfaction;
+        }
+
+        return totalBonuses;
+    }
+
+    calculateCapacityMultiplierForLevel(attractionId: string, level: number): number {
+        const bonuses = this.getLevelBonuses(attractionId, level);
+        return Math.min(0.3, bonuses.capacity * 0.03);
+    }
+
+    calculateModifiedSpeed(attractionId: string, cellX: number, cellY: number, baseSpeed: number): number {
+        const upgrade = this.getUpgrade(attractionId, cellX, cellY);
+        if (!upgrade || upgrade.upgrades.speed <= 0) return baseSpeed;
+        return baseSpeed * (1 + upgrade.upgrades.speed / 100);
+    }
+
     // Улучшить конкретный экземпляр
     upgradeAttraction(
         attractionId: string,
@@ -54,23 +104,23 @@ export class AttractionUpgradeService {
         newUpgrade?: AttractionUpgrade;
         message: string;
     } {
+        const profile = this.getProfile(attractionId);
         const key = this.makeKey(attractionId, cellX, cellY);
         const currentUpgrade = this.upgrades.get(key);
         const currentLevel = currentUpgrade ? currentUpgrade.level : 1;
+        const maxLevel = profile.maxLevel ?? 5;
 
-        if (currentLevel >= 5) {
+        if (currentLevel >= maxLevel) {
             return {
                 success: false,
-                message: 'Аттракцион достиг максимального уровня (5)'
+                message: `Аттракцион достиг максимального уровня (${maxLevel})`
             };
         }
 
         const nextLevel = currentLevel + 1;
-        const profile = this.getProfile(attractionId);
         const sourceCosts = profile.upgradeCosts ?? UPGRADE_COSTS;
         const upgradeCost = sourceCosts.find(u => u.level === nextLevel);
 
-        console.log(profile, 'upgrade');
         if (!upgradeCost) {
             return {
                 success: false,
@@ -78,6 +128,7 @@ export class AttractionUpgradeService {
             };
         }
 
+        const normalizedBonus = this.normalizeBonusPerLevel(upgradeCost.bonusPerLevel);
         const effectiveCost = Math.ceil(upgradeCost.cost * (profile.costMultiplier ?? 1));
 
         if (currentMoney < effectiveCost) {
@@ -92,23 +143,23 @@ export class AttractionUpgradeService {
             ? {
                 ...currentUpgrade,
                 level: nextLevel,
-                totalInvested: currentUpgrade.totalInvested + upgradeCost.cost,
+                totalInvested: currentUpgrade.totalInvested + effectiveCost,
                 upgrades: {
-                    speed: currentUpgrade.upgrades.speed + upgradeCost.bonusPerLevel.speed,
-                    capacity: currentUpgrade.upgrades.capacity + upgradeCost.bonusPerLevel.capacity,
-                    income: currentUpgrade.upgrades.income + upgradeCost.bonusPerLevel.income,
-                    satisfaction: currentUpgrade.upgrades.satisfaction + upgradeCost.bonusPerLevel.satisfaction
+                    speed: currentUpgrade.upgrades.speed + normalizedBonus.speed,
+                    capacity: currentUpgrade.upgrades.capacity + normalizedBonus.capacity,
+                    income: currentUpgrade.upgrades.income + normalizedBonus.income,
+                    satisfaction: currentUpgrade.upgrades.satisfaction + normalizedBonus.satisfaction
                 }
             }
             : {
                 attractionId,
                 level: nextLevel,
-                totalInvested: upgradeCost.cost,
+                totalInvested: effectiveCost,
                 upgrades: {
-                    speed: upgradeCost.bonusPerLevel.speed,
-                    capacity: upgradeCost.bonusPerLevel.capacity,
-                    income: upgradeCost.bonusPerLevel.income,
-                    satisfaction: upgradeCost.bonusPerLevel.satisfaction
+                    speed: normalizedBonus.speed,
+                    capacity: normalizedBonus.capacity,
+                    income: normalizedBonus.income,
+                    satisfaction: normalizedBonus.satisfaction
                 },
                 hasStaff: false
             };
@@ -207,7 +258,7 @@ export class AttractionUpgradeService {
             }
         }
 
-        return Math.floor(modifiedIncome);
+        return Math.round(modifiedIncome * 100) / 100;
     }
 
     // Посчитать удовлетворенность с учетом апгрейдов
@@ -215,7 +266,8 @@ export class AttractionUpgradeService {
         const upgrade = this.getUpgrade(attractionId, cellX, cellY);
         if (!upgrade) return baseSatisfaction;
 
-        let modified = baseSatisfaction + upgrade.upgrades.satisfaction;
+        const speedImpact = Math.round((baseSatisfaction * upgrade.upgrades.speed) / 400);
+        let modified = baseSatisfaction + upgrade.upgrades.satisfaction + speedImpact;
 
         if (upgrade.theme) {
             const theme = THEMES.find(t => t.id === upgrade.theme);
@@ -244,6 +296,7 @@ export class AttractionUpgradeService {
     // Доступные темы для экземпляра
     getAvailableThemes(attractionId: string, cellX: number, cellY: number): ThemeDefinition[] {
         const profile = this.getProfile(attractionId);
+        if (profile.disableThemes) return [];
         const upgrade = this.getUpgrade(attractionId, cellX, cellY);
         const currentLevel = upgrade ? upgrade.level : 1;
 

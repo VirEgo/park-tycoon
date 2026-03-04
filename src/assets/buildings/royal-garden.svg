@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" shape-rendering="crispEdges">
+  <!-- Grass base -->
+  <rect x="8" y="58" width="64" height="14" fill="#16a34a"/>
+  <rect x="8" y="58" width="10" height="14" fill="#15803d"/>
+
+  <!-- Stone border -->
+  <rect x="12" y="54" width="56" height="4" fill="#a3a3a3"/>
+  <rect x="12" y="54" width="8" height="4" fill="#737373"/>
+
+  <!-- Central royal path -->
+  <rect x="34" y="48" width="12" height="10" fill="#e5e7eb"/>
+  <rect x="34" y="48" width="4" height="10" fill="#9ca3af"/>
+
+  <!-- Left hedge -->
+  <rect x="14" y="36" width="16" height="18" fill="#22c55e"/>
+  <rect x="14" y="36" width="4" height="18" fill="#15803d"/>
+  <rect x="18" y="32" width="8" height="4" fill="#22c55e"/>
+
+  <!-- Right hedge -->
+  <rect x="50" y="36" width="16" height="18" fill="#22c55e"/>
+  <rect x="50" y="36" width="4" height="18" fill="#15803d"/>
+  <rect x="54" y="32" width="8" height="4" fill="#22c55e"/>
+
+  <!-- Flower beds -->
+  <rect x="16" y="50" width="12" height="4" fill="#f472b6"/>
+  <rect x="52" y="50" width="12" height="4" fill="#fb7185"/>
+  <rect x="22" y="44" width="4" height="4" fill="#fde047"/>
+  <rect x="54" y="44" width="4" height="4" fill="#fde047"/>
+
+  <!-- Crown statue -->
+  <rect x="34" y="34" width="12" height="14" fill="#facc15"/>
+  <rect x="34" y="34" width="3" height="14" fill="#ca8a04"/>
+  <rect x="34" y="30" width="4" height="4" fill="#eab308"/>
+  <rect x="38" y="26" width="4" height="4" fill="#fde047"/>
+  <rect x="42" y="30" width="4" height="4" fill="#eab308"/>
+</svg>

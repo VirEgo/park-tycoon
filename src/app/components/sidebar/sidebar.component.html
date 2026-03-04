@@ -74,6 +74,9 @@
   </div>
 
   <div class="sidebar__footer">
+    <div class="sidebar__hint">
+      Ачивки: {{ achievementUnlockedCount }}/{{ achievementTotalCount }}
+    </div>
     <button type="button" class="btn btn--danger" (click)="reset.emit()">
       Сброс прогресса
     </button>

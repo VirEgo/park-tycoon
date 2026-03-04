@@ -4,6 +4,7 @@ export interface Cell {
     x: number;
     y: number;
     type: 'grass' | 'path' | 'building' | 'entrance' | 'exit';
+    locked?: boolean;
     buildingId?: string;
     variant?: number;
     data?: any;
@@ -12,4 +13,3 @@ export interface Cell {
     rootX?: number;
     rootY?: number;
 }
-
