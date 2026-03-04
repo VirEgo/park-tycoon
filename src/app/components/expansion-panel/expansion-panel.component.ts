@@ -115,7 +115,7 @@ import { ExpansionService } from '../../services/expansion.service';
             left: 50%;
             transform: translate(-50%, -50%);
             width: min(92vw, 860px);
-            max-height: 86vh;
+            max-height: min(86vh, calc(100dvh - 2rem));
             display: flex;
             flex-direction: column;
             border-radius: 18px;
@@ -169,7 +169,10 @@ import { ExpansionService } from '../../services/expansion.service';
 
         .panel-content {
             padding: 20px 24px 24px;
+            flex: 1;
+            min-height: 0;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .stats {

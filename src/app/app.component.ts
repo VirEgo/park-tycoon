@@ -36,7 +36,7 @@ import { LmStudioChatMessage, LmStudioModelSummary, LmStudioService } from './se
 import { AiDiagnosisHistoryService, DiagnosisHistoryEntry } from './services/ai-diagnosis-history.service';
 import { CanvasRenderService } from './services/canvas-render.service';
 import { MaintenanceService } from './services/maintenance.service';
-import { SpatialHash, FrameRateLimiter } from './utils/performance.utils';
+import { SpatialHash, FrameRateLimiter, PerformanceMonitor } from './utils/performance.utils';
 import { PremiumSkinsService } from './services/guest/primium-skins';
 import { GamificationService } from './services/gamification.service';
 
@@ -46,6 +46,10 @@ const MAX_ZOOM = 2;
 const ZOOM_STEP = 0.25;
 const MAX_CANVAS_HEIGHT = 700;
 const MAX_CANVAS_WIDTH = 1200;
+const HIGH_PERF_TARGET_FPS = 60;
+const LOW_PERF_TARGET_FPS = 30;
+const GUEST_SIMULATION_FPS = 20;
+const MAX_SIMULATION_CATCH_UP_STEPS = 4;
 
 interface AiPanelMessage {
   role: 'user' | 'assistant';
@@ -82,7 +86,10 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   private handleEscapeListener = (event: KeyboardEvent) => this.handleEscape(event);
   private handleContextMenuListener = (event: MouseEvent) => this.handleGlobalRightClick(event);
   private stopPanListener = () => this.stopPanning();
-  private handleResize = () => this.resizeCanvas();
+  private handleResize = () => {
+    this.updateViewportState();
+    this.resizeCanvas();
+  };
   private handleMouseDown = () => this.mouseIsDown = true;
   private handleMouseUp = () => this.mouseIsDown = false;
 
@@ -142,6 +149,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   } | null>(null);
 
   showSidebar = signal<boolean>(typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
+  isMobileViewport = signal<boolean>(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
 
   // Canvas Interaction State
   private hoveredCell: Cell | null = null;
@@ -245,6 +253,9 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   private tickCounter = 0;
   private casinoLastPayoutDay = 0;
   private lastFrameTime = 0;
+  private simulationAccumulator = 0;
+  private simulationTick = 0;
+  private performanceCheckTimerSec = 0;
   private isPanning = false;
   private panStart = { x: 0, y: 0, panX: 0, panY: 0 };
   private readonly dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
@@ -254,12 +265,25 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   private lastTouchX = 0;
   private lastTouchY = 0;
   private isTouchPanning = false;
+  private layoutTouchStartX = 0;
+  private layoutTouchStartY = 0;
+  private layoutSwipeTracking = false;
+  private readonly mobileSidebarEdgePx = 28;
+  private readonly sidebarOpenSwipeThreshold = 48;
+  private readonly sidebarCloseSwipeThreshold = -48;
+  private readonly sidebarVerticalTolerance = 40;
+  private bodyOverflowBeforeSidebarLock: string | null = null;
+  private bodyTouchActionBeforeSidebarLock: string | null = null;
 
   // === ОПТИМИЗАЦИЯ: Контроль частоты обновлений ===
-  private frameRateLimiter = new FrameRateLimiter(60);
+  private frameRateLimiter = new FrameRateLimiter(HIGH_PERF_TARGET_FPS);
+  private performanceMonitor = new PerformanceMonitor(120);
+  lowPerformanceMode = signal<boolean>(false);
   private needsRender = true; // Флаг для отложенного рендера
 
   constructor() {
+    this.updateViewportState();
+
     effect(() => {
       this.resizeCanvas();
     });
@@ -271,6 +295,11 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
         return;
       }
       this.saveGame();
+    });
+
+    effect(() => {
+      const shouldLockScroll = this.isMobileViewport() && this.showSidebar();
+      this.setMobileScrollLock(shouldLockScroll);
     });
 
     this.premiumSkinsOwned.set(this.premiumSkinsService.getOwnedSkins());
@@ -310,6 +339,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     if (this.gameLoopSub) this.gameLoopSub.unsubscribe();
     if (this.saveLoopSub) this.saveLoopSub.unsubscribe();
     if (this.renderLoopId !== null) cancelAnimationFrame(this.renderLoopId);
+    this.setMobileScrollLock(false);
     window.removeEventListener('mousedown', this.handleMouseDown);
     window.removeEventListener('mouseup', this.handleMouseUp);
     window.removeEventListener('keydown', this.handleEscapeListener);
@@ -319,21 +349,34 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private startRenderLoop() {
-    const loop = (timestamp: number) => {
-      if (!this.frameRateLimiter.shouldRender(timestamp)) {
-        this.renderLoopId = requestAnimationFrame(loop);
-        return;
-      }
+    this.frameRateLimiter.setTargetFPS(HIGH_PERF_TARGET_FPS);
 
+    const loop = (timestamp: number) => {
       if (!this.lastFrameTime) this.lastFrameTime = timestamp;
-      const deltaTime = (timestamp - this.lastFrameTime) / 1000;
+      let deltaTime = (timestamp - this.lastFrameTime) / 1000;
       this.lastFrameTime = timestamp;
+      if (!Number.isFinite(deltaTime) || deltaTime < 0) {
+        deltaTime = 0;
+      }
+      deltaTime = Math.min(deltaTime, 0.25);
 
       if (!this.isPaused()) {
-        this.updateGuestMovement(deltaTime);
+        this.stepGuestSimulation(deltaTime);
       }
 
-      this.render();
+      this.performanceCheckTimerSec += deltaTime;
+
+      if (this.frameRateLimiter.shouldRender(timestamp)) {
+        this.performanceMonitor.startFrame();
+        this.render();
+        this.performanceMonitor.endFrame();
+      }
+
+      if (this.performanceCheckTimerSec >= 1.5) {
+        this.performanceCheckTimerSec = 0;
+        this.updatePerformanceMode();
+      }
+
       this.renderLoopId = requestAnimationFrame(loop);
     };
     this.renderLoopId = requestAnimationFrame(loop);
@@ -341,7 +384,69 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
   private guestSpatialHash = new SpatialHash<Guest>(3);
 
+  private stepGuestSimulation(deltaTime: number) {
+    const simulationStep = 1 / GUEST_SIMULATION_FPS;
+    this.simulationAccumulator += deltaTime;
+
+    let processedSteps = 0;
+    while (this.simulationAccumulator >= simulationStep && processedSteps < MAX_SIMULATION_CATCH_UP_STEPS) {
+      this.updateGuestMovement(simulationStep);
+      this.simulationAccumulator -= simulationStep;
+      this.simulationTick++;
+      processedSteps++;
+    }
+
+    // Avoid spiral of death on very slow devices.
+    if (processedSteps >= MAX_SIMULATION_CATCH_UP_STEPS) {
+      this.simulationAccumulator = 0;
+    }
+  }
+
+  private updatePerformanceMode() {
+    const avgFps = this.performanceMonitor.getAverageFPS();
+    if (!avgFps) return;
+
+    if (!this.lowPerformanceMode() && avgFps < 45) {
+      this.setLowPerformanceMode(true);
+      return;
+    }
+
+    if (this.lowPerformanceMode() && avgFps > 56) {
+      this.setLowPerformanceMode(false);
+    }
+  }
+
+  private setLowPerformanceMode(enabled: boolean) {
+    if (this.lowPerformanceMode() === enabled) return;
+
+    this.lowPerformanceMode.set(enabled);
+    this.frameRateLimiter.setTargetFPS(enabled ? LOW_PERF_TARGET_FPS : HIGH_PERF_TARGET_FPS);
+    this.showNotification(enabled ? '⚡ Включен режим производительности' : '✨ Включено обычное качество');
+  }
+
+  private getViewportGridBounds(): { startX: number; startY: number; endX: number; endY: number } | null {
+    const canvas = this.gameCanvas?.nativeElement;
+    if (!canvas) return null;
+
+    const purchased = this.visibleGridBounds();
+    const scaledTileSize = TILE_SIZE * this.viewScale();
+    if (scaledTileSize <= 0) {
+      return purchased;
+    }
+
+    const canvasWidthCss = canvas.width / this.dpr;
+    const canvasHeightCss = canvas.height / this.dpr;
+
+    const startX = Math.max(purchased.startX, Math.floor(-this.panX() / scaledTileSize) - 1);
+    const startY = Math.max(purchased.startY, Math.floor(-this.panY() / scaledTileSize) - 1);
+    const endX = Math.min(purchased.endX, Math.ceil((canvasWidthCss - this.panX()) / scaledTileSize) + 2);
+    const endY = Math.min(purchased.endY, Math.ceil((canvasHeightCss - this.panY()) / scaledTileSize) + 2);
+
+    return { startX, startY, endX, endY };
+  }
+
   private updateGuestMovement(deltaTime: number) {
+    const viewportBounds = this.getViewportGridBounds();
     const result = this.guestService.processGuestMovement(
       this.guests(),
       this.grid(),
@@ -350,14 +455,21 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       deltaTime,
       (amount) => this.money.update(m => m + amount),
       (msg) => this.showNotification(msg),
-      (repairCost) => this.money.update(m => m - repairCost) // Списание за ремонт
+      (repairCost) => this.money.update(m => m - repairCost), // Списание за ремонт
+      {
+        visibleBounds: viewportBounds ?? undefined,
+        tick: this.simulationTick,
+        offscreenUpdateStride: this.lowPerformanceMode() ? 4 : 2
+      }
     );
 
     if (result.updatedGuests.length !== this.guests().length) {
       this.guests.set(result.updatedGuests);
     }
 
-    this.guestSpatialHash.insertAll(this.guests());
+    if (!this.lowPerformanceMode() || this.simulationTick % 2 === 0) {
+      this.guestSpatialHash.insertAll(this.guests());
+    }
   }
 
   private render() {
@@ -384,7 +496,9 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       visibleStartX: visibleBounds.startX,
       visibleStartY: visibleBounds.startY,
       visibleEndX: visibleBounds.endX,
-      visibleEndY: visibleBounds.endY
+      visibleEndY: visibleBounds.endY,
+      showPremiumGlow: !this.lowPerformanceMode(),
+      showMoodIndicators: !this.lowPerformanceMode()
     });
   }
 
@@ -476,6 +590,53 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     return { x: clampedX, y: clampedY };
   }
 
+  private updateViewportState() {
+    if (typeof window === 'undefined') return;
+
+    const isMobile = window.innerWidth < 768;
+    const wasMobile = this.isMobileViewport();
+    this.isMobileViewport.set(isMobile);
+
+    if (!wasMobile && isMobile) {
+      // On desktop -> mobile switch, keep viewport clear.
+      this.showSidebar.set(false);
+    } else if (wasMobile && !isMobile) {
+      // On mobile -> desktop switch, restore sidebar.
+      this.showSidebar.set(true);
+    }
+  }
+
+  private setMobileScrollLock(locked: boolean) {
+    if (typeof document === 'undefined') return;
+    const body = document.body;
+
+    if (locked) {
+      if (this.bodyOverflowBeforeSidebarLock === null) {
+        this.bodyOverflowBeforeSidebarLock = body.style.overflow;
+      }
+      if (this.bodyTouchActionBeforeSidebarLock === null) {
+        this.bodyTouchActionBeforeSidebarLock = body.style.touchAction;
+      }
+      body.style.overflow = 'hidden';
+      body.style.touchAction = 'pan-y';
+      return;
+    }
+
+    if (this.bodyOverflowBeforeSidebarLock !== null) {
+      body.style.overflow = this.bodyOverflowBeforeSidebarLock;
+      this.bodyOverflowBeforeSidebarLock = null;
+    } else {
+      body.style.removeProperty('overflow');
+    }
+
+    if (this.bodyTouchActionBeforeSidebarLock !== null) {
+      body.style.touchAction = this.bodyTouchActionBeforeSidebarLock;
+      this.bodyTouchActionBeforeSidebarLock = null;
+    } else {
+      body.style.removeProperty('touch-action');
+    }
+  }
+
   private centerPan(canvasWidth?: number, canvasHeight?: number) {
     const canvasEl = this.gameCanvas?.nativeElement;
     if (!canvasEl) return;
@@ -535,6 +696,55 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       this.handleInteraction(touch.clientX, touch.clientY, false);
     }
     this.isTouchPanning = false;
+  }
+
+  handleLayoutTouchStart(event: TouchEvent) {
+    if (!this.isMobileViewport() || event.touches.length !== 1) {
+      this.layoutSwipeTracking = false;
+      return;
+    }
+
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('canvas')) {
+      this.layoutSwipeTracking = false;
+      return;
+    }
+
+    const touch = event.touches[0];
+    const startedFromLeftEdge = touch.clientX <= this.mobileSidebarEdgePx;
+    if (!this.showSidebar() && !startedFromLeftEdge) {
+      this.layoutSwipeTracking = false;
+      return;
+    }
+
+    this.layoutTouchStartX = touch.clientX;
+    this.layoutTouchStartY = touch.clientY;
+    this.layoutSwipeTracking = true;
+  }
+
+  handleLayoutTouchEnd(event: TouchEvent) {
+    if (!this.layoutSwipeTracking || !this.isMobileViewport() || event.changedTouches.length !== 1) {
+      this.layoutSwipeTracking = false;
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - this.layoutTouchStartX;
+    const deltaY = Math.abs(touch.clientY - this.layoutTouchStartY);
+    this.layoutSwipeTracking = false;
+
+    if (deltaY > this.sidebarVerticalTolerance) {
+      return;
+    }
+
+    if (!this.showSidebar() && deltaX >= this.sidebarOpenSwipeThreshold) {
+      this.showSidebar.set(true);
+      return;
+    }
+
+    if (this.showSidebar() && deltaX <= this.sidebarCloseSwipeThreshold) {
+      this.showSidebar.set(false);
+    }
   }
 
   private handleInteraction(clientX: number, clientY: number, isRightClick: boolean) {
@@ -640,6 +850,11 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     this.guests.set([]);
     this.guestIdCounter = 0;
     this.tickCounter = 0;
+    this.simulationTick = 0;
+    this.simulationAccumulator = 0;
+    this.lastFrameTime = 0;
+    this.performanceCheckTimerSec = 0;
+    this.setLowPerformanceMode(false);
     this.casinoLastPayoutDay = 1;
     this.isParkClosed.set(false);
     this.parkLifetimeStats.set(createInitialLifetimeStats());
@@ -923,13 +1138,19 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       this.cachedGuestCount = this.guests().filter(g => !g.isWorker).length;
     }
 
-    const maxGuests = 5 + (this.cachedAttractionCount * 3);
+    const calculatedMaxGuests = 5 + (this.cachedAttractionCount * 3);
+    const performanceGuestCap = this.lowPerformanceMode() ? 180 : 320;
+    const maxGuests = Math.min(calculatedMaxGuests, performanceGuestCap);
 
-    if (!this.isParkClosed() && this.cachedGuestCount < maxGuests && Math.random() > 0.3) {
+    const spawnChance = this.lowPerformanceMode() ? 0.35 : 0.7;
+    if (!this.isParkClosed() && this.cachedGuestCount < maxGuests && Math.random() < spawnChance) {
       this.spawnGuest();
     }
 
-    this.updateGuests();
+    const shouldUpdateNeeds = !this.lowPerformanceMode() || this.tickCounter % 2 === 0;
+    if (shouldUpdateNeeds) {
+      this.updateGuests();
+    }
     if (this.refreshGamification() > 0) {
       this.saveGame();
     }
@@ -955,6 +1176,13 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
     if (category !== 'none') {
       this.selectedGuestId.set(null);
+    }
+  }
+
+  handleToolSelected(selection: { category: ToolType | string; id: string | null }) {
+    this.selectTool(selection.category, selection.id);
+    if (this.isMobileViewport()) {
+      this.showSidebar.set(false);
     }
   }
 
@@ -1088,6 +1316,11 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
   toggleSidebar() {
     this.showSidebar.update(v => !v);
+  }
+
+  closeSidebarOnOutsideClick() {
+    if (!this.isMobileViewport()) return;
+    this.showSidebar.set(false);
   }
 
   zoomIn() {

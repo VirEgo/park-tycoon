@@ -10,6 +10,12 @@ import { AttractionUpgradeService } from './attraction-upgrade.service';
 import { MaintenanceService } from './maintenance.service';
 import { PremiumSkinsService } from './guest/primium-skins';
 
+export interface GuestMovementOptions {
+    visibleBounds?: { startX: number; startY: number; endX: number; endY: number };
+    tick?: number;
+    offscreenUpdateStride?: number;
+}
+
 @Injectable({
     providedIn: 'root'
 })
@@ -279,10 +285,14 @@ export class GuestService {
         deltaTime: number, // секунды
         onMoneyEarned: (amount: number) => void,
         onNotification: (msg: string) => void,
-        onRepairCostSpent?: (amount: number) => void
+        onRepairCostSpent?: (amount: number) => void,
+        options?: GuestMovementOptions
     ): { updatedGuests: Guest[], updatedGrid: Cell[] } {
         const exits = grid.filter(c => c.type === 'entrance' || c.type === 'exit');
-        const updatedGrid = [...grid];
+        const updatedGrid = grid;
+        const visibleBounds = options?.visibleBounds;
+        const simulationTick = options?.tick ?? 0;
+        const offscreenStride = Math.max(1, options?.offscreenUpdateStride ?? 1);
 
         // Метод для расчета стоимости ремонта
         const processRepair = (x: number, y: number) => {
@@ -447,6 +457,17 @@ export class GuestService {
 
             const g = guest;
             const wantsToLeave = g.wantsToLeave;
+            if (visibleBounds && offscreenStride > 1) {
+                const pad = 1.5;
+                const isOutsideVisible =
+                    g.x < visibleBounds.startX - pad ||
+                    g.x > visibleBounds.endX + pad ||
+                    g.y < visibleBounds.startY - pad ||
+                    g.y > visibleBounds.endY + pad;
+                if (isOutsideVisible && (simulationTick % offscreenStride) !== (g.id % offscreenStride)) {
+                    return g;
+                }
+            }
 
             // Если гость достиг цели
             if (Math.abs(g.x - g.targetX) < 0.1 && Math.abs(g.y - g.targetY) < 0.1) {

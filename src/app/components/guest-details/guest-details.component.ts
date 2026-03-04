@@ -7,7 +7,7 @@ import { Guest } from '../../models/guest.model';
     standalone: true,
     imports: [CommonModule],
     template: `
-    <div class="absolute bottom-20 right-6 w-64 bg-gray-800/95 backdrop-blur border border-yellow-500/50 rounded-lg shadow-2xl p-4 z-30 animate-pop-in">
+    <div class="absolute bottom-20 right-6 w-64 max-h-[calc(100dvh-6rem)] overflow-y-auto bg-gray-800/95 backdrop-blur border border-yellow-500/50 rounded-lg shadow-2xl p-4 z-30 animate-pop-in">
       <div class="flex justify-between items-start mb-4">
         <div class="flex items-center gap-3">
           <div class="text-4xl bg-gray-700 rounded-lg p-1 w-12 h-12 flex items-center justify-center">

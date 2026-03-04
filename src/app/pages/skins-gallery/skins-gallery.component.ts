@@ -91,7 +91,8 @@ import { GameStateService } from '../../services/game-state.service';
           </div>
         </div>
 
-        <div class="rounded-2xl border border-gray-700 bg-gray-800/70 p-4">
+       @if(false) {
+         <div class="rounded-2xl border border-gray-700 bg-gray-800/70 p-4">
           <div class="mb-3 text-sm uppercase tracking-[0.2em] text-gray-400">Пул новых гостей</div>
           <div class="mb-3 text-lg font-semibold text-white">Скины, которые сейчас могут выпадать</div>
           <div *ngIf="activePoolSkins().length > 0; else noActiveSkins" class="grid grid-cols-3 gap-3">
@@ -109,6 +110,7 @@ import { GameStateService } from '../../services/game-state.service';
             </div>
           </ng-template>
         </div>
+       }
       </div>
 
       <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">

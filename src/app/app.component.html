@@ -5,20 +5,23 @@
     [selectedToolId]="selectedToolId()" [selectedToolCategory]="selectedToolCategory()"
     [getBuildingsByCategory]="getBuildingsByCategory" [buildingStats]="buildingStats()"
     [achievementUnlockedCount]="achievementUnlockedCount()" [achievementTotalCount]="achievementTotalCount"
-    (toolSelected)="selectTool($event.category, $event.id)" (togglePark)="toggleParkState()" (reset)="resetGame()"
-    (closeSidebar)="toggleSidebar()">
+    (toolSelected)="handleToolSelected($event)" (togglePark)="toggleParkState()" (reset)="resetGame()"
+    (closeSidebar)="closeSidebarOnOutsideClick()">
   </app-sidebar>
 
+  <div *ngIf="showSidebar() && isMobileViewport()" class="sidebar-backdrop md:hidden"
+    (click)="closeSidebarOnOutsideClick()"></div>
 
   <!-- Основная область -->
-  <main class="content-wrapper flex-1 flex flex-col relative bg-gray-800">
+  <main class="content-wrapper flex-1 flex flex-col min-h-0 relative bg-gray-800"
+    (touchstart)="handleLayoutTouchStart($event)" (touchend)="handleLayoutTouchEnd($event)">
 
     <!-- Верхняя панель статистики -->
     <header
-      class="min-h-16 h-auto bg-gray-900 border-b border-gray-700 flex flex-wrap items-center justify-between px-4 py-2 shadow-md z-10 gap-y-2">
+      class="min-h-16 h-auto bg-gray-900 border-b border-gray-700 flex flex-wrap items-center justify-between px-3 md:px-4 py-2 shadow-md z-10 gap-y-2">
 
       <!-- Left Side: Menu + Stats -->
-      <div class="flex items-center space-x-4 md:space-x-8 flex-1 justify-start">
+      <div class="flex items-center space-x-3 md:space-x-8 flex-1 justify-start whitespace-nowrap pb-1 md:pb-0">
 
         <!-- Mobile Menu Toggle -->
         <button (click)="toggleSidebar()"
@@ -64,30 +67,31 @@
       </div>
 
       <!-- Right Side Buttons -->
-      <div class="flex items-center space-x-2 w-full md:w-auto justify-between md:justify-end mt-2 md:mt-0">
+      <div
+        class="header-actions-scroll flex items-center space-x-2 w-full md:w-auto justify-start md:justify-end mt-2 md:mt-0 overflow-x-auto whitespace-nowrap pb-1 md:pb-0">
 
         <!-- Desktop Sidebar Toggle -->
         <button (click)="toggleSidebar()"
-          class="hidden md:flex px-3 py-2 rounded bg-gray-700 hover:bg-gray-600 font-medium text-sm transition-colors border border-gray-600 items-center gap-2">
+          class="hidden md:flex shrink-0 px-3 py-2 rounded bg-gray-700 hover:bg-gray-600 font-medium text-sm transition-colors border border-gray-600 items-center gap-2">
           <span>{{ showSidebar() ? 'Скрыть' : 'Показать' }}</span>
         </button>
 
         <button (click)="openExpansionPanel()"
-          class="px-2 md:px-4 py-1 md:py-2 rounded bg-green-700 hover:bg-green-600 font-medium text-xs md:text-sm transition-colors border border-green-600 flex items-center gap-1 md:gap-2">
+          class="shrink-0 px-2 md:px-4 py-1 md:py-2 rounded bg-green-700 hover:bg-green-600 font-medium text-[11px] md:text-sm transition-colors border border-green-600 flex items-center gap-1 md:gap-2">
           <span class="hidden md:inline">🗺️</span>
           <span class="hidden md:inline">Купить землю</span>
           <span class="md:hidden">Земля</span>
         </button>
 
         <button (click)="openSkinsGallery()"
-          class="px-2 md:px-4 py-1 md:py-2 rounded bg-purple-700 hover:bg-purple-600 font-medium text-xs md:text-sm transition-colors border border-purple-600 flex items-center gap-1 md:gap-2">
+          class="shrink-0 px-2 md:px-4 py-1 md:py-2 rounded bg-purple-700 hover:bg-purple-600 font-medium text-[11px] md:text-sm transition-colors border border-purple-600 flex items-center gap-1 md:gap-2">
           <span class="hidden md:inline">🎨</span>
           <span class="hidden md:inline">Скины</span>
           <span class="md:hidden">Скины</span>
         </button>
 
         <button (click)="toggleAchievementsPanel()" [class.bg-amber-700]="showAchievementsPanel()"
-          class="px-2 md:px-4 py-1 md:py-2 rounded bg-gray-700 hover:bg-amber-700 font-medium text-xs md:text-sm transition-colors border border-amber-600 flex items-center gap-1 md:gap-2">
+          class="shrink-0 px-2 md:px-4 py-1 md:py-2 rounded bg-gray-700 hover:bg-amber-700 font-medium text-[11px] md:text-sm transition-colors border border-amber-600 flex items-center gap-1 md:gap-2">
           <span class="hidden md:inline">🏆</span>
           <span class="hidden md:inline">Ачивки</span>
           <span class="md:hidden">Ачивки</span>
@@ -98,7 +102,7 @@
 
         @if(false) {
         <button (click)="toggleAiPanel()" [class.bg-cyan-700]="showAiPanel()"
-          class="px-2 md:px-4 py-1 md:py-2 rounded bg-gray-700 hover:bg-cyan-700 font-medium text-xs md:text-sm transition-colors border border-cyan-600 flex items-center gap-1 md:gap-2">
+          class="shrink-0 px-2 md:px-4 py-1 md:py-2 rounded bg-gray-700 hover:bg-cyan-700 font-medium text-[11px] md:text-sm transition-colors border border-cyan-600 flex items-center gap-1 md:gap-2">
           <span class="hidden md:inline">🤖</span>
           <span class="hidden md:inline">AI советник</span>
           <span class="md:hidden">AI</span>
@@ -106,21 +110,21 @@
         }
 
         <button (click)="repairAllBroken()"
-          class="px-2 md:px-4 py-1 md:py-2 rounded bg-amber-700 hover:bg-amber-600 font-medium text-xs md:text-sm transition-colors border border-amber-600 flex items-center gap-1 md:gap-2">
+          class="shrink-0 px-2 md:px-4 py-1 md:py-2 rounded bg-amber-700 hover:bg-amber-600 font-medium text-[11px] md:text-sm transition-colors border border-amber-600 flex items-center gap-1 md:gap-2">
           <span class="hidden md:inline">🛠️</span>
           <span class="hidden md:inline">Починить все</span>
           <span class="md:hidden">Ремонт</span>
         </button>
 
         <button (click)="toggleGuestStats()" [class.bg-blue-600]="showGuestStats()"
-          class="px-2 md:px-4 py-1 md:py-2 rounded bg-gray-700 hover:bg-gray-600 font-medium text-xs md:text-sm transition-colors border border-gray-600 flex items-center gap-1 md:gap-2">
+          class="shrink-0 px-2 md:px-4 py-1 md:py-2 rounded bg-gray-700 hover:bg-gray-600 font-medium text-[11px] md:text-sm transition-colors border border-gray-600 flex items-center gap-1 md:gap-2">
           <span class="hidden md:inline">📊</span>
           <span class="hidden md:inline">Статистика</span>
           <span class="md:hidden">Стат</span>
         </button>
 
         <button (click)="isPaused.set(!isPaused())"
-          class="px-2 md:px-4 py-1 md:py-2 rounded bg-gray-700 hover:bg-gray-600 font-medium text-xs md:text-sm transition-colors border border-gray-600">
+          class="shrink-0 px-2 md:px-4 py-1 md:py-2 rounded bg-gray-700 hover:bg-gray-600 font-medium text-[11px] md:text-sm transition-colors border border-gray-600">
           {{ isPaused() ? '▶' : '⏸' }} <span class="hidden md:inline">{{ isPaused() ? 'Продолжить' : 'Пауза' }}</span>
         </button>
       </div>
@@ -128,7 +132,7 @@
 
     <!-- Игровое поле (Канвас) -->
     <div
-      class="park-wrapper flex-1 overflow-hidden bg-black relative flex items-start justify-center cursor-crosshair bg-gray-900 p-6">
+      class="park-wrapper flex-1 min-h-0 overflow-hidden bg-black relative flex items-start justify-center cursor-crosshair bg-gray-900 p-2 md:p-6">
 
       <!-- Canvas Container -->
       <div class="relative shadow-2xl overflow-hidden">
@@ -149,7 +153,7 @@
 
     <!-- Панель статистики гостей -->
     <div *ngIf="showGuestStats() && guestStats() as stats"
-      class="absolute top-20 right-6 w-64 bg-gray-800/95 backdrop-blur border border-gray-600 rounded-lg shadow-2xl p-4 z-30 animate-slide-in">
+      class="absolute top-20 right-6 w-64 max-h-[calc(100dvh-6rem)] overflow-y-auto bg-gray-800/95 backdrop-blur border border-gray-600 rounded-lg shadow-2xl p-4 z-30 animate-slide-in">
       <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
         <h3 class="font-bold text-white">Сводка по гостям</h3>
         <button (click)="toggleGuestStats()" class="text-gray-400 hover:text-white">✕</button>
@@ -372,9 +376,9 @@
 
     <!-- Modal -->
     <div *ngIf="showConfirmModal()"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in">
+      class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 backdrop-blur-sm animate-fade-in p-4">
       <div
-        class="bg-gray-800 border border-gray-600 rounded-lg shadow-2xl p-6 max-w-sm w-full transform transition-all scale-100">
+        class="bg-gray-800 border border-gray-600 rounded-lg shadow-2xl p-6 max-w-sm w-full max-h-[85vh] overflow-y-auto transform transition-all scale-100">
         <h3 class="text-xl font-bold text-white mb-2">Подтверждение</h3>
         <p class="text-gray-300 mb-6">
           На этой клетке уже есть строение. Снести его и построить новое?

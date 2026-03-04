@@ -7,7 +7,7 @@ import { CasinoStats, CasinoTransaction } from '../../services/casino.service';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in"
+    <div class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4 bg-black/70 backdrop-blur-sm animate-fade-in"
          (click)="close.emit()">
       <div class="bg-gray-800 border border-purple-500 rounded-lg shadow-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
            (click)="$event.stopPropagation()">

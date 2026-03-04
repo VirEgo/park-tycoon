@@ -27,6 +27,8 @@ export interface CanvasRenderParams {
   visibleStartY: number;
   visibleEndX: number;
   visibleEndY: number;
+  showPremiumGlow?: boolean;
+  showMoodIndicators?: boolean;
 }
 
 @Injectable({
@@ -130,7 +132,9 @@ export class CanvasRenderService {
       visibleStartX,
       visibleStartY,
       visibleEndX,
-      visibleEndY
+      visibleEndY,
+      showPremiumGlow = true,
+      showMoodIndicators = true
     } = params;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -363,7 +367,7 @@ export class CanvasRenderService {
 
       if (img && img.complete) {
         // Если премиум скин - добавляем свечение по контуру изображения
-        if (isPremium) {
+        if (showPremiumGlow && isPremium) {
           ctx.save();
           ctx.shadowColor = '#FFD700';
           ctx.shadowBlur = 15;
@@ -387,7 +391,7 @@ export class CanvasRenderService {
       }
 
       // Индикатор настроения
-      if (!guest.isWorker && guest.happiness < 50) {
+      if (showMoodIndicators && !guest.isWorker && guest.happiness < 50) {
         ctx.fillStyle = guest.happiness < 25 ? '#ef4444' : '#f59e0b';
         ctx.beginPath();
         ctx.arc(gx + tileSize * 0.8, gy + tileSize * 0.2, 4, 0, Math.PI * 2);
