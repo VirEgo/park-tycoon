@@ -314,8 +314,10 @@
 }
 
 @media (max-width: 640px) {
+  .achievements-panel__summary {
+    grid-template-columns: 1fr 100px;
+  }
   .achievements-panel__header,
-  .achievements-panel__summary,
   .achievements-panel__filters,
   .achievements-panel__list {
     padding-inline: 1rem;
