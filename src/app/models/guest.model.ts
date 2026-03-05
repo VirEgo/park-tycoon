@@ -55,7 +55,7 @@ export class Guest {
     // Visit tracking
     visitingBuildingRoot: string | null = null;
 
-    constructor(id: number, x: number, y: number, guestType: GuestTypeId = 'casual', spendingPower: number = 1.0, speedModifier: number = 1.0, ownedPremiumSkins: string[] = []) {
+    constructor(id: number, x: number, y: number, guestType: GuestTypeId = 'casual', spendingPower: number = 1.0, speedModifier: number = 1.0, availableSkins: string[] = []) {
         this.id = id;
         this.x = x;
         this.y = y;
@@ -67,16 +67,19 @@ export class Guest {
         this.money = Math.floor(Math.random() * 141 * spendingPower) + 10; // 10 to 150, scaled by spending power
         this.color = `hsl(${Math.random() * 360}, 70%, 60%)`;
         this.emoji = this.getRandomEmoji();
-        this.visualType = this.getRandomVisualType(ownedPremiumSkins);
+        this.visualType = this.getRandomVisualType(availableSkins);
         this.skin = this.getSkinPath(this.visualType);
         this.isWorker = false;
         this.updateHappinessFromNeeds();
     }
 
-    private getRandomVisualType(ownedPremiumSkins: string[]): string {
+    private getRandomVisualType(availableSkins: string[]): string {
         const standardTypes = Object.keys(Guest.SKINS).filter(key => !Guest.WORKER_SKIN_KEYS.includes(key));
-        const allTypes = [...standardTypes, ...ownedPremiumSkins];
-        return allTypes[Math.floor(Math.random() * allTypes.length)];
+        const allowedTypes = Array.from(
+            new Set(availableSkins.filter((key) => !Guest.WORKER_SKIN_KEYS.includes(key)))
+        );
+        const pool = allowedTypes.length > 0 ? allowedTypes : standardTypes;
+        return pool[Math.floor(Math.random() * pool.length)];
     }
 
     private getSkinPath(type: string): string {

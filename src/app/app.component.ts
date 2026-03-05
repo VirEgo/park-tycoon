@@ -1909,6 +1909,10 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     if (cell.type === 'building' && cell.buildingId) {
       const building = this.buildingService.getBuildingById(cell.buildingId);
       if (building) {
+        if (building.category === 'decoration') {
+          return;
+        }
+
         // Determine root coordinates
         const rootX = cell.isRoot ? cell.x : (cell.rootX ?? cell.x);
         const rootY = cell.isRoot ? cell.y : (cell.rootY ?? cell.y);

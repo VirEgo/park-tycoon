@@ -65,6 +65,14 @@ export class CanvasRenderService {
     return this.buildingCache.get(id);
   }
 
+  private getTreeFilter(cell: Cell): string | null {
+    const shift = cell.data?.treeHueShift;
+    if (typeof shift !== 'number') {
+      return null;
+    }
+    return `hue-rotate(${shift}deg)`;
+  }
+
   private getVisibleCellIndices(
     gridWidth: number,
     gridHeight: number,
@@ -205,7 +213,15 @@ export class CanvasRenderService {
                     const padding = tileSize * 0.15;
                     ctx.drawImage(img, x + padding, y + padding, tileSize - padding * 2, tileSize - padding * 2);
                   } else {
-                    ctx.drawImage(img, x, y, tileSize * building.width, tileSize * building.height);
+                    const treeFilter = bId === 'tree' ? this.getTreeFilter(cell) : null;
+                    if (treeFilter) {
+                      ctx.save();
+                      ctx.filter = treeFilter;
+                      ctx.drawImage(img, x, y, tileSize * building.width, tileSize * building.height);
+                      ctx.restore();
+                    } else {
+                      ctx.drawImage(img, x, y, tileSize * building.width, tileSize * building.height);
+                    }
                   }
                 } else {
                   ctx.strokeStyle = '#4ade80';

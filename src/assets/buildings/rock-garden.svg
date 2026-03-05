@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" shape-rendering="crispEdges">
+  <!-- Ground patch -->
+  <rect x="6" y="24" width="28" height="10" fill="#84cc16"/>
+  <rect x="8" y="22" width="24" height="2" fill="#a3e635"/>
+
+  <!-- Main rock -->
+  <rect x="11" y="14" width="14" height="10" fill="#6b7280"/>
+  <rect x="13" y="12" width="10" height="2" fill="#9ca3af"/>
+  <rect x="11" y="14" width="2" height="10" fill="#4b5563"/>
+
+  <!-- Side rocks -->
+  <rect x="25" y="18" width="8" height="6" fill="#9ca3af"/>
+  <rect x="7" y="19" width="6" height="5" fill="#9ca3af"/>
+
+  <!-- Pebbles -->
+  <rect x="15" y="27" width="2" height="2" fill="#d1d5db"/>
+  <rect x="20" y="29" width="2" height="2" fill="#d1d5db"/>
+  <rect x="25" y="27" width="2" height="2" fill="#d1d5db"/>
+</svg>

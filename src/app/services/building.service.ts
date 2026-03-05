@@ -134,12 +134,13 @@ export class BuildingService {
                 const idx = this.gridService.getCellIndex(targetX, targetY, width);
 
                 const isRoot = i === 0 && j === 0;
+                const rootData = isRoot ? this.buildRootData(building) : undefined;
 
                 newGrid[idx] = {
                     ...newGrid[idx],
                     type: newType,
                     buildingId: building.id,
-                    data: (isRoot && building.isGambling) ? { bank: 20 } : undefined,
+                    data: rootData,
                     isRoot: isRoot,
                     rootX: cell.x,
                     rootY: cell.y
@@ -158,6 +159,21 @@ export class BuildingService {
         this.buildingStatusService.initStatus(cell.x, cell.y, maxVisits);
 
         return newGrid;
+    }
+
+    private buildRootData(building: BuildingType): Record<string, unknown> | undefined {
+        const data: Record<string, unknown> = {};
+
+        if (building.isGambling) {
+            data['bank'] = 20;
+        }
+
+        if (building.id === 'tree') {
+            // Keep the shift in a narrow natural range to preserve a "tree-like" palette.
+            data['treeHueShift'] = Math.floor(Math.random() * 71) - 35;
+        }
+
+        return Object.keys(data).length ? data : undefined;
     }
 
     demolishBuilding(grid: Cell[], cell: Cell, width: number): Cell[] {

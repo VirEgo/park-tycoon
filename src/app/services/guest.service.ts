@@ -86,7 +86,7 @@ export class GuestService {
     spawnGuest(guestId: number, entranceX: number, entranceY: number, attractionCount: number = 0): Guest {
         const guestType = this.determineGuestType(attractionCount);
         const typeData = GUEST_TYPES.find(t => t.id === guestType) || GUEST_TYPES[0];
-        const ownedSkins = this.premiumSkinsService.getEnabledSkins();
+        const enabledSkins = this.premiumSkinsService.getEnabledSkins();
 
         return new Guest(
             guestId,
@@ -95,7 +95,7 @@ export class GuestService {
             guestType,
             typeData.spendingPower,
             typeData.speedModifier,
-            ownedSkins
+            enabledSkins
         );
     }
 
