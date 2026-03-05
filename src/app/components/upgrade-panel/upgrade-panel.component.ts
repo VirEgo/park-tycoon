@@ -50,6 +50,7 @@ export class UpgradePanelComponent {
     onThemeApplied = output<{ cost: number }>();
     onRepair = output<{ cost: number }>();
     onPizzaMenuUpdate = output<{ prices: Record<PizzaRecipeId, number> }>();
+    onBuildingStateToggle = output<{ cellX: number; cellY: number; isOpen: boolean }>();
     activeTab = signal<TabType>('upgrade');
 
     // Signal to trigger refresh of computed values
@@ -93,6 +94,11 @@ export class UpgradePanelComponent {
     });
 
     isPizzaBuilding = computed(() => this.building().id === 'pizza');
+
+    isBuildingOpen = computed(() => {
+        const data = this.buildingData();
+        return data?.isOpen !== false; // Default to true if undefined
+    });
 
     pizzaMenuEntries = computed<Array<PizzaRecipeDefinition & { price: number; unlocked: boolean }>>(() => {
         const level = this.currentLevel();
@@ -253,5 +259,14 @@ export class UpgradePanelComponent {
     canDecreasePizzaPrice(recipeId: PizzaRecipeId): boolean {
         const current = readPizzaMenuData(this.buildingData()?.pizzaMenu);
         return current.prices[recipeId] > PIZZA_MIN_PRICE;
+    }
+
+    toggleBuildingState(): void {
+        const newState = !this.isBuildingOpen();
+        this.onBuildingStateToggle.emit({
+            cellX: this.cellX(),
+            cellY: this.cellY(),
+            isOpen: newState
+        });
     }
 }

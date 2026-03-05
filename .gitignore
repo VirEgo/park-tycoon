@@ -41,3 +41,9 @@ testem.log
 .DS_Store
 Thumbs.db
 
+# Project instructions (for AI assistants)
+PROJECT_INSTRUCTIONS.md
+
+# Test files
+*.spec.ts
+

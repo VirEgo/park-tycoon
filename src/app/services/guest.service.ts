@@ -17,6 +17,12 @@ export interface GuestMovementOptions {
     offscreenUpdateStride?: number;
 }
 
+export interface GuestMovementResult {
+    updatedGuests: Guest[];
+    updatedGrid: Cell[];
+    leavingGuests: Guest[];
+}
+
 // Максимальное количество гостей в здании
 const BUILDING_CAPACITY = 20;
 
@@ -217,6 +223,147 @@ export class GuestService {
             : 0;
     }
 
+    /**
+     * Check if a building is open for visitors
+     */
+    private isBuildingOpen(rootData: CellData | undefined): boolean {
+        return rootData?.isOpen !== false;
+    }
+
+    /**
+     * Get the list of guests currently visiting a specific building
+     */
+    private getGuestsInBuilding(guests: Guest[], rootX: number, rootY: number): Guest[] {
+        const buildingKey = `${rootX}_${rootY}`;
+        return guests.filter(g => g.visitingBuildingRoot === buildingKey);
+    }
+
+    /**
+     * Get the maximum capacity for a building including upgrade bonuses
+     */
+    private getBuildingCapacity(buildingId: string, rootX: number, rootY: number): number {
+        const capacityBonus = this.upgradeService.calculateCapacityMultiplierForLevel(buildingId, this.upgradeService.getLevel(buildingId, rootX, rootY));
+        const totalCapacity = Math.floor(BUILDING_CAPACITY * (1 + capacityBonus));
+        return totalCapacity;
+    }
+
+    /**
+     * Check if a building is at full capacity
+     */
+    private isBuildingAtCapacity(guests: Guest[], buildingId: string, rootX: number, rootY: number): boolean {
+        const guestCount = this.getGuestsInBuilding(guests, rootX, rootY).length;
+        const capacity = this.getBuildingCapacity(buildingId, rootX, rootY);
+        return guestCount >= capacity;
+    }
+
+    /**
+     * Find alternative buildings of the same type that have capacity
+     */
+    private findAlternativeBuilding(
+        guests: Guest[],
+        neededType: GuestNeedKey | null,
+        grid: Cell[],
+        width: number,
+        height: number,
+        currentRootX: number,
+        currentRootY: number,
+        guest: Guest
+    ): { x: number, y: number } | null {
+        const encode = (x: number, y: number) => `${x}_${y}`;
+        const queue: Array<{ x: number, y: number }> = [{ x: Math.round(guest.x), y: Math.round(guest.y) }];
+        const visited = new Set<string>([encode(Math.round(guest.x), Math.round(guest.y))]);
+        const parents = new Map<string, { x: number, y: number }>();
+
+        // Get the root cell to determine building ID and category
+        const currentRootCell = this.gridService.getCell(grid, currentRootX, currentRootY, width, height);
+        if (!currentRootCell || currentRootCell.type !== 'building' || !currentRootCell.buildingId) {
+            return null;
+        }
+
+        const targetBuildingId = currentRootCell.buildingId;
+        const targetBuilding = this.getBuildingByIdFast(targetBuildingId);
+        if (!targetBuilding) return null;
+
+        const canWalkTo = (cell: Cell | null | undefined): boolean => {
+            if (!cell) return false;
+            if (cell.type === 'path' || cell.type === 'entrance' || cell.type === 'exit') return true;
+            if (cell.type !== 'building' || !cell.buildingId) return false;
+
+            const bInfo = this.getBuildingByIdFast(cell.buildingId);
+            if (!bInfo) return false;
+
+            const rootX = cell.isRoot ? cell.x : (cell.rootX ?? cell.x);
+            const rootY = cell.isRoot ? cell.y : (cell.rootY ?? cell.y);
+            const isBroken = this.buildingStatusService.isBroken(rootX, rootY);
+            const rootData = this.getRootCellData(grid, rootX, rootY, width, height);
+            const canVisit = bInfo.isAvailableForVisit !== false && this.isBuildingOpen(rootData);
+            const allowedOnPath = bInfo.allowedOnPath !== false;
+
+            return canVisit && allowedOnPath && !isBroken;
+        };
+
+        const isValidAlternative = (cell: Cell | null | undefined, rootX: number, rootY: number): boolean => {
+            if (!cell || cell.type !== 'building' || !cell.buildingId) return false;
+
+            const bInfo = this.getBuildingByIdFast(cell.buildingId);
+            if (!bInfo || bInfo.id !== targetBuildingId) return false;
+
+            const isBroken = this.buildingStatusService.isBroken(rootX, rootY);
+            if (isBroken) return false;
+
+            // Skip if it's the same building
+            if (rootX === currentRootX && rootY === currentRootY) return false;
+
+            // Check capacity
+            if (this.isBuildingAtCapacity(guests, targetBuildingId, rootX, rootY)) return false;
+
+            // Check if guest can afford it
+            const rootData = this.getRootCellData(grid, rootX, rootY, width, height);
+            const visitCost = this.getVisitCost(bInfo, rootX, rootY, rootData, guest);
+            return Number.isFinite(visitCost) && guest.money >= visitCost;
+        };
+
+        while (queue.length > 0) {
+            const node = queue.shift()!;
+            const currentCell = this.gridService.getCell(grid, node.x, node.y, width, height);
+
+            // Check if current cell is a valid alternative
+            if ((node.x !== Math.round(guest.x) || node.y !== Math.round(guest.y)) &&
+                currentCell && currentCell.type === 'building' &&
+                currentCell.buildingId === targetBuildingId && currentCell.isRoot) {
+                const altRootX = currentCell.x;
+                const altRootY = currentCell.y;
+                if (isValidAlternative(currentCell, altRootX, altRootY)) {
+                    // Reconstruct first step
+                    let backtrack = { x: node.x, y: node.y };
+                    let parent = parents.get(encode(backtrack.x, backtrack.y));
+
+                    while (parent && !(parent.x === Math.round(guest.x) && parent.y === Math.round(guest.y))) {
+                        backtrack = parent;
+                        parent = parents.get(encode(backtrack.x, backtrack.y));
+                    }
+
+                    return backtrack;
+                }
+            }
+
+            const neighbors = this.gridService.getNeighbors(node.x, node.y, width, height);
+            for (const neighbor of neighbors) {
+                const key = encode(neighbor.x, neighbor.y);
+                if (visited.has(key)) continue;
+
+                const neighborCell = this.gridService.getCell(grid, neighbor.x, neighbor.y, width, height);
+                if (!canWalkTo(neighborCell)) continue;
+
+                visited.add(key);
+                parents.set(key, { x: node.x, y: node.y });
+                queue.push(neighbor);
+            }
+        }
+
+        return null;
+    }
+
     private shouldPrioritizeNeed(guest: Guest): GuestNeedKey | null {
         const urgentNeed = guest.getMostUrgentNeed();
         if (!urgentNeed) {
@@ -239,6 +386,7 @@ export class GuestService {
         startY: number,
         need: GuestNeedKey,
         guest: Guest,
+        guests: Guest[],
         grid: Cell[],
         width: number,
         height: number
@@ -269,7 +417,8 @@ export class GuestService {
             const rootX = cell.isRoot ? cell.x : (cell.rootX ?? cell.x);
             const rootY = cell.isRoot ? cell.y : (cell.rootY ?? cell.y);
             const isBroken = this.buildingStatusService.isBroken(rootX, rootY);
-            const canVisit = building.isAvailableForVisit !== false;
+            const rootData = this.getRootCellData(grid, rootX, rootY, width, height);
+            const canVisit = building.isAvailableForVisit !== false && this.isBuildingOpen(rootData);
             const allowedOnPath = building.allowedOnPath !== false;
 
             return canVisit && allowedOnPath && !isBroken;
@@ -288,7 +437,8 @@ export class GuestService {
             const rootX = cell.isRoot ? cell.x : (cell.rootX ?? cell.x);
             const rootY = cell.isRoot ? cell.y : (cell.rootY ?? cell.y);
             const isBroken = this.buildingStatusService.isBroken(rootX, rootY);
-            const canVisit = building.isAvailableForVisit !== false;
+            const rootData = this.getRootCellData(grid, rootX, rootY, width, height);
+            const canVisit = building.isAvailableForVisit !== false && this.isBuildingOpen(rootData);
             const allowedOnPath = building.allowedOnPath !== false;
 
             if (!canVisit || !allowedOnPath || isBroken) {
@@ -299,7 +449,10 @@ export class GuestService {
                 return false;
             }
 
-            const rootData = this.getRootCellData(grid, rootX, rootY, width, height);
+            // Check building capacity
+            if (this.isBuildingAtCapacity(guests, building.id, rootX, rootY)) {
+                return false;
+            }
             const visitCost = this.getVisitCost(building, rootX, rootY, rootData, guest);
 
             if (!Number.isFinite(visitCost) || guest.money < visitCost) {
@@ -360,12 +513,13 @@ export class GuestService {
         onNotification: (msg: string) => void,
         onRepairCostSpent?: (amount: number) => void,
         options?: GuestMovementOptions
-    ): { updatedGuests: Guest[], updatedGrid: Cell[] } {
+    ): GuestMovementResult {
         const hasDedicatedExits = grid.some(c => c.type === 'exit');
         const leaveTargets = hasDedicatedExits
             ? grid.filter(c => c.type === 'exit')
             : grid.filter(c => c.type === 'entrance');
         const updatedGrid = grid;
+        const leavingGuests: Guest[] = [];
         const visibleBounds = options?.visibleBounds;
         const simulationTick = options?.tick ?? 0;
         const offscreenStride = Math.max(1, options?.offscreenUpdateStride ?? 1);
@@ -577,7 +731,11 @@ export class GuestService {
                     const checkY = currentCell.isRoot ? currentCell.y : (currentCell.rootY ?? currentCell.y);
                     const buildingKey = `${checkX}_${checkY}`;
                     const isBroken = this.buildingStatusService.isBroken(checkX, checkY);
-                    const canVisit = bInfo ? bInfo.isAvailableForVisit !== false : true;
+                    const buildingOpenData = this.getRootCellData(updatedGrid, checkX, checkY, width, height);
+                    const canVisit = bInfo ? (bInfo.isAvailableForVisit !== false && this.isBuildingOpen(buildingOpenData)) : true;
+
+                    // Вычислить срочную потребность для использования при поиске альтернатив
+                    const guestUrgentNeed = wantsToLeave ? null : this.shouldPrioritizeNeed(g);
 
                     // Если здание сломано, гость хочет уйти
                     if (isBroken) {
@@ -598,8 +756,32 @@ export class GuestService {
                             : Number.POSITIVE_INFINITY;
                         const enoughMoney = g.money >= visitCost;
 
-                        // Если можно посещать, здание не сломано, хватает денег и разрешено движение по дорожке
-                        if (canVisit && !isBroken && bInfo && enoughMoney && Number.isFinite(visitCost) && bInfo.allowedOnPath !== false) {
+                        // Проверка вместимости здания
+                        const isBuildingFull = bInfo && this.isBuildingAtCapacity(guests, bInfo.id, checkX, checkY);
+
+                        // Если здание переполнено – ищем альтернативу
+                        if (isBuildingFull && bInfo) {
+                            const alternativeStep = this.findAlternativeBuilding(
+                                guests,
+                                guestUrgentNeed,
+                                grid,
+                                width,
+                                height,
+                                checkX,
+                                checkY,
+                                g
+                            );
+                            if (alternativeStep) {
+                                g.targetX = alternativeStep.x;
+                                g.targetY = alternativeStep.y;
+                                g.state = 'walking';
+                            } else {
+                                // Нет альтернативных зданий – стать бездельником
+                                g.visitingBuildingRoot = null;
+                                g.state = 'idle';
+                            }
+                        } else if (canVisit && !isBroken && bInfo && enoughMoney && Number.isFinite(visitCost) && bInfo.allowedOnPath !== false && this.isBuildingOpen(rootData)) {
+                            // Если можно посещать, здание не закрыто, здание не сломано, хватает денег и разрешено движение по дорожке
                             g.visitingBuildingRoot = buildingKey;
 
                             // Записать посещение
@@ -677,7 +859,7 @@ export class GuestService {
                 // Получить соседние клетки, по которым можно пройти
                 const urgentNeed = wantsToLeave ? null : this.shouldPrioritizeNeed(g);
                 const nextNeedStep = urgentNeed
-                    ? this.findNextStepToNeedTarget(Math.round(g.x), Math.round(g.y), urgentNeed, g, grid, width, height)
+                    ? this.findNextStepToNeedTarget(Math.round(g.x), Math.round(g.y), urgentNeed, g, guests, grid, width, height)
                     : null;
 
                 if (nextNeedStep) {
@@ -718,9 +900,22 @@ export class GuestService {
             }
 
             return g;
-        }).filter((g): g is Guest => g !== null && g.state !== 'leaving');
+        }).filter((g): g is Guest => {
+            if (g === null) {
+                return false;
+            }
 
-        return { updatedGuests, updatedGrid };
+            if (g.state === 'leaving') {
+                if (!g.isWorker) {
+                    leavingGuests.push(g);
+                }
+                return false;
+            }
+
+            return true;
+        });
+
+        return { updatedGuests, updatedGrid, leavingGuests };
     }
 
     private getWalkableNeighbors(
@@ -763,7 +958,8 @@ export class GuestService {
                         isWalkable = false;
                     }
                 } else if (bInfo) {
-                    const canVisit = bInfo.isAvailableForVisit !== false;
+                    const rootData = this.getRootCellData(grid, checkX, checkY, width, height);
+                    const canVisit = bInfo.isAvailableForVisit !== false && this.isBuildingOpen(rootData);
                     const allowedOnPath = bInfo.allowedOnPath !== false;
 
                     if (canVisit && !isBroken && allowedOnPath) {

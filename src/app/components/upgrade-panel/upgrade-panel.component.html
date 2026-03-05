@@ -5,8 +5,17 @@
             <div class="header-title">
                 <h3>{{ building().name }}</h3>
                 <span class="level-badge">Уровень {{ currentLevel() }}</span>
+                <span class="status-badge" [class.open]="isBuildingOpen()" [class.closed]="!isBuildingOpen()">
+                    {{ isBuildingOpen() ? '🟢 Открыто' : '🔴 Закрыто' }}
+                </span>
             </div>
-            <button class="close-btn" (click)="onClose.emit()">✕</button>
+            <div class="header-actions">
+                <button class="state-toggle-btn" [class.closed]="!isBuildingOpen()" (click)="toggleBuildingState()"
+                    title="{{ isBuildingOpen() ? 'Закрыть здание' : 'Открыть здание' }}">
+                    {{ isBuildingOpen() ? '🔓 Закрыть' : '🔒 Открыть' }}
+                </button>
+                <button class="close-btn" (click)="onClose.emit()">✕</button>
+            </div>
         </div>
 
         <!-- Repair Banner -->
@@ -234,8 +243,7 @@
                                 <div class="tx-item" *ngFor="let tx of casinoStats!.transactions; trackBy: trackByTxId"
                                     [class.tx-win]="tx.type === 'win'"
                                     [class.tx-lose]="tx.type === 'lose' || tx.type === 'bankrupt'"
-                                    [class.tx-jackpot]="tx.type === 'jackpot'"
-                                    [class.tx-payout]="tx.type === 'payout'">
+                                    [class.tx-jackpot]="tx.type === 'jackpot'" [class.tx-payout]="tx.type === 'payout'">
                                     <div class="tx-row">
                                         <div class="tx-type">
                                             <span>{{ getCasinoTransactionLabel(tx.type) }}</span>
@@ -247,7 +255,8 @@
                                             [class.lose]="getCasinoTransactionAmountClass(tx.type) === 'lose'"
                                             [class.jackpot]="getCasinoTransactionAmountClass(tx.type) === 'jackpot'"
                                             [class.payout]="getCasinoTransactionAmountClass(tx.type) === 'payout'">
-                                            {{ isCasinoPositiveTransaction(tx.type) ? '+' : '-' }} ${{tx.amount.toFixed(2)}}
+                                            {{ isCasinoPositiveTransaction(tx.type) ? '+' : '-' }}
+                                            ${{tx.amount.toFixed(2)}}
                                         </div>
                                     </div>
                                     <div class="tx-meta">

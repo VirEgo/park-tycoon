@@ -90,6 +90,13 @@
           <span class="md:hidden">Скины</span>
         </button>
 
+        <button (click)="openParkSettingsModal()"
+          class="shrink-0 px-2 md:px-4 py-1 md:py-2 rounded bg-gray-700 hover:bg-gray-600 font-medium text-[11px] md:text-sm transition-colors border border-gray-600 flex items-center gap-1 md:gap-2">
+          <span class="hidden md:inline">⚙️</span>
+          <span class="hidden md:inline">Настройки</span>
+          <span class="md:hidden">⚙️</span>
+        </button>
+
         <button (click)="toggleAchievementsPanel()" [class.bg-amber-700]="showAchievementsPanel()"
           class="shrink-0 px-2 md:px-4 py-1 md:py-2 rounded bg-gray-700 hover:bg-amber-700 font-medium text-[11px] md:text-sm transition-colors border border-amber-600 flex items-center gap-1 md:gap-2">
           <span class="hidden md:inline">🏆</span>
@@ -138,9 +145,8 @@
       <div class="relative shadow-2xl overflow-hidden">
         <canvas #gameCanvas (mousedown)="handleCanvasMouseDown($event)" (mousemove)="handleCanvasMouseMove($event)"
           (dblclick)="handleCanvasDoubleClick($event)" (wheel)="handleCanvasWheel($event)"
-          (contextmenu)="handleCanvasMouseDown($event); $event.preventDefault()"
-          (touchstart)="handleCanvasTouchStart($event)" (touchmove)="handleCanvasTouchMove($event)"
-          (touchend)="handleCanvasTouchEnd($event)" class="block">
+          (contextmenu)="$event.preventDefault()" (touchstart)="handleCanvasTouchStart($event)"
+          (touchmove)="handleCanvasTouchMove($event)" (touchend)="handleCanvasTouchEnd($event)" class="block">
         </canvas>
       </div>
       <div class="zoom-btn flex items-center bg-gray-800 border border-gray-700 rounded px-2 py-1 space-x-1">
@@ -153,7 +159,7 @@
 
     <!-- Панель статистики гостей -->
     <div *ngIf="showGuestStats() && guestStats() as stats"
-      class="absolute top-20 right-6 w-64 max-h-[calc(100dvh-6rem)] overflow-y-auto bg-gray-800/95 backdrop-blur border border-gray-600 rounded-lg shadow-2xl p-4 z-30 animate-slide-in">
+      class="absolute top-20 right-6 w-[26rem] max-w-[calc(100vw-2rem)] max-h-[calc(100dvh-6rem)] overflow-y-auto bg-gray-800/95 backdrop-blur border border-gray-600 rounded-lg shadow-2xl p-4 z-30 animate-slide-in">
       <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
         <h3 class="font-bold text-white">Сводка по гостям</h3>
         <button (click)="toggleGuestStats()" class="text-gray-400 hover:text-white">✕</button>
@@ -213,6 +219,38 @@
         <div class="pt-2 border-t border-gray-700 flex justify-between">
           <span class="text-gray-400">Ср. бюджет:</span>
           <span class="text-green-400 font-mono">{{stats.money | number:'1.0-0'}}</span>
+        </div>
+
+        <div class="rounded border border-gray-700/70 bg-gray-900/60 p-3">
+          <div class="mb-2 flex items-center justify-between text-xs uppercase tracking-wide text-gray-400">
+            <span>Отзывы гостей</span>
+            <span class="text-gray-500">каждый {{ parkReviewEveryNthGuest }}-й</span>
+          </div>
+
+          <div class="mb-2 flex items-center justify-between text-xs text-gray-400">
+            <span>Покинуло парк:</span>
+            <span class="font-mono text-gray-200">{{ parkGuestsExitedCount() }}</span>
+          </div>
+
+          <div class="custom-scrollbar max-h-56 space-y-2 overflow-y-auto pr-1">
+            @if (parkGuestReviews().length) {
+            @for (review of parkGuestReviews(); track review.id) {
+            <div class="rounded border border-gray-700 bg-gray-950/80 p-2">
+              <div class="mb-1 flex items-center justify-between gap-2 text-xs">
+                <span class="font-semibold text-amber-300">{{ getReviewStars(review.rating) }}</span>
+                <span class="text-gray-500">День {{ review.day }}</span>
+              </div>
+              <div class="mb-1 text-[11px] text-gray-400">
+                {{ getGuestTypeLabel(review.guestType) }} • {{ review.createdAt }} • Гость #{{ review.leaveOrdinal }}
+              </div>
+              <div class="text-sm text-gray-200">{{ review.text }}</div>
+            </div>
+            }
+            } @else {
+            <p class="text-xs text-gray-500">Пока отзывов нет. Первый появится после ухода каждого {{
+              parkReviewEveryNthGuest }}-го гостя.</p>
+            }
+          </div>
         </div>
       </div>
     </div>
@@ -399,14 +437,21 @@
     <!-- Upgrade Panel Modal -->
     <app-upgrade-panel *ngIf="showUpgradePanel() && selectedBuildingForUpgrade() as selected"
       [building]="selected.building" [cellX]="selected.cellX" [cellY]="selected.cellY"
-      [buildingData]="selected.buildingData" [currentMoney]="money()"
-      [isBroken]="selected.isBroken" [repairCost]="selected.repairCost" (onClose)="closeUpgradePanel()"
-      (onUpgrade)="handleUpgrade($event)" (onThemeApplied)="handleThemeApplied($event)"
-      (onRepair)="handleRepair($event)" (onPizzaMenuUpdate)="handlePizzaMenuUpdate($event)" />
+      [buildingData]="selected.buildingData" [currentMoney]="money()" [isBroken]="selected.isBroken"
+      [repairCost]="selected.repairCost" (onClose)="closeUpgradePanel()" (onUpgrade)="handleUpgrade($event)"
+      (onThemeApplied)="handleThemeApplied($event)" (onRepair)="handleRepair($event)"
+      (onPizzaMenuUpdate)="handlePizzaMenuUpdate($event)" (onBuildingStateToggle)="handleBuildingStateToggle($event)" />
 
     <!-- Expansion Panel Modal -->
     <app-expansion-panel *ngIf="showExpansionPanel()" [expansionState]="expansionState()" [currentMoney]="money()"
       (onClose)="closeExpansionPanel()" (onPurchase)="handleLandPurchase($event)" />
+
+    <!-- Park Settings Modal -->
+    <app-park-settings-modal *ngIf="showParkSettingsModal()" [money]="money()" [dayCount]="dayCount()"
+      [guestCount]="guests().length" [maxGuests]="getMaxGuests()" [isPaused]="isPaused()"
+      [isParkClosed]="isParkClosed()" [grid]="grid()" [buildingStats]="buildingStats()"
+      [brokenBuildings]="brokenBuildingsSet()" (close)="closeParkSettingsModal()" (togglePause)="togglePause()"
+      (toggleParkClosed)="toggleParkState()" (toggleBuilding)="handleBuildingToggle($event)" />
 
   </main>
 </div>

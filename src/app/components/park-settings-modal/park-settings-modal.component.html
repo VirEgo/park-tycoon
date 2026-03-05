@@ -1,0 +1,207 @@
+<div class="modal-backdrop fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" (click)="handleClose()">
+    <div class="modal-content bg-gray-800 rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col border-2 border-gray-700"
+        (click)="$event.stopPropagation()">
+
+        <!-- Header -->
+        <div class="modal-header bg-gray-900 px-6 py-4 border-b border-gray-700 flex items-center justify-between">
+            <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+                <span class="text-3xl">⚙️</span>
+                <span>Настройки парка</span>
+            </h2>
+            <button (click)="handleClose()"
+                class="text-gray-400 hover:text-white text-2xl leading-none transition-colors p-2">
+                ✕
+            </button>
+        </div>
+
+        <!-- Content -->
+        <div class="modal-body flex-1 overflow-y-auto p-6 space-y-6">
+
+            <!-- General Stats Section -->
+            <section class="bg-gray-900 rounded-lg p-5 border border-gray-700">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <span>📊</span>
+                    <span>Общая информация</span>
+                </h3>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <!-- Money -->
+                    <div class="bg-gray-800 rounded p-4 border border-gray-700">
+                        <div class="text-xs text-gray-400 mb-1">Бюджет</div>
+                        <div class="text-2xl font-bold text-yellow-400 font-mono">
+                            {{ money() | number:'1.0-0' }}
+                        </div>
+                    </div>
+
+                    <!-- Day -->
+                    <div class="bg-gray-800 rounded p-4 border border-gray-700">
+                        <div class="text-xs text-gray-400 mb-1">День</div>
+                        <div class="text-2xl font-bold text-green-400 font-mono">
+                            {{ dayCount() }}
+                        </div>
+                    </div>
+
+                    <!-- Guests -->
+                    <div class="bg-gray-800 rounded p-4 border border-gray-700">
+                        <div class="text-xs text-gray-400 mb-1">Гости</div>
+                        <div class="text-2xl font-bold text-blue-400 font-mono">
+                            {{ guestCount() }} / {{ maxGuests() }}
+                        </div>
+                        <div class="mt-2 bg-gray-700 rounded-full h-2 overflow-hidden">
+                            <div class="bg-blue-500 h-full transition-all" [style.width.%]="guestUtilization()"></div>
+                        </div>
+                        <div class="text-xs text-gray-400 mt-1">
+                            Загрузка: {{ guestUtilization() }}%
+                        </div>
+                    </div>
+
+                    <!-- Buildings Total -->
+                    <div class="bg-gray-800 rounded p-4 border border-gray-700">
+                        <div class="text-xs text-gray-400 mb-1">Зданий</div>
+                        <div class="text-2xl font-bold text-purple-400 font-mono">
+                            {{ buildingStats().total }}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Park Controls Section -->
+            <section class="bg-gray-900 rounded-lg p-5 border border-gray-700">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <span>🎮</span>
+                    <span>Управление</span>
+                </h3>
+
+                <div class="flex flex-wrap gap-3">
+                    <button (click)="handleTogglePause()" [class.bg-yellow-600]="isPaused()"
+                        [class.bg-green-600]="!isPaused()"
+                        class="px-6 py-3 rounded font-semibold text-white transition-colors hover:opacity-80 flex items-center gap-2">
+                        <span>{{ isPaused() ? '▶️' : '⏸️' }}</span>
+                        <span>{{ isPaused() ? 'Продолжить игру' : 'Пауза' }}</span>
+                    </button>
+
+                    <button (click)="handleToggleParkClosed()" [class.bg-red-600]="isParkClosed()"
+                        [class.bg-blue-600]="!isParkClosed()"
+                        class="px-6 py-3 rounded font-semibold text-white transition-colors hover:opacity-80 flex items-center gap-2">
+                        <span>{{ isParkClosed() ? '🔓' : '🔒' }}</span>
+                        <span>{{ isParkClosed() ? 'Открыть парк' : 'Закрыть парк' }}</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Building Categories Section -->
+            <section class="bg-gray-900 rounded-lg p-5 border border-gray-700">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <span>🏗️</span>
+                    <span>Статистика по категориям</span>
+                </h3>
+
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    @for (cat of ['attraction', 'shop', 'service']; track cat) {
+                    <div class="bg-gray-800 rounded p-4 border border-gray-700 text-center">
+                        <div class="text-2xl mb-2">{{ getCategoryIcon(cat) }}</div>
+                        <div class="text-xs text-gray-400 mb-1">{{ categoryStats()[cat].label }}</div>
+                        <div class="text-xl font-bold text-white font-mono">
+                            {{ categoryStats()[cat].count }}
+                        </div>
+                    </div>
+                    }
+                </div>
+            </section>
+
+            <!-- Buildings List Section -->
+            <section class="bg-gray-900 rounded-lg p-5 border border-gray-700">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <span>🏢</span>
+                    <span>Список зданий</span>
+                </h3>
+
+                @if (buildingsList().length === 0) {
+                <div class="text-center py-8 text-gray-400">
+                    Посещаемых зданий пока нет
+                </div>
+                } @else {
+                <div class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                    @for (building of buildingsList(); track building.id) {
+                    <div class="bg-gray-800 rounded p-4 border border-gray-700">
+                        <!-- Building Header -->
+                        <div class="flex items-center gap-4 mb-3">
+                            <div class="text-2xl">{{ getCategoryIcon(building.category) }}</div>
+
+                            <div class="flex-1">
+                                <div class="font-semibold text-white">{{ building.name }}</div>
+                                <div class="text-xs text-gray-400">{{ building.category }}</div>
+                            </div>
+
+                            <div class="text-right">
+                                <div class="text-sm font-bold text-white font-mono">
+                                    Всего: {{ building.count }}
+                                </div>
+                                <div class="text-xs space-x-2">
+                                    <span class="text-green-400">
+                                        ✓ {{ building.workingCount }} работает
+                                    </span>
+                                    @if (building.brokenCount > 0) {
+                                    <span class="text-red-400">
+                                        ⚠ {{ building.brokenCount }} сломано
+                                    </span>
+                                    }
+                                </div>
+                                <div class="text-xs space-x-2 mt-1">
+                                    <span class="text-blue-400">
+                                        🔓 {{ building.openCount }} открыто
+                                    </span>
+                                    @if (building.closedCount > 0) {
+                                    <span class="text-orange-400">
+                                        🔒 {{ building.closedCount }} закрыто
+                                    </span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Building Instances -->
+                        <div class="ml-10 space-y-1 border-l-2 border-gray-700 pl-3">
+                            @for (instance of building.instances; track instance.x + ',' + instance.y) {
+                            <div class="flex items-center justify-between text-xs py-1 hover:bg-gray-750 px-2 rounded">
+                                <div class="flex items-center gap-2">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" [checked]="instance.isOpen"
+                                            [disabled]="instance.isBroken"
+                                            (change)="handleToggleBuilding(instance.x, instance.y, instance.isOpen)"
+                                            class="w-4 h-4 cursor-pointer" />
+                                        <span class="text-gray-300">
+                                            Позиция ({{ instance.x }}, {{ instance.y }})
+                                        </span>
+                                    </label>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    @if (instance.isBroken) {
+                                    <span class="text-red-400 text-xs">⚠ Сломано</span>
+                                    }
+                                    @if (instance.isOpen) {
+                                    <span class="text-green-400 text-xs">🔓 Открыто</span>
+                                    } @else {
+                                    <span class="text-orange-400 text-xs">🔒 Закрыто</span>
+                                    }
+                                </div>
+                            </div>
+                            }
+                        </div>
+                    </div>
+                    }
+                </div>
+                }
+            </section>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="modal-footer bg-gray-900 px-6 py-4 border-t border-gray-700 flex justify-end">
+            <button (click)="handleClose()"
+                class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded transition-colors">
+                Закрыть
+            </button>
+        </div>
+    </div>
+</div>

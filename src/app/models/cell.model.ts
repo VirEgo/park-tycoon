@@ -9,6 +9,7 @@ export interface CellData {
     placedWidth?: number;
     placedHeight?: number;
     rotation?: 0 | 90;
+    isOpen?: boolean; // Открыто ли здание для гостей (true = открыто, undefined/false = закрыто)
     [key: string]: unknown;
 }
 

@@ -3,6 +3,7 @@ import { Guest } from './guest.model';
 import { AchievementProgressState, ParkLifetimeStats } from './achievement.model';
 import { ExpansionState } from './expansion.model';
 import { PremiumSkinStorageData } from '../services/guest/primium-skins';
+import { ParkGuestReview } from './park-feedback.model';
 
 export interface GameSaveState {
     money: number;
@@ -20,6 +21,8 @@ export interface GameSaveState {
     premiumSkinState?: PremiumSkinStorageData;
     achievementProgress?: AchievementProgressState[];
     parkLifetimeStats?: ParkLifetimeStats;
+    parkGuestReviews?: ParkGuestReview[];
+    parkGuestsExitedCount?: number;
     expansionState?: ExpansionState;
 }
 

@@ -1,3 +1,5 @@
+import { environment } from '../../environments/environment';
+
 export interface LmStudioConfig {
   baseUrl: string;
   defaultModel: string;
@@ -5,8 +7,10 @@ export interface LmStudioConfig {
   diagnosisHistoryLimit: number;
 }
 
+const lmStudioBaseUrl = environment.lmStudioBaseUrl?.trim() || '/lmstudio/v1';
+
 export const LM_STUDIO_CONFIG: LmStudioConfig = {
-  baseUrl: '/lmstudio/v1',
+  baseUrl: lmStudioBaseUrl,
   defaultModel: 'openai/gpt-oss-20b',
   temperature: 0.7,
   diagnosisHistoryLimit: 10
