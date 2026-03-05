@@ -88,7 +88,7 @@
                         <div class="bonuses-list">
                             <div class="bonus-item">
                                 <span class="icon">
-                                    <img src="assets/staff/coin.svg" alt="Payout" class="inline w-4 h-4" />
+                                    <img src="assets/staff/coin.svg" alt="Payout" class="coin-icon" />
                                 </span>
                                 <span>+{{ getNextLevelBonus().income }}% доход</span>
                             </div>
@@ -173,7 +173,7 @@
                                 <div class="theme-name">{{ theme.name }}</div>
                                 <div class="theme-bonuses">
                                     @if (theme.bonuses.income) { <span>
-                                        <img src="assets/staff/coin.svg" alt="Payout" class="inline w-4 h-4" />
+                                        <img src="assets/staff/coin.svg" alt="Payout" class="coin-icon" />
                                         +{{ theme.bonuses.income }}%</span> }
                                     @if (theme.bonuses.satisfaction) { <span>😊 +{{ theme.bonuses.satisfaction }}</span>
                                     }
