@@ -241,7 +241,13 @@ export class Guest {
     checkMood() {
         if (this.daysInPark >= this.MAX_DAYS) {
             this.wantsToLeave = true;
-            this.emoji = '😫';
+            // this.emoji = '😫';
+            return;
+        }
+
+        if (this.money <= 0) {
+            this.wantsToLeave = true;
+            // this.emoji = '😞';
             return;
         }
 
