@@ -23,25 +23,13 @@
       </button>
 
       <div class="tile-grid" *ngIf="!isSectionCollapsed('infrastructure')">
-        <button type="button" class="tool-card" [class.is-selected]="selectedToolId === 'path'"
-          (click)="onSelectTool('path', 'path')">
-          <img [src]="'assets/buildings/path.svg'" alt="Path" class="tool-card__icon pixel-render">
-          <span class="tool-card__name">Дорожка</span>
-          <span class="tool-card__price">$10</span>
-        </button>
-
-        <button type="button" class="tool-card" [class.is-selected]="selectedToolId === 'exit'"
-          (click)="onSelectTool('path', 'exit')">
-          <img [src]="'assets/buildings/exit2.svg'" alt="Exit" class="tool-card__icon pixel-render">
-          <span class="tool-card__name">Выход</span>
-          <span class="tool-card__price">$0</span>
-        </button>
-
-        <button type="button" class="tool-card tool-card--danger"
-          [class.is-selected]="selectedToolCategory === 'demolish'" (click)="onSelectTool('demolish', null)">
-          <span class="tool-card__emoji">❌</span>
-          <span class="tool-card__name">Снос</span>
-          <span class="tool-card__price">$5</span>
+        <button type="button" class="tool-card" *ngFor="let tool of infrastructureTools"
+          [class.tool-card--danger]="tool.danger" [class.is-selected]="isInfrastructureToolSelected(tool)"
+          (click)="onSelectTool(tool.category, tool.id)">
+          <img *ngIf="tool.svgPath" [src]="tool.svgPath" [alt]="tool.name" class="tool-card__icon pixel-render">
+          <span *ngIf="tool.icon" class="tool-card__emoji">{{tool.icon}}</span>
+          <span class="tool-card__name">{{tool.name}}</span>
+          <span class="tool-card__price">${{tool.price}}</span>
         </button>
       </div>
     </section>
@@ -88,9 +76,6 @@
   </div>
 
   <div class="sidebar__footer">
-    <div class="sidebar__hint">
-      Ачивки: {{ achievementUnlockedCount }}/{{ achievementTotalCount }}
-    </div>
     <button type="button" class="btn btn--danger" (click)="reset.emit()">
       Сброс прогресса
     </button>

@@ -1,20 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { BuildingType, ToolType } from '../../models/building.model';
-
-enum BuildingCategory {
-  ATTRACTION = 'attraction',
-  SHOP = 'shop',
-  DECORATION = 'decoration',
-  SERVICE = 'service'
-};
-
-const BuildingCategoryLabels: { [key in BuildingCategory]: string } = {
-  [BuildingCategory.ATTRACTION]: 'Attractions',
-  [BuildingCategory.SHOP]: 'Shops',
-  [BuildingCategory.DECORATION]: 'Decorations',
-  [BuildingCategory.SERVICE]: 'Services'
-};
+import {
+  SIDEBAR_BUILDING_CATEGORIES,
+  SIDEBAR_BUILDING_CATEGORY_LABELS,
+  SIDEBAR_INFRASTRUCTURE_TOOLS,
+  SidebarBuildingCategory,
+  SidebarInfrastructureTool
+} from './sidebar.config';
 
 // Тип для статистики зданий
 export interface BuildingStats {
@@ -45,10 +38,12 @@ export class SidebarComponent {
   @Output() reset = new EventEmitter<void>();
   @Output() closeSidebar = new EventEmitter<void>();
 
-  categories: Array<BuildingCategory> = [BuildingCategory.ATTRACTION, BuildingCategory.SHOP, BuildingCategory.DECORATION, BuildingCategory.SERVICE];
+  readonly categories: SidebarBuildingCategory[] = SIDEBAR_BUILDING_CATEGORIES;
+  readonly infrastructureTools: SidebarInfrastructureTool[] = SIDEBAR_INFRASTRUCTURE_TOOLS;
   collapsedSections = new Set<string>();
 
-  BuildingCategoryLabels = BuildingCategoryLabels;
+  readonly BuildingCategoryLabels = SIDEBAR_BUILDING_CATEGORY_LABELS;
+
   onSelectTool(category: ToolType | string, id: string | null) {
     this.toolSelected.emit({ category, id });
   }
@@ -72,6 +67,10 @@ export class SidebarComponent {
 
   getBuildingCount(buildingId: string): number {
     return this.buildingStats.byType[buildingId]?.count || 0;
+  }
+
+  isInfrastructureToolSelected(tool: SidebarInfrastructureTool): boolean {
+    return this.selectedToolCategory === tool.category && this.selectedToolId === tool.id;
   }
 
   trackByBuildingId(_: number, item: BuildingType) {

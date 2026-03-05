@@ -6,6 +6,9 @@ export interface CellData {
     treeHueShift?: number;
     workerHome?: string;
     pizzaMenu?: PizzaMenuData;
+    placedWidth?: number;
+    placedHeight?: number;
+    rotation?: 0 | 90;
     [key: string]: unknown;
 }
 

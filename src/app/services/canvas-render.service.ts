@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Cell } from '../models/cell.model';
+import { Cell, CellData } from '../models/cell.model';
 import { Guest } from '../models/guest.model';
 import { ToolType, BUILDINGS, BuildingType } from '../models/building.model';
 import { AttractionUpgradeService } from './attraction-upgrade.service';
@@ -23,6 +23,7 @@ export interface CanvasRenderParams {
   tileSize: number;
   selectedToolCategory: ToolType | string;
   selectedToolId: string | null;
+  placementRotation: 0 | 90;
   visibleStartX: number;
   visibleStartY: number;
   visibleEndX: number;
@@ -137,6 +138,7 @@ export class CanvasRenderService {
       tileSize,
       selectedToolCategory,
       selectedToolId,
+      placementRotation,
       visibleStartX,
       visibleStartY,
       visibleEndX,
@@ -203,10 +205,11 @@ export class CanvasRenderService {
             if (bId) {
               const building = this.buildingService.getBuildingById(bId);
               if (building) {
+                const placed = this.buildingService.getPlacedFootprint(building, cell.data as CellData | undefined);
                 const img = this.buildingService.getBuildingImage(bId);
 
                 ctx.fillStyle = '#4ade80';
-                ctx.fillRect(x, y, tileSize * building.width, tileSize * building.height);
+                ctx.fillRect(x, y, tileSize * placed.width, tileSize * placed.height);
 
                 if (img && img.complete && img.naturalWidth > 0) {
                   if (bId === 'flowerbed') {
@@ -217,16 +220,16 @@ export class CanvasRenderService {
                     if (treeFilter) {
                       ctx.save();
                       ctx.filter = treeFilter;
-                      ctx.drawImage(img, x, y, tileSize * building.width, tileSize * building.height);
+                      ctx.drawImage(img, x, y, tileSize * placed.width, tileSize * placed.height);
                       ctx.restore();
                     } else {
-                      ctx.drawImage(img, x, y, tileSize * building.width, tileSize * building.height);
+                      ctx.drawImage(img, x, y, tileSize * placed.width, tileSize * placed.height);
                     }
                   }
                 } else {
                   ctx.strokeStyle = '#4ade80';
                   ctx.lineWidth = 2;
-                  ctx.strokeRect(x, y, tileSize * building.width, tileSize * building.height);
+                  ctx.strokeRect(x, y, tileSize * placed.width, tileSize * placed.height);
 
                   const icon = building.icon;
                   if (icon) {
@@ -234,7 +237,7 @@ export class CanvasRenderService {
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillStyle = '#000';
-                    ctx.fillText(icon, x + (tileSize * building.width) / 2, y + (tileSize * building.height) / 2);
+                    ctx.fillText(icon, x + (tileSize * placed.width) / 2, y + (tileSize * placed.height) / 2);
                   }
                 }
 
@@ -242,17 +245,17 @@ export class CanvasRenderService {
                 const isBroken = this.buildingStatusService.isBroken(cell.x, cell.y);
                 if (isBroken) {
                   ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-                  ctx.fillRect(x, y, tileSize * building.width, tileSize * building.height);
+                  ctx.fillRect(x, y, tileSize * placed.width, tileSize * placed.height);
 
                   ctx.font = '30px Arial';
                   ctx.textAlign = 'center';
                   ctx.textBaseline = 'middle';
                   ctx.fillStyle = '#FFF';
-                  ctx.fillText('🔧', x + (tileSize * building.width) / 2, y + (tileSize * building.height) / 2);
+                  ctx.fillText('🔧', x + (tileSize * placed.width) / 2, y + (tileSize * placed.height) / 2);
                 }
 
                 if (level === 5) {
-                  const centerX = x + (tileSize * building.width) / 2;
+                  const centerX = x + (tileSize * placed.width) / 2;
                   const starY = y - 10;
                   ctx.shadowColor = '#FFD700';
                   ctx.shadowBlur = 15;
@@ -264,7 +267,7 @@ export class CanvasRenderService {
                 } else if (level > 1) {
                   const starCount = level - 1;
                   const starSize = 12;
-                  const startX = x + (tileSize * building.width) / 2 - ((starCount - 1) * starSize) / 2;
+                  const startX = x + (tileSize * placed.width) / 2 - ((starCount - 1) * starSize) / 2;
                   const starY = y - 5;
 
                   ctx.font = '12px Arial';
@@ -281,7 +284,7 @@ export class CanvasRenderService {
                   ctx.font = '16px Arial';
                   ctx.textAlign = 'right';
                   ctx.textBaseline = 'top';
-                  ctx.fillText(themeIcon, x + tileSize * building.width - 2, y + 2);
+                  ctx.fillText(themeIcon, x + tileSize * placed.width - 2, y + 2);
                 }
               }
             }
@@ -311,12 +314,15 @@ export class CanvasRenderService {
     if (hoveredCell && selectedToolId && selectedToolCategory !== 'none' && selectedToolCategory !== 'demolish') {
       const building = this.buildingService.getBuildingById(selectedToolId);
       if (building) {
-        const isValid = this.buildingService.checkPlacement(grid, hoveredCell.x, hoveredCell.y, building, gridWidth, gridHeight);
+        const rotated = placementRotation === 90;
+        const previewBuilding = this.buildingService.createPlacementBuilding(building, rotated);
+        const previewFootprint = this.buildingService.getPlacementFootprint(building, rotated);
+        const isValid = this.buildingService.checkPlacement(grid, hoveredCell.x, hoveredCell.y, previewBuilding, gridWidth, gridHeight);
         const baseX = hoveredCell.x * tileSize;
         const baseY = hoveredCell.y * tileSize;
 
-        for (let i = 0; i < building.width; i++) {
-          for (let j = 0; j < building.height; j++) {
+        for (let i = 0; i < previewFootprint.width; i++) {
+          for (let j = 0; j < previewFootprint.height; j++) {
             const cellX = (hoveredCell.x + i) * tileSize;
             const cellY = (hoveredCell.y + j) * tileSize;
             const cellValid = (hoveredCell.x + i < gridWidth && hoveredCell.y + j < gridHeight);
@@ -332,7 +338,7 @@ export class CanvasRenderService {
 
         ctx.strokeStyle = isValid ? '#166534' : '#ff0000';
         ctx.lineWidth = 3;
-        ctx.strokeRect(baseX, baseY, tileSize * building.width, tileSize * building.height);
+        ctx.strokeRect(baseX, baseY, tileSize * previewFootprint.width, tileSize * previewFootprint.height);
         ctx.lineWidth = 1;
       }
     } else if (hoveredCell) {

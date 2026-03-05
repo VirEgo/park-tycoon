@@ -1,5 +1,5 @@
 import { Injectable, computed, inject } from '@angular/core';
-import { Cell } from '../models/cell.model';
+import { Cell, CellData } from '../models/cell.model';
 import { BuildingType, BUILDINGS } from '../models/building.model';
 import { createDefaultPizzaMenuData } from '../models/pizza-menu.model';
 import { GridService } from './grid.service';
@@ -83,6 +83,39 @@ export class BuildingService {
         return money >= building.price;
     }
 
+    getPlacementFootprint(building: BuildingType, rotated: boolean): { width: number; height: number } {
+        if (rotated && building.width !== building.height) {
+            return { width: building.height, height: building.width };
+        }
+
+        return { width: building.width, height: building.height };
+    }
+
+    createPlacementBuilding(building: BuildingType, rotated: boolean): BuildingType {
+        const footprint = this.getPlacementFootprint(building, rotated);
+
+        if (footprint.width === building.width && footprint.height === building.height) {
+            return building;
+        }
+
+        return {
+            ...building,
+            width: footprint.width,
+            height: footprint.height
+        };
+    }
+
+    getPlacedFootprint(building: BuildingType, data?: CellData): { width: number; height: number } {
+        const width = data?.placedWidth;
+        const height = data?.placedHeight;
+
+        if (typeof width === 'number' && typeof height === 'number' && width > 0 && height > 0) {
+            return { width, height };
+        }
+
+        return { width: building.width, height: building.height };
+    }
+
     checkPlacement(grid: Cell[], x: number, y: number, building: BuildingType, gridWidth: number, gridHeight: number): boolean {
         // Check if building would go out of bounds
         if (x + building.width > gridWidth || y + building.height > gridHeight) {
@@ -114,8 +147,9 @@ export class BuildingService {
         return true;
     }
 
-    buildBuilding(grid: Cell[], cell: Cell, building: BuildingType, width: number): Cell[] {
+    buildBuilding(grid: Cell[], cell: Cell, building: BuildingType, width: number, rotated: boolean = false): Cell[] {
         const newGrid = [...grid];
+        const footprint = this.getPlacementFootprint(building, rotated);
 
         // Determine type
         let newType: Cell['type'] = 'building';
@@ -128,14 +162,14 @@ export class BuildingService {
         }
 
         // Loop through dimensions
-        for (let i = 0; i < building.width; i++) {
-            for (let j = 0; j < building.height; j++) {
+        for (let i = 0; i < footprint.width; i++) {
+            for (let j = 0; j < footprint.height; j++) {
                 const targetX = cell.x + i;
                 const targetY = cell.y + j;
                 const idx = this.gridService.getCellIndex(targetX, targetY, width);
 
                 const isRoot = i === 0 && j === 0;
-                const rootData = isRoot ? this.buildRootData(building) : undefined;
+                const rootData = isRoot ? this.buildRootData(building, footprint.width, footprint.height, rotated) : undefined;
 
                 newGrid[idx] = {
                     ...newGrid[idx],
@@ -162,8 +196,12 @@ export class BuildingService {
         return newGrid;
     }
 
-    private buildRootData(building: BuildingType): Record<string, unknown> | undefined {
-        const data: Record<string, unknown> = {};
+    private buildRootData(building: BuildingType, placedWidth: number, placedHeight: number, rotated: boolean): CellData {
+        const data: CellData = {
+            placedWidth,
+            placedHeight,
+            rotation: rotated ? 90 : 0
+        };
 
         if (building.isGambling) {
             data['bank'] = 20;
@@ -178,7 +216,7 @@ export class BuildingService {
             data['pizzaMenu'] = createDefaultPizzaMenuData();
         }
 
-        return Object.keys(data).length ? data : undefined;
+        return data;
     }
 
     demolishBuilding(grid: Cell[], cell: Cell, width: number): Cell[] {
@@ -211,9 +249,11 @@ export class BuildingService {
         // Remove durability status
         this.buildingStatusService.removeStatus(rootX, rootY);
 
+        const footprint = this.getPlacedFootprint(building, rootCell.data as CellData | undefined);
+
         // Clear all cells
-        for (let i = 0; i < building.width; i++) {
-            for (let j = 0; j < building.height; j++) {
+        for (let i = 0; i < footprint.width; i++) {
+            for (let j = 0; j < footprint.height; j++) {
                 const targetX = rootX + i;
                 const targetY = rootY + j;
                 const idx = this.gridService.getCellIndex(targetX, targetY, width);
@@ -256,18 +296,19 @@ export class BuildingService {
         return `parkMaintenance_${x}_${y}`;
     }
 
-    buildMaintenanceWorkerBuilding(grid: Cell[], cell: Cell, width: number): { grid: Cell[]; workerSpawns: Array<{ x: number; y: number; homeKey: string }> } {
+    buildMaintenanceWorkerBuilding(grid: Cell[], cell: Cell, width: number, rotated: boolean = false): { grid: Cell[]; workerSpawns: Array<{ x: number; y: number; homeKey: string }> } {
         const maintenanceBuilding = this.getBuildingById('parkMaintenance');
         if (!maintenanceBuilding) return { grid, workerSpawns: [] };
 
-        const builtGrid = this.buildBuilding(grid, cell, maintenanceBuilding, width);
+        const builtGrid = this.buildBuilding(grid, cell, maintenanceBuilding, width, rotated);
+        const footprint = this.getPlacementFootprint(maintenanceBuilding, rotated);
         const homeKey = this.getMaintenanceHomeKey(cell.x, cell.y);
 
         const workerSpawns = [
             { x: cell.x, y: cell.y, homeKey },
             {
-                x: Math.min(cell.x + maintenanceBuilding.width - 1, cell.x + 1),
-                y: Math.min(cell.y + maintenanceBuilding.height - 1, cell.y + 1),
+                x: Math.min(cell.x + footprint.width - 1, cell.x + 1),
+                y: Math.min(cell.y + footprint.height - 1, cell.y + 1),
                 homeKey
             }
         ];

@@ -115,6 +115,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   // Tool Selection
   selectedToolCategory = signal<ToolType | string>('none');
   selectedToolId = signal<string | null>(null);
+  placementRotation = signal<0 | 90>(0);
 
   // UI Signals
   showGuestStats = signal<boolean>(false);
@@ -495,6 +496,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       tileSize: TILE_SIZE,
       selectedToolCategory: this.selectedToolCategory(),
       selectedToolId: this.selectedToolId(),
+      placementRotation: this.placementRotation(),
       visibleStartX: visibleBounds.startX,
       visibleStartY: visibleBounds.startY,
       visibleEndX: visibleBounds.endX,
@@ -658,6 +660,18 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
 
   handleCanvasWheel(event: WheelEvent) {
     event.preventDefault();
+
+    const category = this.selectedToolCategory();
+    const selectedId = this.selectedToolId();
+
+    if (selectedId && category !== 'none' && category !== 'demolish') {
+      const building = this.buildingService.getBuildingById(selectedId);
+      if (building && building.width !== building.height) {
+        this.placementRotation.update((rotation) => rotation === 0 ? 90 : 0);
+        return;
+      }
+    }
+
     const nextX = this.panX() - event.deltaX;
     const nextY = this.panY() - event.deltaY;
     this.setPan(nextX, nextY);
@@ -1179,11 +1193,18 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   }
 
   selectTool(category: ToolType | string, id: string | null) {
+    const previousCategory = this.selectedToolCategory();
+    const previousId = this.selectedToolId();
+
     this.selectedToolCategory.set(category);
     this.selectedToolId.set(id);
 
     if (category !== 'none') {
       this.selectedGuestId.set(null);
+    }
+
+    if (category === 'none' || category === 'demolish' || category !== previousCategory || id !== previousId) {
+      this.placementRotation.set(0);
     }
   }
 
@@ -1640,15 +1661,18 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     }
 
     if (id) {
-      const building = this.buildingService.getBuildingById(id);
-      if (!building) return;
+      const sourceBuilding = this.buildingService.getBuildingById(id);
+      if (!sourceBuilding) return;
+
+      const isRotated = this.placementRotation() === 90;
+      const building = this.buildingService.createPlacementBuilding(sourceBuilding, isRotated);
 
       if (!this.buildingService.checkPlacement(this.grid(), cell.x, cell.y, building, this.GRID_W(), this.GRID_H())) {
         this.showNotification('Здесь нельзя строить!');
         return;
       }
 
-      this.executeBuild(cell, building);
+      this.executeBuild(cell, sourceBuilding, isRotated);
     }
   }
 
@@ -1656,9 +1680,10 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     const cell = this.pendingBuildCell();
     const id = this.pendingBuildId();
     if (cell && id) {
-      const building = this.buildingService.getBuildingById(id);
-      if (building) {
-        this.executeBuild(cell, building);
+      const sourceBuilding = this.buildingService.getBuildingById(id);
+      if (sourceBuilding) {
+        const isRotated = this.placementRotation() === 90;
+        this.executeBuild(cell, sourceBuilding, isRotated);
       }
     }
     this.closeModal();
@@ -1705,7 +1730,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     });
   }
 
-  private executeBuild(cell: Cell, building: import('./models/building.model').BuildingType) {
+  private executeBuild(cell: Cell, building: import('./models/building.model').BuildingType, rotated: boolean = false) {
     if (!this.buildingService.canBuild(building, this.money())) {
       this.showNotification('Недостаточно средств!');
       return;
@@ -1717,11 +1742,11 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     let spawnedWorkers: Guest[] = [];
 
     if (building.id === 'parkMaintenance') {
-      const result = this.buildingService.buildMaintenanceWorkerBuilding(this.grid(), cell, this.GRID_W());
+      const result = this.buildingService.buildMaintenanceWorkerBuilding(this.grid(), cell, this.GRID_W(), rotated);
       newGrid = result.grid;
       spawnedWorkers = this.createMaintenanceWorkers(result.workerSpawns);
     } else {
-      newGrid = this.buildingService.buildBuilding(this.grid(), cell, building, this.GRID_W());
+      newGrid = this.buildingService.buildBuilding(this.grid(), cell, building, this.GRID_W(), rotated);
     }
 
     this.grid.set(newGrid);
@@ -2164,9 +2189,10 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       if (!building) {
         continue;
       }
+      const footprint = this.buildingService.getPlacedFootprint(building, cell.data);
 
-      for (let offsetY = 0; offsetY < building.height; offsetY++) {
-        for (let offsetX = 0; offsetX < building.width; offsetX++) {
+      for (let offsetY = 0; offsetY < footprint.height; offsetY++) {
+        for (let offsetX = 0; offsetX < footprint.width; offsetX++) {
           const x = cell.x + offsetX;
           const y = cell.y + offsetY;
           const index = this.gridService.getCellIndex(x, y, width);
@@ -2305,5 +2331,3 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     return unlocks.length;
   }
 }
-
-
