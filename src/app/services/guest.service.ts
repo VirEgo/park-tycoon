@@ -17,6 +17,9 @@ export interface GuestMovementOptions {
     offscreenUpdateStride?: number;
 }
 
+// Максимальное количество гостей в здании
+const BUILDING_CAPACITY = 20;
+
 @Injectable({
     providedIn: 'root'
 })
@@ -358,7 +361,10 @@ export class GuestService {
         onRepairCostSpent?: (amount: number) => void,
         options?: GuestMovementOptions
     ): { updatedGuests: Guest[], updatedGrid: Cell[] } {
-        const exits = grid.filter(c => c.type === 'entrance' || c.type === 'exit');
+        const hasDedicatedExits = grid.some(c => c.type === 'exit');
+        const leaveTargets = hasDedicatedExits
+            ? grid.filter(c => c.type === 'exit')
+            : grid.filter(c => c.type === 'entrance');
         const updatedGrid = grid;
         const visibleBounds = options?.visibleBounds;
         const simulationTick = options?.tick ?? 0;
@@ -554,7 +560,9 @@ export class GuestService {
                 }
 
                 // Если гость на входе/выходе и хочет уйти
-                if ((currentCell.type === 'entrance' || currentCell.type === 'exit') && wantsToLeave) {
+                const canLeaveFromCurrentCell = currentCell.type === 'exit'
+                    || (!hasDedicatedExits && currentCell.type === 'entrance');
+                if (canLeaveFromCurrentCell && wantsToLeave) {
                     g.state = 'leaving';
                     return g;
                 }
@@ -677,7 +685,7 @@ export class GuestService {
                     g.targetY = nextNeedStep.y;
                     g.state = 'walking';
                 } else {
-                    const neighbors = this.getWalkableNeighbors(Math.round(g.x), Math.round(g.y), wantsToLeave, grid, exits, width, height);
+                    const neighbors = this.getWalkableNeighbors(Math.round(g.x), Math.round(g.y), wantsToLeave, grid, leaveTargets, width, height);
 
                     if (neighbors.length > 0) {
                         const chosenNeighbor = wantsToLeave
@@ -720,7 +728,7 @@ export class GuestService {
         cy: number,
         wantsToLeave: boolean,
         grid: Cell[],
-        exits: Cell[],
+        leaveTargets: Cell[],
         width: number,
         height: number
     ): Array<{ x: number, y: number }> {
@@ -793,19 +801,19 @@ export class GuestService {
             }
         } else if (wantsToLeave) {
             // Если гость хочет уйти, ищет ближайший выход
-            const nextStepToExit = this.findNextStepToExit(cx, cy, grid, width, height, exits);
+            const nextStepToExit = this.findNextStepToExit(cx, cy, grid, width, height, leaveTargets);
             if (nextStepToExit) {
                 return [nextStepToExit];
             }
         }
 
-        // Если гость хочет уйти и есть выходы, сортировать соседние клетки по расстоянию до ближайшего выхода
-        if (wantsToLeave && exits.length > 0) {
+        // Если гость хочет уйти и есть цели ухода, сортировать соседние клетки по расстоянию до ближайшей цели
+        if (wantsToLeave && leaveTargets.length > 0) {
             const guestPos = { x: cx, y: cy };
-            let nearestExit = exits[0];
+            let nearestExit = leaveTargets[0];
             let minExitDist = Infinity;
 
-            for (const exit of exits) {
+            for (const exit of leaveTargets) {
                 const d = Math.hypot(exit.x - guestPos.x, exit.y - guestPos.y);
                 if (d < minExitDist) {
                     minExitDist = d;
@@ -887,7 +895,7 @@ export class GuestService {
     }
 
     /**
-     * BFS to the nearest exit/entrance using only roads/entrances/exits.
+     * BFS to the nearest leave target using only roads/entrances/exits.
      */
     private findNextStepToExit(
         startX: number,
@@ -895,22 +903,22 @@ export class GuestService {
         grid: Cell[],
         width: number,
         height: number,
-        exits: Cell[]
+        leaveTargets: Cell[]
     ): { x: number, y: number } | null {
-        if (exits.length === 0) return null;
+        if (leaveTargets.length === 0) return null;
 
         const queue: Array<{ x: number, y: number }> = [{ x: startX, y: startY }];
         const visited = new Set<string>([`${startX},${startY}`]);
         const parents = new Map<string, { x: number, y: number }>();
         const encode = (x: number, y: number) => `${x},${y}`;
+        const leaveTargetSet = new Set(leaveTargets.map(target => encode(target.x, target.y)));
 
         const isWalkableRoad = (cell: Cell | null | undefined) =>
             !!cell && (cell.type === 'path' || cell.type === 'entrance' || cell.type === 'exit');
 
         while (queue.length > 0) {
             const node = queue.shift()!;
-            const cell = this.gridService.getCell(grid, node.x, node.y, width, height);
-            if (cell && (cell.type === 'exit' || cell.type === 'entrance')) {
+            if (leaveTargetSet.has(encode(node.x, node.y))) {
                 // reconstruct first step
                 let back = { x: node.x, y: node.y };
                 let prev = parents.get(encode(back.x, back.y));
