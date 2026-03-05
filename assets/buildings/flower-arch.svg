@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" shape-rendering="crispEdges">
+  <!-- Left column -->
+  <rect x="8" y="16" width="4" height="18" fill="#9ca3af"/>
+  <rect x="8" y="16" width="2" height="18" fill="#6b7280"/>
+
+  <!-- Right column -->
+  <rect x="28" y="16" width="4" height="18" fill="#9ca3af"/>
+  <rect x="28" y="16" width="2" height="18" fill="#6b7280"/>
+
+  <!-- Arch -->
+  <rect x="10" y="10" width="20" height="6" fill="#d1d5db"/>
+  <rect x="12" y="8" width="16" height="2" fill="#e5e7eb"/>
+  <rect x="10" y="12" width="2" height="4" fill="#6b7280"/>
+  <rect x="28" y="12" width="2" height="4" fill="#6b7280"/>
+
+  <!-- Flowers -->
+  <rect x="11" y="9" width="2" height="2" fill="#ec4899"/>
+  <rect x="15" y="7" width="2" height="2" fill="#f43f5e"/>
+  <rect x="19" y="9" width="2" height="2" fill="#fb7185"/>
+  <rect x="23" y="7" width="2" height="2" fill="#ec4899"/>
+  <rect x="27" y="9" width="2" height="2" fill="#f43f5e"/>
+
+  <!-- Leaves -->
+  <rect x="14" y="10" width="2" height="2" fill="#22c55e"/>
+  <rect x="22" y="10" width="2" height="2" fill="#22c55e"/>
+</svg>

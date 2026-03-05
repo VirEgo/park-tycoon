@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" shape-rendering="crispEdges">
+  <!-- Machine body -->
+  <rect x="6" y="8" width="28" height="28" fill="#6366f1"/>
+  <rect x="6" y="8" width="4" height="28" fill="#4f46e5"/>
+  <rect x="8" y="10" width="24" height="20" fill="#4338ca"/>
+  
+  <!-- Screen frame -->
+  <rect x="10" y="12" width="20" height="16" fill="#1e1b4b"/>
+  <rect x="10" y="12" width="20" height="2" fill="#312e81"/>
+  
+  <!-- Reels -->
+  <rect x="12" y="14" width="4" height="12" fill="#312e81"/>
+  <rect x="18" y="14" width="4" height="12" fill="#312e81"/>
+  <rect x="24" y="14" width="4" height="12" fill="#312e81"/>
+  
+  <!-- Symbols (pixel style) -->
+  <!-- 7 -->
+  <rect x="13" y="18" width="2" height="2" fill="#fbbf24"/>
+  <rect x="13" y="20" width="2" height="2" fill="#fbbf24"/>
+  <rect x="13" y="22" width="2" height="2" fill="#fbbf24"/>
+  
+  <!-- Star -->
+  <rect x="20" y="18" width="2" height="2" fill="#ef4444"/>
+  <rect x="19" y="20" width="4" height="2" fill="#ef4444"/>
+  <rect x="20" y="22" width="2" height="2" fill="#ef4444"/>
+  
+  <!-- Diamond -->
+  <rect x="26" y="18" width="2" height="2" fill="#22c55e"/>
+  <rect x="25" y="20" width="4" height="2" fill="#22c55e"/>
+  <rect x="26" y="22" width="2" height="2" fill="#22c55e"/>
+  
+  <!-- Lever -->
+  <rect x="32" y="18" width="3" height="12" fill="#dc2626"/>
+  <rect x="32" y="18" width="1" height="12" fill="#ef4444"/>
+  <rect x="32" y="16" width="3" height="3" fill="#ef4444"/>
+  
+  <!-- Coin slot -->
+  <rect x="16" y="32" width="8" height="2" fill="#fbbf24"/>
+  <rect x="18" y="30" width="4" height="2" fill="#92400e"/>
+  
+  <!-- Side details -->
+  <rect x="6" y="14" width="2" height="2" fill="#818cf8"/>
+  <rect x="6" y="22" width="2" height="2" fill="#818cf8"/>
+  <rect x="32" y="14" width="2" height="2" fill="#818cf8"/>
+  <rect x="32" y="22" width="2" height="2" fill="#818cf8"/>
+</svg>

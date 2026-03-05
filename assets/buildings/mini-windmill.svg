@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" shape-rendering="crispEdges">
+  <!-- Tower -->
+  <rect x="15" y="16" width="10" height="18" fill="#d1d5db"/>
+  <rect x="15" y="16" width="2" height="18" fill="#9ca3af"/>
+  <rect x="14" y="34" width="12" height="2" fill="#6b7280"/>
+
+  <!-- Roof -->
+  <rect x="14" y="12" width="12" height="4" fill="#ef4444"/>
+  <rect x="16" y="10" width="8" height="2" fill="#f87171"/>
+
+  <!-- Rotor center -->
+  <rect x="18" y="15" width="4" height="4" fill="#374151"/>
+
+  <!-- Blades -->
+  <rect x="19" y="5" width="2" height="10" fill="#f3f4f6"/>
+  <rect x="19" y="19" width="2" height="10" fill="#f3f4f6"/>
+  <rect x="9" y="16" width="10" height="2" fill="#f3f4f6"/>
+  <rect x="21" y="16" width="10" height="2" fill="#f3f4f6"/>
+</svg>

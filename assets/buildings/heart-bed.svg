@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" shape-rendering="crispEdges">
+  <!-- Grass base -->
+  <rect x="8" y="24" width="24" height="10" fill="#22c55e"/>
+  <rect x="10" y="22" width="20" height="2" fill="#4ade80"/>
+
+  <!-- Heart flowers -->
+  <rect x="14" y="12" width="4" height="4" fill="#ef4444"/>
+  <rect x="22" y="12" width="4" height="4" fill="#ef4444"/>
+  <rect x="12" y="16" width="16" height="4" fill="#f43f5e"/>
+  <rect x="14" y="20" width="12" height="4" fill="#fb7185"/>
+  <rect x="16" y="24" width="8" height="4" fill="#fda4af"/>
+
+  <!-- Flower highlights -->
+  <rect x="16" y="14" width="2" height="2" fill="#fecdd3"/>
+  <rect x="24" y="14" width="2" height="2" fill="#fecdd3"/>
+  <rect x="20" y="18" width="2" height="2" fill="#fecdd3"/>
+</svg>

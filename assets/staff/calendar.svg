@@ -1,0 +1,39 @@
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="256" height="256" shape-rendering="crispEdges">
+  <defs>
+    <style type="text/css">
+      .cal-outline { fill: #282828; } /* Темный контур */
+      .cal-paper { fill: #F8F8F8; } /* Бумага */
+      .cal-header { fill: #D82800; } /* Красная шапка */
+      .cal-metal { fill: #A8A8A8; } /* Металлические кольца */
+      .cal-grid { fill: #A0A0A0; } /* Сетка дней */
+    </style>
+  </defs>
+
+  <g class="cal-paper">
+      <rect x="1" y="3" width="14" height="12" />
+  </g>
+
+  <g class="cal-header">
+      <rect x="1" y="1" width="14" height="3" />
+  </g>
+
+  <g class="cal-outline">
+    <rect x="0" y="1" width="1" height="14" /> <rect x="15" y="1" width="1" height="14" /> <rect x="1" y="0" width="14" height="1" /> <rect x="1" y="15" width="14" height="1" /> <rect x="1" y="4" width="14" height="1" /> </g>
+  
+  <g class="cal-metal">
+      <rect x="3" y="0" width="2" height="2" />
+      <rect x="7" y="0" width="2" height="2" />
+      <rect x="11" y="0" width="2" height="2" />
+  </g>
+
+  <g class="cal-grid">
+      <rect x="3" y="6" width="1" height="8" />
+      <rect x="6" y="6" width="1" height="8" />
+      <rect x="9" y="6" width="1" height="8" />
+      <rect x="12" y="6" width="1" height="8" />
+      <rect x="1" y="8" width="14" height="1" />
+      <rect x="1" y="11" width="14" height="1" />
+      <rect x="4" y="9" width="2" height="2" style="fill:#282828"/>
+      <rect x="10" y="12" width="2" height="2" style="fill:#D82800"/>
+  </g>
+</svg>

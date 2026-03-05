@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" shape-rendering="crispEdges">
+  <!-- Floor shadow -->
+  <rect x="14" y="66" width="52" height="4" fill="#000" opacity="0.2"/>
+
+  <!-- Platform -->
+  <rect x="14" y="58" width="52" height="8" fill="#9ca3af"/>
+  <rect x="16" y="56" width="48" height="2" fill="#d1d5db"/>
+
+  <!-- Columns -->
+  <rect x="18" y="34" width="6" height="24" fill="#e5e7eb"/>
+  <rect x="30" y="34" width="6" height="24" fill="#e5e7eb"/>
+  <rect x="44" y="34" width="6" height="24" fill="#e5e7eb"/>
+  <rect x="56" y="34" width="6" height="24" fill="#e5e7eb"/>
+  <rect x="18" y="34" width="2" height="24" fill="#9ca3af"/>
+  <rect x="30" y="34" width="2" height="24" fill="#9ca3af"/>
+  <rect x="44" y="34" width="2" height="24" fill="#9ca3af"/>
+  <rect x="56" y="34" width="2" height="24" fill="#9ca3af"/>
+
+  <!-- Roof base -->
+  <rect x="14" y="28" width="52" height="8" fill="#fbbf24"/>
+  <rect x="12" y="30" width="56" height="4" fill="#f59e0b"/>
+
+  <!-- Roof top -->
+  <rect x="20" y="22" width="40" height="6" fill="#fcd34d"/>
+  <rect x="24" y="18" width="32" height="4" fill="#fbbf24"/>
+  <rect x="30" y="14" width="20" height="4" fill="#f59e0b"/>
+  <rect x="38" y="10" width="4" height="4" fill="#ef4444"/>
+
+  <!-- Decor -->
+  <rect x="34" y="42" width="12" height="6" fill="#8b5a2b"/>
+  <rect x="34" y="42" width="2" height="6" fill="#6b4423"/>
+</svg>

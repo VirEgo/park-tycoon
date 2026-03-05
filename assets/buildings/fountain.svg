@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" shape-rendering="crispEdges">
+  <!-- Base pool -->
+  <rect x="10" y="58" width="60" height="14" fill="#1e40af"/>
+  <rect x="8" y="60" width="64" height="10" fill="#3b82f6"/>
+  <rect x="10" y="58" width="10" height="14" fill="#1e3a8a"/>
+  
+  <!-- Fountain structure (bottom tier) -->
+  <rect x="28" y="48" width="24" height="14" fill="#9ca3af"/>
+  <rect x="28" y="48" width="4" height="14" fill="#6b7280"/>
+  
+  <!-- Water basin (middle tier) -->
+  <rect x="22" y="44" width="36" height="6" fill="#60a5fa"/>
+  <rect x="24" y="44" width="32" height="6" fill="#93c5fd"/>
+  
+  <!-- Center pillar -->
+  <rect x="36" y="32" width="8" height="14" fill="#d1d5db"/>
+  <rect x="36" y="32" width="2" height="14" fill="#9ca3af"/>
+  
+  <!-- Top bowl -->
+  <rect x="30" y="28" width="20" height="6" fill="#9ca3af"/>
+  <rect x="32" y="28" width="16" height="6" fill="#d1d5db"/>
+  
+  <!-- Water jets (pixel style) -->
+  <rect x="38" y="12" width="4" height="16" fill="#60a5fa" opacity="0.6"/>
+  <rect x="38" y="10" width="4" height="2" fill="#93c5fd" opacity="0.8"/>
+  
+  <rect x="34" y="16" width="3" height="12" fill="#60a5fa" opacity="0.5"/>
+  <rect x="34" y="14" width="3" height="2" fill="#93c5fd" opacity="0.7"/>
+  
+  <rect x="43" y="16" width="3" height="12" fill="#60a5fa" opacity="0.5"/>
+  <rect x="43" y="14" width="3" height="2" fill="#93c5fd" opacity="0.7"/>
+  
+  <!-- Water drops -->
+  <rect x="36" y="36" width="2" height="2" fill="#93c5fd" opacity="0.6"/>
+  <rect x="42" y="38" width="2" height="2" fill="#93c5fd" opacity="0.6"/>
+</svg>

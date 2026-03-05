@@ -1,0 +1,27 @@
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="256" height="256" shape-rendering="crispEdges">
+  <defs>
+    <style type="text/css">
+      .door-frame { fill: #8B4513; } /* Коричневая рама двери */
+      .door-void { fill: #282828; } /* Темный проем (пустота) */
+      .arrow-color { fill: #FFFFFF; } /* Белая стрелка */
+      .knob-color { fill: #F8D878; } /* Золотая ручка */
+    </style>
+  </defs>
+
+  <g class="door-void">
+    <rect x="3" y="2" width="7" height="12" />
+  </g>
+
+  <g class="door-frame">
+    <rect x="2" y="1" width="9" height="1" /> <rect x="2" y="14" width="9" height="1" /> <rect x="2" y="2" width="1" height="12" /> <rect x="10" y="2" width="1" height="12" /> </g>
+
+  <g class="knob-color">
+      <rect x="9" y="8" width="1" height="1" />
+   </g>
+
+  <g class="arrow-color">
+    <rect x="5" y="7" width="8" height="2" />
+    <rect x="13" y="6" width="1" height="4" />
+    <rect x="14" y="7" width="1" height="2" />
+  </g>
+</svg>

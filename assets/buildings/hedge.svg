@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" shape-rendering="crispEdges">
+  <!-- Shadow -->
+  <rect x="6" y="30" width="28" height="3" fill="#000" opacity="0.2"/>
+
+  <!-- Hedge body -->
+  <rect x="6" y="14" width="28" height="16" fill="#166534"/>
+  <rect x="8" y="12" width="24" height="2" fill="#15803d"/>
+  <rect x="4" y="18" width="32" height="10" fill="#15803d"/>
+  <rect x="10" y="10" width="20" height="2" fill="#16a34a"/>
+  <rect x="12" y="8" width="16" height="2" fill="#22c55e"/>
+
+  <!-- Highlights -->
+  <rect x="10" y="16" width="3" height="2" fill="#4ade80" opacity="0.6"/>
+  <rect x="18" y="14" width="3" height="2" fill="#4ade80" opacity="0.5"/>
+  <rect x="26" y="17" width="3" height="2" fill="#4ade80" opacity="0.5"/>
+  <rect x="14" y="22" width="2" height="2" fill="#4ade80" opacity="0.4"/>
+  <rect x="24" y="24" width="2" height="2" fill="#4ade80" opacity="0.4"/>
+</svg>

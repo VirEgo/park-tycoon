@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" shape-rendering="crispEdges">
+<!-- 8-bit style coin -->
+<rect x="48" y="16" width="32" height="8" fill="#FEE191" />
+<rect x="40" y="24" width="48" height="8" fill="#FDD35B" />
+<rect x="32" y="32" width="64" height="8" fill="#FBBE2E" />
+<rect x="24" y="40" width="80" height="8" fill="#F9A01B" />
+<rect x="24" y="48" width="80" height="32" fill="#FBBE2E" />
+<rect x="32" y="80" width="64" height="8" fill="#F9A01B" />
+<rect x="40" y="88" width="48" height="8" fill="#FBBE2E" />
+<rect x="48" y="96" width="32" height="8" fill="#FDD35B" />
+<!-- Shine -->
+<rect x="56" y="48" width="8" height="24" fill="#FFF4C1" />
+<!-- UAH symbol (₴) pixel-art style -->
+<rect x="60" y="56" width="8" height="8" fill="#FFF4C1" />
+<rect x="52" y="64" width="24" height="8" fill="#FFF4C1" />
+<rect x="60" y="72" width="8" height="8" fill="#FFF4C1" />
+</svg>
+<!-- <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+     viewBox="0 0 12 12" width="240" height="240" shape-rendering="crispEdges">
+  <defs>
+    <style type="text/css">
+      .outline { fill: #3a2e22; } /* Темно-коричневый контур */
+      .gold-dark { fill: #c78d28; } /* Темное золото (тень) */
+      .gold-base { fill: #eec346; } /* Основное золото */
+      .gold-light { fill: #fff2b5; } /* Светлое золото (блик) */
+    </style>
+  </defs>
+
+  <g class="outline">
+    <rect x="4" y="0" width="4" height="1" />
+    <rect x="2" y="1" width="2" height="1" /> <rect x="8" y="1" width="2" height="1" />
+    <rect x="1" y="2" width="1" height="2" /> <rect x="10" y="2" width="1" height="2" />
+    <rect x="0" y="4" width="1" height="4" /> <rect x="11" y="4" width="1" height="4" />
+    <rect x="1" y="8" width="1" height="2" /> <rect x="10" y="8" width="1" height="2" />
+    <rect x="2" y="10" width="2" height="1" /> <rect x="8" y="10" width="2" height="1" />
+    <rect x="4" y="11" width="4" height="1" />
+  </g>
+
+  <g class="gold-base">
+      <rect x="4" y="1" width="4" height="1" />
+      <rect x="2" y="2" width="8" height="8" />
+      <rect x="4" y="10" width="4" height="1" />
+      <rect x="1" y="4" width="1" height="4" />
+      <rect x="10" y="4" width="1" height="4" />
+  </g>
+  
+  <g class="gold-dark">
+      <rect x="8" y="2" width="2" height="1" />
+      <rect x="9" y="3" width="1" height="1" />
+      <rect x="10" y="4" width="1" height="4" />
+      <rect x="9" y="8" width="1" height="1" />
+      <rect x="8" y="9" width="2" height="1" />
+      <rect x="4" y="10" width="4" height="1" />
+      <rect x="2" y="9" width="2" height="1" />
+      <rect x="1" y="8" width="1" height="1" />
+  </g>
+
+  <g class="gold-light">
+    <rect x="4" y="1" width="4" height="1" />
+    <rect x="2" y="2" width="3" height="1" />
+    <rect x="1" y="4" width="1" height="3" />
+    <rect x="2" y="3" width="1" height="1" />
+    <rect x="3" y="4" width="2" height="2" />
+  </g>
+</svg> -->
