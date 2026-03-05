@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { Guest, GuestNeedKey } from '../models/guest.model';
-import { Cell } from '../models/cell.model';
+import { Cell, CellData } from '../models/cell.model';
 import { GridService } from './grid.service';
 import { BUILDINGS, BuildingType } from '../models/building.model';
 import { CasinoService } from './casino.service';
@@ -9,6 +9,7 @@ import { BuildingStatusService } from './building-status.service';
 import { AttractionUpgradeService } from './attraction-upgrade.service';
 import { MaintenanceService } from './maintenance.service';
 import { PremiumSkinsService } from './guest/primium-skins';
+import { clampPizzaPrice, getUnlockedPizzaRecipes, readPizzaMenuData } from '../models/pizza-menu.model';
 
 export interface GuestMovementOptions {
     visibleBounds?: { startX: number; startY: number; endX: number; endY: number };
@@ -143,6 +144,76 @@ export class GuestService {
         }
     }
 
+    private getRootCellData(grid: Cell[], rootX: number, rootY: number, width: number, height: number): CellData | undefined {
+        const rootCell = this.gridService.getCell(grid, rootX, rootY, width, height);
+        return rootCell?.data as CellData | undefined;
+    }
+
+    private getAffordablePizzaOffers(
+        guest: Guest,
+        rootX: number,
+        rootY: number,
+        baseIncome: number,
+        rootData: CellData | undefined
+    ): Array<{ price: number; satiety: number }> {
+        const level = this.upgradeService.getLevel('pizza', rootX, rootY);
+        const unlockedRecipes = getUnlockedPizzaRecipes(level);
+        if (!unlockedRecipes.length) {
+            return [];
+        }
+
+        const menuData = readPizzaMenuData(rootData?.pizzaMenu);
+        const adjustedIncome = baseIncome > 0
+            ? this.upgradeService.calculateModifiedIncome('pizza', rootX, rootY, baseIncome)
+            : 0;
+        const priceMultiplier = baseIncome > 0 ? adjustedIncome / baseIncome : 1;
+
+        return unlockedRecipes
+            .map((recipe) => {
+                const menuPrice = menuData.prices[recipe.id] ?? recipe.defaultPrice;
+                return {
+                    price: clampPizzaPrice(menuPrice * priceMultiplier),
+                    satiety: recipe.satiety
+                };
+            })
+            .filter((offer) => guest.money >= offer.price);
+    }
+
+    private getPizzaOfferForGuest(
+        guest: Guest,
+        rootX: number,
+        rootY: number,
+        baseIncome: number,
+        rootData: CellData | undefined
+    ): { price: number; satiety: number } | null {
+        const affordableOffers = this.getAffordablePizzaOffers(guest, rootX, rootY, baseIncome, rootData);
+        if (!affordableOffers.length) {
+            return null;
+        }
+
+        return affordableOffers[Math.floor(Math.random() * affordableOffers.length)];
+    }
+
+    private getVisitCost(
+        building: BuildingType,
+        rootX: number,
+        rootY: number,
+        rootData: CellData | undefined,
+        guest: Guest
+    ): number {
+        if (building.id === 'pizza') {
+            const offers = this.getAffordablePizzaOffers(guest, rootX, rootY, building.income, rootData);
+            if (!offers.length) {
+                return Number.POSITIVE_INFINITY;
+            }
+            return Math.min(...offers.map((offer) => offer.price));
+        }
+
+        return building.income > 0
+            ? this.upgradeService.calculateModifiedIncome(building.id, rootX, rootY, building.income)
+            : 0;
+    }
+
     private shouldPrioritizeNeed(guest: Guest): GuestNeedKey | null {
         const urgentNeed = guest.getMostUrgentNeed();
         if (!urgentNeed) {
@@ -225,15 +296,14 @@ export class GuestService {
                 return false;
             }
 
-            const adjustedIncome = building.income > 0
-                ? this.upgradeService.calculateModifiedIncome(building.id, rootX, rootY, building.income)
-                : 0;
+            const rootData = this.getRootCellData(grid, rootX, rootY, width, height);
+            const visitCost = this.getVisitCost(building, rootX, rootY, rootData, guest);
 
-            if (guest.money < adjustedIncome) {
+            if (!Number.isFinite(visitCost) || guest.money < visitCost) {
                 return false;
             }
 
-            if (need === 'fun' && building.isGambling && guest.money < Math.max(1, adjustedIncome * 3)) {
+            if (need === 'fun' && building.isGambling && guest.money < Math.max(1, visitCost * 3)) {
                 return false;
             }
 
@@ -511,16 +581,17 @@ export class GuestService {
                     if (g.visitingBuildingRoot === buildingKey && !isBroken) {
                         // Уже посещает
                     } else {
-                        // Скорректированный доход
-                        const adjustedIncome = bInfo && bInfo.income > 0
-                            ? this.upgradeService.calculateModifiedIncome(bInfo.id, checkX, checkY, bInfo.income)
-                            : 0;
-                        // Достаточно ли денег
-                        const visitCost = adjustedIncome;
+                        const rootData = this.getRootCellData(updatedGrid, checkX, checkY, width, height);
+                        const pizzaOffer = bInfo?.id === 'pizza'
+                            ? this.getPizzaOfferForGuest(g, checkX, checkY, bInfo.income, rootData)
+                            : null;
+                        const visitCost = bInfo
+                            ? (pizzaOffer?.price ?? this.getVisitCost(bInfo, checkX, checkY, rootData, g))
+                            : Number.POSITIVE_INFINITY;
                         const enoughMoney = g.money >= visitCost;
 
                         // Если можно посещать, здание не сломано, хватает денег и разрешено движение по дорожке
-                        if (canVisit && !isBroken && bInfo && enoughMoney && bInfo.allowedOnPath !== false) {
+                        if (canVisit && !isBroken && bInfo && enoughMoney && Number.isFinite(visitCost) && bInfo.allowedOnPath !== false) {
                             g.visitingBuildingRoot = buildingKey;
 
                             // Записать посещение
@@ -530,7 +601,7 @@ export class GuestService {
                             }
 
                             // Логика казино
-                            if (bInfo.isGambling && currentCell.data && typeof currentCell.data.bank === "number") {
+                            if (bInfo.isGambling && rootData && typeof rootData.bank === "number") {
                                 const bet = Math.max(0.1, visitCost);
 
                                 // Если хватает денег на ставку
@@ -538,8 +609,8 @@ export class GuestService {
                                     g.money -= bet;
 
                                     const result = this.casinoService.processBet(
-                                        currentCell.x,
-                                        currentCell.y,
+                                        checkX,
+                                        checkY,
                                         g.id,
                                         bet,
                                         g.money
@@ -556,7 +627,7 @@ export class GuestService {
                                         onNotification(`Гость проиграл все деньги в казино.`);
                                     }
 
-                                    currentCell.data.bank = result.bankAfter;
+                                    rootData.bank = result.bankAfter;
                                 }
                             } else {
                                 // Стандартная логика
@@ -565,12 +636,14 @@ export class GuestService {
                                 onMoneyEarned(cost);
                             }
 
+                            const baseSatisfaction = pizzaOffer?.satiety ?? bInfo.statValue ?? 0;
+
                             // Применить изменения характеристик перса
                             const adjustedStat = this.upgradeService.calculateModifiedSatisfaction(
                                 bInfo.id,
                                 checkX,
                                 checkY,
-                                bInfo.statValue || 0
+                                baseSatisfaction
                             );
 
                             const stats: any = {};

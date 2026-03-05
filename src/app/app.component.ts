@@ -10,6 +10,7 @@ import { AchievementsPanelComponent } from './components/achievements-panel/achi
 import { LM_STUDIO_CONFIG } from './config/lm-studio.config';
 import { BuildingType, ToolType } from './models/building.model';
 import { Cell } from './models/cell.model';
+import { PizzaRecipeId } from './models/pizza-menu.model';
 import {
   ExpansionState,
   FIXED_GRID_OFFSET_X,
@@ -144,6 +145,7 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
     building: BuildingType,
     cellX: number,
     cellY: number,
+    buildingData?: Cell['data'],
     isBroken: boolean,
     repairCost: number
   } | null>(null);
@@ -1916,6 +1918,8 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
         // Determine root coordinates
         const rootX = cell.isRoot ? cell.x : (cell.rootX ?? cell.x);
         const rootY = cell.isRoot ? cell.y : (cell.rootY ?? cell.y);
+        const rootCell = this.gridService.getCell(this.grid(), rootX, rootY, this.GRID_W(), this.GRID_H());
+        const buildingData = rootCell?.data;
 
         // Check broken status on the root cell (or current cell if root not found, but should be root)
         const isBroken = this.buildingStatusService.isBroken(rootX, rootY);
@@ -1930,6 +1934,14 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
           building,
           cellX: rootX,
           cellY: rootY,
+          buildingData: buildingData
+            ? {
+              ...buildingData,
+              pizzaMenu: buildingData.pizzaMenu
+                ? { prices: { ...buildingData.pizzaMenu.prices } }
+                : buildingData.pizzaMenu
+            }
+            : undefined,
           isBroken,
           repairCost
         });
@@ -1973,6 +1985,47 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
   handleThemeApplied(event: { cost: number }) {
     this.money.update(m => m - event.cost);
     this.showNotification('🎨 Тема применена!');
+    this.saveGame();
+  }
+
+  handlePizzaMenuUpdate(event: { prices: Record<PizzaRecipeId, number> }) {
+    const current = this.selectedBuildingForUpgrade();
+    if (!current) {
+      return;
+    }
+
+    const nextGrid = [...this.grid()];
+    const rootIndex = this.gridService.getCellIndex(current.cellX, current.cellY, this.GRID_W());
+    const rootCell = nextGrid[rootIndex];
+
+    if (!rootCell || rootCell.type !== 'building' || rootCell.buildingId !== 'pizza') {
+      return;
+    }
+
+    const nextData = {
+      ...(rootCell.data ?? {}),
+      pizzaMenu: {
+        prices: { ...event.prices }
+      }
+    };
+
+    nextGrid[rootIndex] = {
+      ...rootCell,
+      data: nextData
+    };
+
+    this.grid.set(nextGrid);
+    this.selectedBuildingForUpgrade.set({
+      ...current,
+      buildingData: {
+        ...current.buildingData,
+        pizzaMenu: {
+          prices: { ...event.prices }
+        }
+      }
+    });
+
+    this.showNotification('🍕 Меню пицц обновлено');
     this.saveGame();
   }
 

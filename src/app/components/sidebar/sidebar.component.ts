@@ -46,10 +46,24 @@ export class SidebarComponent {
   @Output() closeSidebar = new EventEmitter<void>();
 
   categories: Array<BuildingCategory> = [BuildingCategory.ATTRACTION, BuildingCategory.SHOP, BuildingCategory.DECORATION, BuildingCategory.SERVICE];
+  collapsedSections = new Set<string>();
 
   BuildingCategoryLabels = BuildingCategoryLabels;
   onSelectTool(category: ToolType | string, id: string | null) {
     this.toolSelected.emit({ category, id });
+  }
+
+  toggleSection(sectionId: string): void {
+    if (this.collapsedSections.has(sectionId)) {
+      this.collapsedSections.delete(sectionId);
+      return;
+    }
+
+    this.collapsedSections.add(sectionId);
+  }
+
+  isSectionCollapsed(sectionId: string): boolean {
+    return this.collapsedSections.has(sectionId);
   }
 
   buildings(cat: string): BuildingType[] {

@@ -1,6 +1,7 @@
 import { Injectable, computed, inject } from '@angular/core';
 import { Cell } from '../models/cell.model';
 import { BuildingType, BUILDINGS } from '../models/building.model';
+import { createDefaultPizzaMenuData } from '../models/pizza-menu.model';
 import { GridService } from './grid.service';
 import { CasinoService } from './casino.service';
 import { BuildingStatusService } from './building-status.service';
@@ -171,6 +172,10 @@ export class BuildingService {
         if (building.id === 'tree') {
             // Keep the shift in a narrow natural range to preserve a "tree-like" palette.
             data['treeHueShift'] = Math.floor(Math.random() * 71) - 35;
+        }
+
+        if (building.id === 'pizza') {
+            data['pizzaMenu'] = createDefaultPizzaMenuData();
         }
 
         return Object.keys(data).length ? data : undefined;

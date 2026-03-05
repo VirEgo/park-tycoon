@@ -38,6 +38,10 @@
                 (click)="activeTab.set('customization')">
                 Темы
             </button>
+            <button class="tab-btn" *ngIf="isPizzaBuilding()" [class.active]="activeTab() === 'menu'"
+                (click)="activeTab.set('menu')">
+                Меню
+            </button>
             <button class="tab-btn" *ngIf="building().isGambling && casinoStats"
                 [class.active]="activeTab() === 'transactions'" (click)="activeTab.set('transactions')">
                 Транзакции
@@ -255,6 +259,50 @@
                             <ng-template #noTx>
                                 <div class="empty-tx">Транзакций пока нет</div>
                             </ng-template>
+                        </div>
+                        }
+                    </div>
+                </div>
+            </div>
+            }
+
+            <!-- PIZZA MENU TAB -->
+            @if (activeTab() === 'menu' && isPizzaBuilding()) {
+            <div class="tab-content">
+                <div class="section">
+                    <h4>Пицца-меню</h4>
+                    <p class="pizza-menu-hint">
+                        На каждом новом уровне открываются новые рецепты. Цена влияет на доход, а рецепт на насыщение.
+                    </p>
+                    <div class="pizza-menu-list">
+                        @for (entry of pizzaMenuEntries(); track entry.id) {
+                        <div class="pizza-item" [class.locked]="!entry.unlocked">
+                            <div class="pizza-item-main">
+                                <span class="pizza-icon">{{ entry.icon }}</span>
+                                <div class="pizza-meta">
+                                    <div class="pizza-name">{{ entry.name }}</div>
+                                    <div class="pizza-details">
+                                        @if (entry.unlocked) {
+                                        <span>Насыщение: +{{ entry.satiety }}</span>
+                                        } @else {
+                                        <span>Откроется на уровне {{ entry.unlockLevel }}</span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pizza-controls">
+                                @if (entry.unlocked) {
+                                <button type="button" class="pizza-price-btn"
+                                    [disabled]="!canDecreasePizzaPrice(entry.id)"
+                                    (click)="updatePizzaPrice(entry.id, 'down')">−</button>
+                                <span class="pizza-price">${{ entry.price | number:'1.1-1' }}</span>
+                                <button type="button" class="pizza-price-btn"
+                                    [disabled]="!canIncreasePizzaPrice(entry.id)"
+                                    (click)="updatePizzaPrice(entry.id, 'up')">+</button>
+                                } @else {
+                                <span class="pizza-price-locked">Закрыто</span>
+                                }
+                            </div>
                         </div>
                         }
                     </div>

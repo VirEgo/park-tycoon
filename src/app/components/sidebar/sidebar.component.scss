@@ -110,6 +110,24 @@
   gap: 8px;
 }
 
+.section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 4px;
+  text-align: left;
+
+  &:hover .section__title {
+    color: #d1d5db;
+  }
+}
+
 @media (max-width: 768px) {
   .sidebar__content {
     gap: 12px;
@@ -127,7 +145,18 @@
   letter-spacing: 0.08em;
   color: #9ca3af;
   text-transform: uppercase;
-  margin: 0 0 0 4px;
+  margin: 0;
+}
+
+.section__toggle {
+  font-size: 0.85rem;
+  line-height: 1;
+  color: #9ca3af;
+  transition: transform 0.15s ease;
+}
+
+.section__toggle--collapsed {
+  transform: rotate(-90deg);
 }
 
 .tile-grid {

@@ -13,8 +13,16 @@
 
   <div class="sidebar__content custom-scrollbar">
     <section class="sidebar__section">
-      <h3 class="section__title">Инфраструктура</h3>
-      <div class="tile-grid">
+      <button type="button" class="section__header" (click)="toggleSection('infrastructure')"
+        [attr.aria-expanded]="!isSectionCollapsed('infrastructure')">
+        <span class="section__title">Инфраструктура</span>
+        <span class="section__toggle" [class.section__toggle--collapsed]="isSectionCollapsed('infrastructure')"
+          aria-hidden="true">
+          ▾
+        </span>
+      </button>
+
+      <div class="tile-grid" *ngIf="!isSectionCollapsed('infrastructure')">
         <button type="button" class="tool-card" [class.is-selected]="selectedToolId === 'path'"
           (click)="onSelectTool('path', 'path')">
           <img [src]="'assets/buildings/path.svg'" alt="Path" class="tool-card__icon pixel-render">
@@ -39,11 +47,17 @@
     </section>
 
     <section class="sidebar__section" *ngFor="let cat of categories">
-      <h3 class="section__title">
-        {{ BuildingCategoryLabels[cat] }}
-      </h3>
+      <button type="button" class="section__header" (click)="toggleSection(cat)"
+        [attr.aria-expanded]="!isSectionCollapsed(cat)">
+        <span class="section__title">
+          {{ BuildingCategoryLabels[cat] }}
+        </span>
+        <span class="section__toggle" [class.section__toggle--collapsed]="isSectionCollapsed(cat)" aria-hidden="true">
+          ▾
+        </span>
+      </button>
 
-      <div class="tile-grid">
+      <div class="tile-grid" *ngIf="!isSectionCollapsed(cat)">
         <button type="button" class="tool-card" *ngFor="let item of buildings(cat); trackBy: trackByBuildingId"
           [class.is-selected]="selectedToolId === item.id" [class.is-disabled]="money < item.price"
           (click)="onSelectTool(cat, item.id)">

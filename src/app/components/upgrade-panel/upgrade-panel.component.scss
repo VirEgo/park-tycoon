@@ -513,6 +513,99 @@
     padding: 10px 0;
 }
 
+.pizza-menu-hint {
+    margin: 0 0 12px 0;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.pizza-menu-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.pizza-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+.pizza-item.locked {
+    opacity: 0.65;
+    background: #f1f5f9;
+}
+
+.pizza-item-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.pizza-icon {
+    font-size: 22px;
+}
+
+.pizza-meta {
+    min-width: 0;
+}
+
+.pizza-name {
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.pizza-details {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.pizza-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pizza-price-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: white;
+    color: #334155;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.pizza-price-btn:hover:not(:disabled) {
+    background: #eef2ff;
+    border-color: #a5b4fc;
+}
+
+.pizza-price-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.pizza-price {
+    min-width: 58px;
+    text-align: center;
+    font-family: 'Fira Code', 'SFMono-Regular', Consolas, monospace;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.pizza-price-locked {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+}
+
 @media (max-width: 768px) {
     .modal-backdrop {
         align-items: flex-start;

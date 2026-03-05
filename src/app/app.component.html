@@ -398,10 +398,11 @@
 
     <!-- Upgrade Panel Modal -->
     <app-upgrade-panel *ngIf="showUpgradePanel() && selectedBuildingForUpgrade() as selected"
-      [building]="selected.building" [cellX]="selected.cellX" [cellY]="selected.cellY" [currentMoney]="money()"
+      [building]="selected.building" [cellX]="selected.cellX" [cellY]="selected.cellY"
+      [buildingData]="selected.buildingData" [currentMoney]="money()"
       [isBroken]="selected.isBroken" [repairCost]="selected.repairCost" (onClose)="closeUpgradePanel()"
       (onUpgrade)="handleUpgrade($event)" (onThemeApplied)="handleThemeApplied($event)"
-      (onRepair)="handleRepair($event)" />
+      (onRepair)="handleRepair($event)" (onPizzaMenuUpdate)="handlePizzaMenuUpdate($event)" />
 
     <!-- Expansion Panel Modal -->
     <app-expansion-panel *ngIf="showExpansionPanel()" [expansionState]="expansionState()" [currentMoney]="money()"

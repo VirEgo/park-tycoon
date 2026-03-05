@@ -6,8 +6,21 @@ import { CasinoService, CasinoStats, CasinoTransaction } from '../../services/ca
 import { AttractionUpgrade, THEMES, ThemeType } from '../../models/attraction-upgrade.model';
 import { BuildingType } from '../../models/building.model';
 import { BuildingService } from '../../services/building.service';
+import {
+    clampPizzaPrice,
+    createDefaultPizzaMenuData,
+    getUnlockedPizzaRecipes,
+    PIZZA_MAX_PRICE,
+    PIZZA_MIN_PRICE,
+    PIZZA_PRICE_STEP,
+    PIZZA_RECIPES,
+    PizzaRecipeDefinition,
+    PizzaRecipeId,
+    readPizzaMenuData
+} from '../../models/pizza-menu.model';
+import { CellData } from '../../models/cell.model';
 
-type TabType = 'upgrade' | 'stats' | 'customization' | 'transactions';
+type TabType = 'upgrade' | 'stats' | 'customization' | 'transactions' | 'menu';
 
 @Component({
     selector: 'app-upgrade-panel',
@@ -26,6 +39,7 @@ export class UpgradePanelComponent {
     cellX = input.required<number>();
     cellY = input.required<number>();
     currentMoney = input.required<number>();
+    buildingData = input<CellData | undefined>(undefined);
 
     // New inputs for repair
     isBroken = input<boolean>(false);
@@ -35,6 +49,7 @@ export class UpgradePanelComponent {
     onUpgrade = output<{ cost: number }>();
     onThemeApplied = output<{ cost: number }>();
     onRepair = output<{ cost: number }>();
+    onPizzaMenuUpdate = output<{ prices: Record<PizzaRecipeId, number> }>();
     activeTab = signal<TabType>('upgrade');
 
     // Signal to trigger refresh of computed values
@@ -75,6 +90,20 @@ export class UpgradePanelComponent {
 
     currentTheme = computed(() => {
         return this.upgrade()?.theme;
+    });
+
+    isPizzaBuilding = computed(() => this.building().id === 'pizza');
+
+    pizzaMenuEntries = computed<Array<PizzaRecipeDefinition & { price: number; unlocked: boolean }>>(() => {
+        const level = this.currentLevel();
+        const unlockedRecipeIds = new Set(getUnlockedPizzaRecipes(level).map((recipe) => recipe.id));
+        const menuData = readPizzaMenuData(this.buildingData()?.pizzaMenu);
+
+        return PIZZA_RECIPES.map((recipe) => ({
+            ...recipe,
+            unlocked: unlockedRecipeIds.has(recipe.id),
+            price: menuData.prices[recipe.id] ?? recipe.defaultPrice
+        }));
     });
 
     get totalVisits(): number {
@@ -193,5 +222,36 @@ export class UpgradePanelComponent {
         if (type === 'bankrupt' || type === 'lose') return 'lose';
         if (type === 'payout') return 'payout';
         return 'win';
+    }
+
+    updatePizzaPrice(recipeId: PizzaRecipeId, direction: 'up' | 'down'): void {
+        if (!this.isPizzaBuilding()) {
+            return;
+        }
+
+        const current = readPizzaMenuData(this.buildingData()?.pizzaMenu);
+        const delta = direction === 'up' ? PIZZA_PRICE_STEP : -PIZZA_PRICE_STEP;
+        const nextPrice = clampPizzaPrice(current.prices[recipeId] + delta);
+        if (nextPrice === current.prices[recipeId]) {
+            return;
+        }
+
+        const nextPrices = {
+            ...createDefaultPizzaMenuData().prices,
+            ...current.prices,
+            [recipeId]: nextPrice
+        };
+
+        this.onPizzaMenuUpdate.emit({ prices: nextPrices });
+    }
+
+    canIncreasePizzaPrice(recipeId: PizzaRecipeId): boolean {
+        const current = readPizzaMenuData(this.buildingData()?.pizzaMenu);
+        return current.prices[recipeId] < PIZZA_MAX_PRICE;
+    }
+
+    canDecreasePizzaPrice(recipeId: PizzaRecipeId): boolean {
+        const current = readPizzaMenuData(this.buildingData()?.pizzaMenu);
+        return current.prices[recipeId] > PIZZA_MIN_PRICE;
     }
 }
