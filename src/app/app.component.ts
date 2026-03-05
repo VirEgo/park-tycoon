@@ -775,6 +775,13 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
+    const cell = this.gridService.getCell(this.grid(), gridX, gridY, this.GRID_W(), this.GRID_H());
+
+    if (currentTool === 'none' && cell && !cell.locked && cell.type === 'building') {
+      this.onCellClick(cell);
+      return;
+    }
+
     if (currentTool === 'none') {
       const guests = this.guests();
       for (let i = guests.length - 1; i >= 0; i--) {
@@ -790,7 +797,6 @@ export class TycoonApp implements OnInit, OnDestroy, AfterViewInit {
       }
     }
 
-    const cell = this.gridService.getCell(this.grid(), gridX, gridY, this.GRID_W(), this.GRID_H());
     if (cell && !cell.locked) {
       this.onCellClick(cell);
     }
