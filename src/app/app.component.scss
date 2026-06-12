@@ -131,19 +131,6 @@
 }
 
 @media (max-width: 768px) {
-  header {
-    max-height: 4.5rem;
-    overflow-y: auto;
-    flex-wrap: nowrap;
-    flex-direction: column;
-    align-items: stretch;
-
-    &::-webkit-scrollbar {
-      display: none;
-    }
-    scrollbar-width: none;
-  }
-
   .main-wrapper {
     padding-top: env(safe-area-inset-top);
     padding-right: env(safe-area-inset-right);
