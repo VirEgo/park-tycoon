@@ -47,7 +47,7 @@ $accent-indigo-dim: rgba(129, 140, 248, 0.12);
 .achievements-panel {
   width: min(68rem, calc(100vw - 2rem));
   max-width: calc(100vw - 2rem);
-  max-height: calc(100vh - 2rem);
+  max-height: min(86vh, calc(100dvh - 2rem));
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr);
   background: $bg-surface;

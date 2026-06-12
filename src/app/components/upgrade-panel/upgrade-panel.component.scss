@@ -38,7 +38,7 @@ $accent-indigo-dim: rgba(129, 140, 248, 0.12);
   border: 1px solid $border-card;
   width: 90%;
   max-width: 500px;
-  max-height: 85vh;
+  max-height: min(85vh, calc(100dvh - 2rem));
   display: flex;
   flex-direction: column;
   overflow: hidden;

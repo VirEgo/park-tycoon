@@ -45,7 +45,7 @@ $accent-indigo-dim: rgba(129, 140, 248, 0.12);
 .modal-content {
   max-width: 56rem;
   width: 100%;
-  max-height: calc(100vh - 2rem);
+  max-height: min(86vh, calc(100dvh - 2rem));
   display: flex;
   flex-direction: column;
   overflow: hidden;

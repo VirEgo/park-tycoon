@@ -59,7 +59,7 @@ $accent-indigo-dim: rgba(129, 140, 248, 0.12);
   padding: 1.5rem;
   max-width: 42rem;
   width: 100%;
-  max-height: 80vh;
+  max-height: min(80vh, calc(100dvh - 2rem));
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -433,4 +433,30 @@ $accent-indigo-dim: rgba(129, 140, 248, 0.12);
   font-family: $font-heading;
   padding: 2rem 0;
   font-size: 0.8rem;
+}
+
+@media (max-width: 768px) {
+  .modal-container {
+    width: 100%;
+    max-height: calc(100dvh - 2rem);
+    padding: 1rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .stat-card-value {
+    font-size: 1.25rem;
+  }
+
+  .header-icon {
+    font-size: 1.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
 }

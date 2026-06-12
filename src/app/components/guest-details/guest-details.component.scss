@@ -298,3 +298,14 @@ $accent-indigo-dim: rgba(129, 140, 248, 0.12);
   background: linear-gradient(90deg, #0e7490, #22d3ee);
   box-shadow: 0 0 6px rgba(34, 211, 238, 0.25);
 }
+
+@media (max-width: 480px) {
+  .guest-panel {
+    position: fixed;
+    bottom: 1rem;
+    right: 0.5rem;
+    left: 0.5rem;
+    width: auto;
+    max-height: calc(100dvh - 2rem);
+  }
+}
