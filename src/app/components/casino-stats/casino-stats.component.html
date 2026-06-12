@@ -1,0 +1,97 @@
+<div class="modal-overlay" (click)="close.emit()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+
+    <div class="modal-header">
+      <div class="header-left">
+        <span class="header-icon">&#x1F3B0;</span>
+        <div>
+          <h3 class="header-title">Казино - Статистика</h3>
+          <div class="header-subtitle">Позиция: ({{stats().x}}, {{stats().y}})</div>
+        </div>
+      </div>
+      <button class="close-btn" (click)="close.emit()">&#x00D7;</button>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card stat-card--bank">
+        <div class="stat-card-label">Текущий банк</div>
+        <div class="stat-card-value stat-card-value--bank">${{stats().currentBank.toFixed(2)}}</div>
+      </div>
+      <div class="stat-card stat-card--visits">
+        <div class="stat-card-label">Всего посещений</div>
+        <div class="stat-card-value stat-card-value--visits">{{stats().totalVisits}}</div>
+      </div>
+      <div class="stat-card stat-card--wins">
+        <div class="stat-card-label">Выигрышей</div>
+        <div class="stat-card-value stat-card-value--wins">{{stats().totalWins}}</div>
+      </div>
+      <div class="stat-card stat-card--losses">
+        <div class="stat-card-label">Проигрышей</div>
+        <div class="stat-card-value stat-card-value--losses">{{stats().totalLoses}}</div>
+      </div>
+    </div>
+
+    <div class="winrate-section">
+      <div class="winrate-row">
+        <span class="winrate-label">Процент выигрышей</span>
+        <span class="winrate-value">{{getWinRate()}}%</span>
+      </div>
+      <div class="bar-track bar-track--md">
+        <div class="bar-fill bar-fill--winrate" [style.width.%]="getWinRate()"></div>
+      </div>
+    </div>
+
+    <div class="tx-section">
+      <h4 class="tx-section-title">
+        <span>&#x1F4DC;</span>
+        <span>История транзакций</span>
+        <span class="tx-count">({{stats().transactions.length}})</span>
+      </h4>
+
+      <div class="tx-list">
+        <div *ngFor="let tx of stats().transactions; trackBy: trackByTxId"
+             class="tx-item"
+             [ngClass]="{
+               'tx-item--win': tx.type === 'win',
+               'tx-item--lose': tx.type === 'lose' || tx.type === 'bankrupt',
+               'tx-item--jackpot': tx.type === 'jackpot',
+               'tx-item--payout': tx.type === 'payout'
+             }">
+
+          <div class="tx-top">
+            <div class="tx-type">
+              <span *ngIf="tx.type === 'win'" class="tx-label tx-label--win">&#x1F389; Выигрыш</span>
+              <span *ngIf="tx.type === 'lose'" class="tx-label tx-label--lose">&#x1F4B8; Проигрыш</span>
+              <span *ngIf="tx.type === 'jackpot'" class="tx-label tx-label--jackpot">&#x1F4B0; Джек-пот</span>
+              <span *ngIf="tx.type === 'bankrupt'" class="tx-label tx-label--lose">&#x1F9E8; Проиграл всё</span>
+              <span *ngIf="tx.type === 'payout'" class="tx-label tx-label--payout">
+                <img src="assets/staff/coin.svg" alt="Payout" class="tx-coin"/>
+                Выплата
+              </span>
+              <span *ngIf="tx.guestId !== undefined" class="tx-guest">(Гость #{{tx.guestId}})</span>
+            </div>
+            <span class="tx-amount"
+                  [ngClass]="{
+                    'tx-amount--win': tx.type === 'win',
+                    'tx-amount--lose': tx.type === 'lose' || tx.type === 'bankrupt',
+                    'tx-amount--jackpot': tx.type === 'jackpot',
+                    'tx-amount--payout': tx.type === 'payout'
+                  }">
+              {{isPositiveTransaction(tx.type) ? '+' : '-'}} ${{tx.amount.toFixed(2)}}
+            </span>
+          </div>
+
+          <div class="tx-bottom">
+            <span>Банк после: ${{tx.bank.toFixed(2)}}</span>
+            <span>{{formatTime(tx.timestamp)}}</span>
+          </div>
+        </div>
+
+        <div *ngIf="stats().transactions.length === 0" class="tx-empty">
+          Транзакций пока нет
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

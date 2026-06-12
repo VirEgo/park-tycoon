@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, Output, ViewChild, inject, signal } from '@angular/core';
 import { BuildingType, ToolType } from '../../models/building.model';
+import { GameSettingsService } from '../../services/game-settings.service';
 import {
   SIDEBAR_BUILDING_CATEGORIES,
   SIDEBAR_BUILDING_CATEGORY_LABELS,
@@ -24,6 +25,8 @@ export interface BuildingStats {
   styleUrl: './sidebar.component.scss'
 })
 export class SidebarComponent {
+  private settingsService = inject(GameSettingsService);
+
   @Input() isParkClosed = false;
   @Input() money = 0;
   @Input() selectedToolId: string | null = null;
@@ -75,5 +78,44 @@ export class SidebarComponent {
 
   trackByBuildingId(_: number, item: BuildingType) {
     return item.id;
+  }
+
+  tooltipVisible = signal(false);
+  tooltipStyle = signal<Record<string, string>>({});
+  activeTooltip: BuildingType | null = null;
+
+  onCardEnter(event: MouseEvent, building: BuildingType) {
+    this.activeTooltip = building;
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const tooltipWidth = 224;
+    const viewportWidth = window.innerWidth;
+    const gap = 10;
+
+    let left = rect.left + rect.width / 2 - tooltipWidth / 2;
+    left = Math.max(gap, Math.min(left, viewportWidth - tooltipWidth - gap));
+
+    const top = rect.top - gap;
+
+    this.tooltipStyle.set({
+      position: 'fixed',
+      left: `${left}px`,
+      top: 'auto',
+      bottom: `${window.innerHeight - top}px`,
+      width: `${tooltipWidth}px`,
+      transform: 'none',
+      zIndex: '9999'
+    });
+    this.tooltipVisible.set(true);
+  }
+
+  onCardLeave() {
+    this.tooltipVisible.set(false);
+    this.activeTooltip = null;
+  }
+
+  get autoSaveIntervalLabel(): string {
+    const ms = this.settingsService.settings().autoSaveInterval;
+    const sec = ms / 1000;
+    return sec >= 60 ? `${sec / 60} мин` : `${sec} сек`;
   }
 }

@@ -125,6 +125,114 @@ export const ACHIEVEMENT_LOCALES: Record<AchievementLocale, AchievementLocaleBun
       park_legend: {
         title: 'Легенда парка',
         description: 'Выполните 4 ключевых условия легендарного парка.'
+      },
+      builder_50: {
+        title: 'Мастер-строитель',
+        description: 'Постройте 50 объектов.'
+      },
+      path_master: {
+        title: 'Мастер дорожек',
+        description: 'Постройте 50 дорожек.'
+      },
+      decoration_king: {
+        title: 'Король декораций',
+        description: 'Постройте 20 декораций.'
+      },
+      service_empire: {
+        title: 'Империя сервисов',
+        description: 'Постройте 5 сервисных зданий.'
+      },
+      crowd_100: {
+        title: 'Толпы гостей',
+        description: 'Привлеките 100 гостей.'
+      },
+      crowd_200: {
+        title: 'Легенда толпы',
+        description: 'Привлеките 200 гостей.'
+      },
+      reviewer: {
+        title: 'Первые отзывы',
+        description: 'Получите 5 отзывов от гостей.'
+      },
+      critic: {
+        title: 'Строгий критик',
+        description: 'Получите 20 отзывов от гостей.'
+      },
+      month_one: {
+        title: 'Первый месяц',
+        description: 'Доживите до 30 дня.'
+      },
+      veteran: {
+        title: 'Ветеран парка',
+        description: 'Доживите до 50 дня.'
+      },
+      century: {
+        title: 'Столетие',
+        description: 'Доживите до 100 дня.'
+      },
+      capital_50000: {
+        title: 'Крупный капитал',
+        description: 'Достигните капитала в $50 000.'
+      },
+      earned_10000: {
+        title: 'Первая тысяча',
+        description: 'Заработайте $10 000 всего.'
+      },
+      earned_50000: {
+        title: 'Большие деньги',
+        description: 'Заработайте $50 000 всего.'
+      },
+      repair_master: {
+        title: 'Мастер ремонтов',
+        description: 'Почините 10 зданий.'
+      },
+      repair_legend: {
+        title: 'Легенда ремонтов',
+        description: 'Почините 25 зданий.'
+      },
+      demolition_expert: {
+        title: 'Демонтажник',
+        description: 'Снесите 10 зданий.'
+      },
+      demolition_pro: {
+        title: 'Профи сноса',
+        description: 'Снесите 25 зданий.'
+      },
+      first_expansion: {
+        title: 'Первый шаг',
+        description: 'Купите первый участок земли.'
+      },
+      land_owner: {
+        title: 'Землевладелец',
+        description: 'Купите 3 участка земли.'
+      },
+      territory_master: {
+        title: 'Мастер территорий',
+        description: 'Купите 5 участков земли.'
+      },
+      full_park: {
+        title: 'Полный парк',
+        description: 'Купите все 8 участков земли.'
+      },
+      jackpot_winner: {
+        title: 'Джекпот!',
+        description: 'Выиграйте джекпот в казино.'
+      },
+      high_roller: {
+        title: 'Хай-роллер',
+        description: 'Выиграйте $500+ за одну ставку.'
+      },
+      casino_profit: {
+        title: 'Казино в плюсе',
+        description: 'Выиграйте $5 000 в казино всего.'
+      },
+      skin_collector_5: {
+        title: 'Коллекционер (5)',
+        description: 'Откройте 5 премиум-скинов.'
+      },
+      skin_master: {
+        title: 'Мастер скинов',
+        description: 'Откройте 10 премиум-скинов.'
       }
     },
     categories: {
@@ -133,7 +241,9 @@ export const ACHIEVEMENT_LOCALES: Record<AchievementLocale, AchievementLocaleBun
       building: { label: 'Строительство', icon: '🏗️' },
       guests: { label: 'Гости', icon: '🧑‍🤝‍🧑' },
       maintenance: { label: 'Обслуживание', icon: '🛠️' },
-      collection: { label: 'Коллекции', icon: '🎨' }
+      collection: { label: 'Коллекции', icon: '🎨' },
+      expansion: { label: 'Расширение', icon: '🗺️' },
+      gambling: { label: 'Казино', icon: '🎰' }
     },
     rarities: {
       common: { label: 'Обычная', icon: '◌' },

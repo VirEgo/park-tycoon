@@ -216,15 +216,7 @@ export class CanvasRenderService {
                     const padding = tileSize * 0.15;
                     ctx.drawImage(img, x + padding, y + padding, tileSize - padding * 2, tileSize - padding * 2);
                   } else {
-                    const treeFilter = bId === 'tree' ? this.getTreeFilter(cell) : null;
-                    if (treeFilter) {
-                      ctx.save();
-                      ctx.filter = treeFilter;
-                      ctx.drawImage(img, x, y, tileSize * placed.width, tileSize * placed.height);
-                      ctx.restore();
-                    } else {
-                      ctx.drawImage(img, x, y, tileSize * placed.width, tileSize * placed.height);
-                    }
+                    ctx.drawImage(img, x, y, tileSize * placed.width, tileSize * placed.height);
                   }
                 } else {
                   ctx.strokeStyle = '#4ade80';
@@ -257,13 +249,14 @@ export class CanvasRenderService {
                 if (level === 5) {
                   const centerX = x + (tileSize * placed.width) / 2;
                   const starY = y - 10;
+                  ctx.save();
                   ctx.shadowColor = '#FFD700';
                   ctx.shadowBlur = 15;
                   ctx.font = '24px Arial';
                   ctx.textAlign = 'center';
                   ctx.textBaseline = 'bottom';
                   ctx.fillText('⭐', centerX, starY);
-                  ctx.shadowBlur = 0;
+                  ctx.restore();
                 } else if (level > 1) {
                   const starCount = level - 1;
                   const starSize = 12;
@@ -388,9 +381,7 @@ export class CanvasRenderService {
       const isPremium = !!Guest.PremiumSkins[guest.visualType];
 
       if (img && img.complete) {
-        // Если премиум скин - добавляем свечение по контуру изображения
         if (showPremiumGlow && isPremium) {
-          ctx.save();
           ctx.shadowColor = '#FFD700';
           ctx.shadowBlur = 15;
           ctx.shadowOffsetX = 0;
@@ -400,7 +391,7 @@ export class CanvasRenderService {
         ctx.drawImage(img, gx, gy, tileSize, tileSize);
 
         if (isPremium) {
-          ctx.restore();
+          ctx.shadowBlur = 0;
         }
       } else {
         ctx.fillStyle = guest.color;

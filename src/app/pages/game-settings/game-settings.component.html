@@ -1,0 +1,225 @@
+<div class="settings-page">
+  <header class="settings-header">
+    <a class="settings-header__back" routerLink="/">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Назад
+    </a>
+    <h1 class="settings-header__title">Настройки игры</h1>
+  </header>
+
+  <!-- Уведомления -->
+  <section class="settings-section">
+    <h2 class="settings-section__title">Уведомления</h2>
+
+    <div class="setting-card">
+      <div class="setting-card__info">
+        <span class="setting-card__label">Уведомления</span>
+        <span class="setting-card__hint">Глобальное включение/отключение уведомлений</span>
+      </div>
+      <label class="toggle">
+        <input type="checkbox"
+               [ngModel]="settings().notificationsEnabled"
+               (ngModelChange)="updateSetting('notificationsEnabled', $event)">
+        <span class="toggle__track"></span>
+      </label>
+    </div>
+
+    @if (settings().notificationsEnabled) {
+      @for (cat of categories; track cat) {
+        <div class="setting-card">
+          <div class="setting-card__info">
+            <span class="setting-card__label">{{ categoryLabels[cat] }}</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox"
+                   [ngModel]="settings().notificationCategories[cat]"
+                   (ngModelChange)="updateCategory(cat, $event)">
+            <span class="toggle__track"></span>
+          </label>
+        </div>
+      }
+
+      <div class="setting-card">
+        <div class="setting-card__info">
+          <span class="setting-card__label">Длительность показа</span>
+          <span class="setting-card__hint">Время отображения уведомления</span>
+        </div>
+        <div class="radio-group">
+          @for (dur of [2000, 5000, 10000]; track dur) {
+            <button class="radio-group__btn"
+                    [class.radio-group__btn--active]="settings().notificationDuration === dur"
+                    (click)="updateSetting('notificationDuration', dur)">
+              {{ dur / 1000 }}с
+            </button>
+          }
+        </div>
+      </div>
+    }
+  </section>
+
+  <!-- Графика -->
+  <section class="settings-section">
+    <h2 class="settings-section__title">Графика</h2>
+
+    <div class="setting-card">
+      <div class="setting-card__info">
+        <span class="setting-card__label">Качество рендера</span>
+        <span class="setting-card__hint">Влияет на детализацию отрисовки</span>
+      </div>
+      <div class="radio-group">
+        @for (q of ['high', 'medium', 'low']; track q) {
+          <button class="radio-group__btn"
+                  [class.radio-group__btn--active]="settings().renderQuality === q"
+                  (click)="updateSetting('renderQuality', q)">
+            {{ q === 'high' ? 'Высокое' : q === 'medium' ? 'Среднее' : 'Низкое' }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="setting-card">
+      <div class="setting-card__info">
+        <span class="setting-card__label">Целевой FPS</span>
+        <span class="setting-card__hint">Ограничение частоты кадров</span>
+      </div>
+      <div class="radio-group">
+        @for (fps of [30, 60]; track fps) {
+          <button class="radio-group__btn"
+                  [class.radio-group__btn--active]="settings().targetFPS === fps"
+                  (click)="updateSetting('targetFPS', fps)">
+            {{ fps }} FPS
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="setting-card">
+      <div class="setting-card__info">
+        <span class="setting-card__label">Анимации</span>
+        <span class="setting-card__hint">Анимации построек и гостей</span>
+      </div>
+      <label class="toggle">
+        <input type="checkbox"
+               [ngModel]="settings().animationsEnabled"
+               (ngModelChange)="updateSetting('animationsEnabled', $event)">
+        <span class="toggle__track"></span>
+      </label>
+    </div>
+
+    <div class="setting-card">
+      <div class="setting-card__info">
+        <span class="setting-card__label">Индикаторы настроения</span>
+        <span class="setting-card__hint">Показывать эмоции гостей</span>
+      </div>
+      <label class="toggle">
+        <input type="checkbox"
+               [ngModel]="settings().guestMoodIndicators"
+               (ngModelChange)="updateSetting('guestMoodIndicators', $event)">
+        <span class="toggle__track"></span>
+      </label>
+    </div>
+  </section>
+
+  <!-- Игровой процесс -->
+  <section class="settings-section">
+    <h2 class="settings-section__title">Игровой процесс</h2>
+
+    <div class="setting-card">
+      <div class="setting-card__info">
+        <span class="setting-card__label">Скорость симуляции</span>
+        <span class="setting-card__hint">Множитель скорости течения времени</span>
+      </div>
+      <div class="radio-group">
+        @for (speed of [0.5, 1, 2, 3]; track speed) {
+          <button class="radio-group__btn"
+                  [class.radio-group__btn--active]="settings().simulationSpeed === speed"
+                  (click)="updateSetting('simulationSpeed', speed)">
+            {{ speed }}x
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="setting-card">
+      <div class="setting-card__info">
+        <span class="setting-card__label">Авто-пауза при уходе</span>
+        <span class="setting-card__hint">Ставить на паузу при потере фокуса</span>
+      </div>
+      <label class="toggle">
+        <input type="checkbox"
+               [ngModel]="settings().autoPauseOnBlur"
+               (ngModelChange)="updateSetting('autoPauseOnBlur', $event)">
+        <span class="toggle__track"></span>
+      </label>
+    </div>
+
+    <div class="setting-card">
+      <div class="setting-card__info">
+        <span class="setting-card__label">Интервал автосохранения</span>
+        <span class="setting-card__hint">Как часто игра сохраняется автоматически</span>
+      </div>
+      <div class="radio-group">
+        @for (interval of [10000, 30000, 60000, 120000]; track interval) {
+          <button class="radio-group__btn"
+                  [class.radio-group__btn--active]="settings().autoSaveInterval === interval"
+                  (click)="updateSetting('autoSaveInterval', interval)">
+            {{ interval / 1000 }}с
+          </button>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Управление данными -->
+  <section class="settings-section">
+    <h2 class="settings-section__title">Управление данными</h2>
+
+    <div class="setting-card setting-card--actions">
+      <div class="setting-card__info">
+        <span class="setting-card__label">Экспорт сохранения</span>
+        <span class="setting-card__hint">Скачать файл с текущим прогрессом</span>
+      </div>
+      <button class="btn btn--primary" (click)="exportSave()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M8 2v8M4.5 6.5L8 10l3.5-3.5M3 13h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Экспорт
+      </button>
+    </div>
+
+    <div class="setting-card setting-card--actions">
+      <div class="setting-card__info">
+        <span class="setting-card__label">Импорт сохранения</span>
+        <span class="setting-card__hint">Загрузить ранее экспортированный файл</span>
+      </div>
+      <label class="btn btn--secondary">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M8 10V2M4.5 5.5L8 2l3.5 3.5M3 13h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Импорт
+        <input type="file" accept=".json" hidden (change)="importSave($event)">
+      </label>
+    </div>
+
+    <div class="setting-card setting-card--actions">
+      <div class="setting-card__info">
+        <span class="setting-card__label">Сброс настроек</span>
+        <span class="setting-card__hint">Вернуть все настройки к значениям по умолчанию</span>
+      </div>
+      <button class="btn btn--danger" (click)="resetSettings()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Сбросить
+      </button>
+    </div>
+  </section>
+</div>
+
+@if (notification(); as n) {
+  <div class="toast" [class.toast--success]="n.kind === 'success'" [class.toast--error]="n.kind === 'error'">
+    {{ n.message }}
+  </div>
+}

@@ -1,0 +1,81 @@
+<div class="guest-panel" (click)="$event.stopPropagation()">
+  <div class="guest-header">
+    <div class="guest-identity">
+      <div class="guest-avatar">
+        <img [src]="guestImageSrc()" class="guest-avatar-img" alt="Guest Skin">
+      </div>
+      <div class="guest-info">
+        <div class="guest-name">Гость #{{guest().id}}</div>
+        <div class="guest-status">{{guest().statusMessage || guest().state}}</div>
+      </div>
+    </div>
+    <button class="close-btn" (click)="close.emit()">&#x2715;</button>
+  </div>
+
+  <div class="guest-body">
+    <div class="budget-row">
+      <span class="budget-label">Бюджет</span>
+      <span class="budget-value">{{guest().money | currency:"USD"}}</span>
+    </div>
+
+    <div class="happiness-section">
+      <div class="stat-row">
+        <span class="stat-label-main">Счастье</span>
+        <span class="stat-value-main"
+          [class.text-danger]="guest().happiness < 30"
+          [class.text-price]="guest().happiness > 70">{{guest().happiness | number:'1.0-0'}}%</span>
+      </div>
+      <div class="bar-track bar-track--lg">
+        <div class="bar-fill bar-fill--happiness" [style.width.%]="guest().happiness"></div>
+      </div>
+    </div>
+
+    <div class="mini-stats">
+      <div class="mini-stat">
+        <div class="mini-stat-header">
+          <span class="stat-label">Сытость</span>
+          <span class="stat-value">{{guest().satiety | number:'1.0-0'}}</span>
+        </div>
+        <div class="bar-track bar-track--sm">
+          <div class="bar-fill bar-fill--satiety" [style.width.%]="guest().satiety"></div>
+        </div>
+      </div>
+      <div class="mini-stat">
+        <div class="mini-stat-header">
+          <span class="stat-label">Жажда</span>
+          <span class="stat-value">{{guest().hydration | number:'1.0-0'}}</span>
+        </div>
+        <div class="bar-track bar-track--sm">
+          <div class="bar-fill bar-fill--hydration" [style.width.%]="guest().hydration"></div>
+        </div>
+      </div>
+      <div class="mini-stat">
+        <div class="mini-stat-header">
+          <span class="stat-label">Энергия</span>
+          <span class="stat-value">{{guest().energy | number:'1.0-0'}}</span>
+        </div>
+        <div class="bar-track bar-track--sm">
+          <div class="bar-fill bar-fill--energy" [style.width.%]="guest().energy"></div>
+        </div>
+      </div>
+      <div class="mini-stat">
+        <div class="mini-stat-header">
+          <span class="stat-label">Веселье</span>
+          <span class="stat-value">{{guest().fun | number:'1.0-0'}}</span>
+        </div>
+        <div class="bar-track bar-track--sm">
+          <div class="bar-fill bar-fill--fun" [style.width.%]="guest().fun"></div>
+        </div>
+      </div>
+      <div class="mini-stat">
+        <div class="mini-stat-header">
+          <span class="stat-label">Туалет</span>
+          <span class="stat-value">{{guest().toilet | number:'1.0-0'}}</span>
+        </div>
+        <div class="bar-track bar-track--sm">
+          <div class="bar-fill bar-fill--toilet" [style.width.%]="guest().toilet"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

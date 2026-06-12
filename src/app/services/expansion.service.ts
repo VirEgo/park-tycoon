@@ -172,6 +172,51 @@ export class ExpansionService {
     }
 
     /**
+     * Продажа купленного участка земли
+     */
+    sellPlot(state: ExpansionState, plotId: string): {
+        success: boolean;
+        newState?: ExpansionState;
+        refund: number;
+        message: string;
+    } {
+        const normalizedState = this.normalizeState(state);
+        const plot = normalizedState.plots.find(p => p.id === plotId);
+
+        if (!plot) {
+            return { success: false, refund: 0, message: 'Участок не найден' };
+        }
+
+        if (!plot.purchased) {
+            return { success: false, refund: 0, message: 'Участок не куплен' };
+        }
+
+        // Can't sell the center plot
+        if (plot.gridX === 0 && plot.gridY === 0) {
+            return { success: false, refund: 0, message: 'Нельзя продать стартовую зону' };
+        }
+
+        const refund = Math.floor(plot.basePrice * 0.5);
+
+        const updatedPlots = normalizedState.plots.map(p =>
+            p.id === plotId ? { ...p, purchased: false } : p
+        );
+
+        const newState = this.updatePlotPrices({
+            plots: updatedPlots,
+            purchasedCount: Math.max(0, normalizedState.purchasedCount - 1),
+            totalSpent: Math.max(0, normalizedState.totalSpent - plot.basePrice)
+        });
+
+        return {
+            success: true,
+            newState,
+            refund,
+            message: `Участок ${this.getPlotLabel(plot)} продан за $${refund}`
+        };
+    }
+
+    /**
      * Получить список доступных участков для покупки
      */
     getAvailablePlots(state: ExpansionState): LandPlot[] {

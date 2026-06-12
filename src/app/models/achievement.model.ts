@@ -12,6 +12,12 @@ export interface ParkLifetimeStats {
   totalRepairsCompleted: number;
   totalDemolitions: number;
   highestMoneyReached: number;
+  totalEarnedMoney: number;
+  totalGuestReviews: number;
+  totalCasinoWinnings: number;
+  totalCasinoLosses: number;
+  totalPlotPurchases: number;
+  totalUpgradesPurchased: number;
 }
 
 export interface GamificationSnapshot {
@@ -29,7 +35,9 @@ export type AchievementCategory =
   | 'building'
   | 'guests'
   | 'maintenance'
-  | 'collection';
+  | 'collection'
+  | 'expansion'
+  | 'gambling';
 
 export type AchievementRarity = 'common' | 'rare' | 'epic' | 'legendary';
 
@@ -79,6 +87,12 @@ export function createInitialLifetimeStats(): ParkLifetimeStats {
     totalGuestsSpawned: 0,
     totalRepairsCompleted: 0,
     totalDemolitions: 0,
-    highestMoneyReached: 5000
+    highestMoneyReached: 5000,
+    totalEarnedMoney: 0,
+    totalGuestReviews: 0,
+    totalCasinoWinnings: 0,
+    totalCasinoLosses: 0,
+    totalPlotPurchases: 0,
+    totalUpgradesPurchased: 0
   };
 }

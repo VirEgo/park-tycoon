@@ -1,9 +1,10 @@
 <aside class="sidebar">
   <div class="sidebar__header">
     <h1 class="sidebar__title">ANGULAR PARK</h1>
-    <div class="sidebar__subtitle">Tycoon Simulator</div>
+    <div class="sidebar__subtitle">Симулятор парка</div>
 
-    <button type="button" class="sidebar__close" (click)="closeSidebar.emit()">✕</button>
+    <button type="button" class="sidebar__close" (click)="closeSidebar.emit()"
+      aria-label="Закрыть панель">&#x2715;</button>
 
     <button type="button" class="btn" [class.btn--success]="isParkClosed" [class.btn--danger]="!isParkClosed"
       (click)="togglePark.emit()">
@@ -18,7 +19,7 @@
         <span class="section__title">Инфраструктура</span>
         <span class="section__toggle" [class.section__toggle--collapsed]="isSectionCollapsed('infrastructure')"
           aria-hidden="true">
-          ▾
+          &#x25BE;
         </span>
       </button>
 
@@ -41,35 +42,26 @@
           {{ BuildingCategoryLabels[cat] }}
         </span>
         <span class="section__toggle" [class.section__toggle--collapsed]="isSectionCollapsed(cat)" aria-hidden="true">
-          ▾
+          &#x25BE;
         </span>
       </button>
 
       <div class="tile-grid" *ngIf="!isSectionCollapsed(cat)">
         <button type="button" class="tool-card" *ngFor="let item of buildings(cat); trackBy: trackByBuildingId"
           [class.is-selected]="selectedToolId === item.id" [class.is-disabled]="money < item.price"
-          (click)="onSelectTool(cat, item.id)">
+          (click)="onSelectTool(cat, item.id)" (mouseenter)="onCardEnter($event, item)" (mouseleave)="onCardLeave()">
 
-          <!-- Количество построенных (левый верхний угол) -->
           <div class="tool-card__count" *ngIf="getBuildingCount(item.id) > 0">
             {{ getBuildingCount(item.id) }}
           </div>
 
-          <div class="tool-card__badge">{{item.width}}×{{item.height}}</div>
+          <div class="tool-card__badge">{{item.width}}&#x00D7;{{item.height}}</div>
 
           <img *ngIf="item.svgPath" [src]="item.svgPath" [alt]="item.name" class="tool-card__icon pixel-render">
           <span *ngIf="!item.svgPath" class="tool-card__emoji">{{ item.icon }}</span>
 
           <span class="tool-card__name tool-card__name--center">{{ item.name }}</span>
           <span class="tool-card__price tool-card__price--highlight">{{ item.price }}</span>
-
-          <div class="tool-card__tooltip">
-            <div class="tool-card__tooltip-title">{{item.name}}</div>
-            <div class="tool-card__tooltip-text">{{item.description}}</div>
-            <div class="tool-card__tooltip-meta">Размер: {{item.width}}×{{item.height}} клеток</div>
-            <div *ngIf="item.income > 0" class="tool-card__tooltip-income">Доход: {{item.income}}/день</div>
-            <div class="tool-card__tooltip-count">Построено: {{ getBuildingCount(item.id) }}</div>
-          </div>
         </button>
       </div>
     </section>
@@ -80,7 +72,15 @@
       Сброс прогресса
     </button>
     <div class="sidebar__hint">
-      Автосохранение каждые 5 сек
+      Автосохранение каждые {{ autoSaveIntervalLabel }}
     </div>
+  </div>
+
+  <div class="floating-tooltip" *ngIf="tooltipVisible() && activeTooltip" [ngStyle]="tooltipStyle()">
+    <div class="tool-card__tooltip-title">{{activeTooltip.name}}</div>
+    <div class="tool-card__tooltip-text">{{activeTooltip.description}}</div>
+    <div class="tool-card__tooltip-meta">Размер: {{activeTooltip.width}}&#x00D7;{{activeTooltip.height}} клеток</div>
+    <div *ngIf="activeTooltip.income > 0" class="tool-card__tooltip-income">Доход: {{activeTooltip.income}}/день</div>
+    <div class="tool-card__tooltip-count">Построено: {{ getBuildingCount(activeTooltip.id) }}</div>
   </div>
 </aside>

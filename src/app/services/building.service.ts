@@ -214,6 +214,11 @@ export class BuildingService {
             data['treeHueShift'] = Math.floor(Math.random() * 71) - 35;
         }
 
+        if (building.id === 'flowerbed') {
+            const flowerColors = ['#ef4444', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4'];
+            data['flowerColor'] = flowerColors[Math.floor(Math.random() * flowerColors.length)];
+        }
+
         if (building.id === 'pizza') {
             data['pizzaMenu'] = createDefaultPizzaMenuData();
         }

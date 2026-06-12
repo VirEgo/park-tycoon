@@ -1,0 +1,212 @@
+<div class="gallery">
+  <div *ngIf="notification() as notice"
+       class="notification"
+       [class.notification--success]="notice.kind === 'success'"
+       [class.notification--error]="notice.kind === 'error'"
+       [class.notification--info]="notice.kind === 'info'">
+    <div class="notification__message">{{ notice.message }}</div>
+  </div>
+
+  <div class="gallery__header">
+    <div class="gallery__header-left">
+      <div class="gallery__title-row">
+        <h1 class="gallery__title">Галерея скинов</h1>
+        <div class="gallery__money">
+          <span class="gallery__money-value">${{ money() }}</span>
+        </div>
+      </div>
+      <div class="gallery__stats">
+        <div class="gallery__stat">
+          Куплено: <span class="gallery__stat-value gallery__stat-value--owned">{{ ownedCount() }}</span>
+        </div>
+        <div class="gallery__stat">
+          Активно: <span class="gallery__stat-value gallery__stat-value--active">{{ enabledCount() }}</span>
+        </div>
+        <div class="gallery__stat gallery__stat--hint">
+          Включённые скины участвуют в выборе внешности новых гостей
+        </div>
+      </div>
+    </div>
+    <a routerLink="/" class="gallery__back">← Назад в парк</a>
+  </div>
+
+  <div class="gallery__grid-layout">
+    <div class="filter-panel">
+      <div class="filter-panel__header">
+        <div>
+          <div class="filter-panel__label">Фильтр каталога</div>
+          <div class="filter-panel__title">Показывать нужные скины быстрее</div>
+        </div>
+        <div class="filter-panel__count">Всего: {{ filteredPaidSkins().length }}</div>
+      </div>
+      <div class="filter-panel__buttons">
+        <button type="button"
+                (click)="setFilter('all')"
+                class="filter-btn"
+                [class.filter-btn--active]="isFilterActive('all')"
+                [class.filter-btn--all]="isFilterActive('all')">
+          Все
+        </button>
+        <button type="button"
+                (click)="setFilter('owned')"
+                class="filter-btn"
+                [class.filter-btn--active]="isFilterActive('owned')"
+                [class.filter-btn--owned]="isFilterActive('owned')">
+          Купленные
+        </button>
+        <button type="button"
+                (click)="setFilter('active')"
+                class="filter-btn"
+                [class.filter-btn--active]="isFilterActive('active')"
+                [class.filter-btn--active-filter]="isFilterActive('active')">
+          Активные
+        </button>
+      </div>
+      <div class="filter-panel__bulk-actions">
+        <button type="button"
+                (click)="enableAllSkins()"
+                [disabled]="allEnabled()"
+                class="filter-btn filter-btn--enable-all"
+                [class.filter-btn--disabled]="allEnabled()">
+          Включить все
+        </button>
+        <button type="button"
+                (click)="disableAllSkins()"
+                [disabled]="allDisabled()"
+                class="filter-btn filter-btn--disable-all"
+                [class.filter-btn--disabled]="allDisabled()">
+          Выключить все
+        </button>
+      </div>
+    </div>
+
+   @if(false) {
+     <div class="pool-panel">
+      <div class="pool-panel__label">Пул новых гостей</div>
+      <div class="pool-panel__title">Скины, которые сейчас могут выпадать</div>
+      <div *ngIf="activePoolSkins().length > 0; else noActiveSkins" class="pool-panel__grid">
+        <div *ngFor="let skin of activePoolSkins()"
+             class="pool-item">
+          <div class="pool-item__image">
+            <img [src]="skin.svg" class="pool-item__img" alt="{{ skin.name }}" />
+          </div>
+          <div class="pool-item__name">{{ skin.name }}</div>
+        </div>
+      </div>
+      <ng-template #noActiveSkins>
+        <div class="empty-state">Сейчас нет активных скинов для новых гостей.</div>
+      </ng-template>
+    </div>
+   }
+  </div>
+
+  <div class="skin-grid">
+    <div *ngFor="let skin of filteredFreeSkins()"
+         class="skin-card"
+         [class.skin-card--enabled]="isEnabled(skin.key)"
+         [class.skin-card--free-disabled]="!isEnabled(skin.key)">
+      <div class="skin-card__image">
+         <img [src]="skin.svg" class="skin-card__img" alt="{{ skin.name }}" />
+      </div>
+      <div class="skin-card__info">
+        <div class="skin-card__name">{{ skin.name }}</div>
+        <div class="skin-card__state"
+             [class.skin-card__state--enabled]="isEnabled(skin.key)"
+             [class.skin-card__state--free-disabled]="!isEnabled(skin.key)">
+          {{ getSkinStateLabel(skin.key) }}
+        </div>
+        <div class="skin-card__toggle-area"
+             [class.skin-card__toggle-area--enabled]="isEnabled(skin.key)"
+             [class.skin-card__toggle-area--free-disabled]="!isEnabled(skin.key)">
+          <div class="skin-card__toggle-label">
+            <div class="skin-card__toggle-text"
+                 [class.skin-card__toggle-text--enabled]="isEnabled(skin.key)"
+                 [class.skin-card__toggle-text--free-disabled]="!isEnabled(skin.key)">
+              {{ isEnabled(skin.key) ? 'Используется' : 'Выключен' }}
+            </div>
+          </div>
+
+          <button type="button"
+                  (click)="toggleSkin(skin.key)"
+                  class="skin-card__toggle"
+                  [class.skin-card__toggle--on]="isEnabled(skin.key)"
+                  [class.skin-card__toggle--off]="!isEnabled(skin.key)"
+                  [attr.aria-pressed]="isEnabled(skin.key)"
+                  [attr.aria-label]="isEnabled(skin.key) ? 'Выключить скин' : 'Включить скин'">
+            <span class="skin-card__toggle-knob"
+                  [class.skin-card__toggle-knob--on]="isEnabled(skin.key)"
+                  [class.skin-card__toggle-knob--off]="!isEnabled(skin.key)"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div *ngFor="let skin of filteredPaidSkins()"
+         class="skin-card"
+         [class.skin-card--unowned]="!isOwned(skin.key) && !isEnabled(skin.key)"
+         [class.skin-card--owned]="isOwned(skin.key) && !isEnabled(skin.key)"
+         [class.skin-card--enabled]="isEnabled(skin.key)">
+
+      <div class="skin-card__image skin-card__image--premium">
+         <img [src]="skin.svg" class="skin-card__img" alt="{{ skin.name }}" />
+         <div class="skin-card__tags">
+           <span *ngIf="isOwned(skin.key)"
+                 class="skin-card__tag skin-card__tag--owned">
+             Куплен
+           </span>
+           <span *ngIf="isEnabled(skin.key)"
+                 class="skin-card__tag skin-card__tag--active">
+             Активен
+           </span>
+         </div>
+      </div>
+
+      <div class="skin-card__info">
+        <div class="skin-card__name">{{ skin.name }}</div>
+        <div class="skin-card__state"
+             [class.skin-card__state--enabled]="isEnabled(skin.key)"
+             [class.skin-card__state--owned]="isOwned(skin.key) && !isEnabled(skin.key)"
+             [class.skin-card__state--unowned]="!isOwned(skin.key)">
+          {{ getSkinStateLabel(skin.key) }}
+        </div>
+
+        <button *ngIf="!isOwned(skin.key)"
+                (click)="buy(skin.key)"
+                [disabled]="money() < skin.cost"
+                [class.skin-card__buy--disabled]="money() < skin.cost"
+                class="skin-card__buy">
+          Купить: ${{ skin.cost }}
+        </button>
+
+        <div *ngIf="isOwned(skin.key)" class="skin-card__toggle-area"
+             [class.skin-card__toggle-area--enabled]="isEnabled(skin.key)"
+             [class.skin-card__toggle-area--owned]="!isEnabled(skin.key)">
+          <div class="skin-card__toggle-label">
+            <div class="skin-card__toggle-text"
+                 [class.skin-card__toggle-text--enabled]="isEnabled(skin.key)"
+                 [class.skin-card__toggle-text--owned]="!isEnabled(skin.key)">
+              {{ isEnabled(skin.key) ? 'Используется' : 'Выключен' }}
+            </div>
+            <div class="skin-card__toggle-hint">Добавлять в пул новых гостей</div>
+          </div>
+
+          <button type="button"
+                  (click)="toggleSkin(skin.key)"
+                  class="skin-card__toggle"
+                  [class.skin-card__toggle--on]="isEnabled(skin.key)"
+                  [class.skin-card__toggle--off]="!isEnabled(skin.key)"
+                  [attr.aria-pressed]="isEnabled(skin.key)"
+                  [attr.aria-label]="isEnabled(skin.key) ? 'Выключить скин' : 'Включить скин'">
+            <span class="skin-card__toggle-knob"
+                  [class.skin-card__toggle-knob--on]="isEnabled(skin.key)"
+                  [class.skin-card__toggle-knob--off]="!isEnabled(skin.key)"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="filteredPaidSkins().length === 0" class="no-results">
+    По текущему фильтру скинов не найдено.
+  </div>
+</div>

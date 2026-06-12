@@ -20,10 +20,10 @@ export const SIDEBAR_BUILDING_CATEGORIES: SidebarBuildingCategory[] = [
 ];
 
 export const SIDEBAR_BUILDING_CATEGORY_LABELS: Record<SidebarBuildingCategory, string> = {
-  attraction: 'Attractions',
-  shop: 'Shops',
-  decoration: 'Decorations',
-  service: 'Services'
+  attraction: 'Аттракционы',
+  shop: 'Магазины',
+  decoration: 'Декорации',
+  service: 'Сервис'
 };
 
 export const SIDEBAR_INFRASTRUCTURE_TOOLS: SidebarInfrastructureTool[] = [

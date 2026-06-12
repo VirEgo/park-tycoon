@@ -1,0 +1,618 @@
+$font-heading: 'Outfit', sans-serif;
+$font-mono: 'JetBrains Mono', monospace;
+
+$bg-deep: #0c0f14;
+$bg-surface: #141820;
+$bg-card: #1a1f2b;
+$bg-card-hover: #222838;
+$bg-card-active: #1e2536;
+$bg-header: #0e1219;
+
+$border-subtle: rgba(255, 255, 255, 0.06);
+$border-card: rgba(255, 255, 255, 0.08);
+$border-active: rgba(251, 191, 36, 0.5);
+
+$gold: #fbbf24;
+$gold-dim: #d4a017;
+$gold-glow: rgba(251, 191, 36, 0.15);
+
+$text-primary: #e8eaed;
+$text-secondary: #8b92a0;
+$text-muted: #5a6170;
+$text-price: #34d399;
+$text-danger: #f87171;
+
+$accent-indigo: #818cf8;
+$accent-indigo-dim: rgba(129, 140, 248, 0.12);
+
+:host {
+  display: block;
+}
+
+.gallery {
+  min-height: 100vh;
+  background: $bg-deep;
+  color: $text-primary;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  font-family: $font-heading;
+
+  &__header {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 2rem;
+
+    @media (min-width: 1024px) {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+
+  &__header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  &__title-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  &__title {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: $gold;
+    margin: 0;
+  }
+
+  &__money {
+    background: $bg-card;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    border: 1px solid $border-card;
+  }
+
+  &__money-value {
+    color: $text-price;
+    font-family: $font-mono;
+    font-weight: 700;
+  }
+
+  &__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  &__stat {
+    background: $bg-card;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid $border-card;
+
+    &--hint {
+      color: $text-secondary;
+    }
+  }
+
+  &__stat-value {
+    font-weight: 700;
+
+    &--owned {
+      color: $text-price;
+    }
+
+    &--active {
+      color: lighten($gold, 15%);
+    }
+  }
+
+  &__back {
+    padding: 0.5rem 1.5rem;
+    background: darken($bg-card, 5%);
+    color: $text-primary;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 700;
+    border: 1px solid $border-card;
+    transition: background 0.2s ease;
+
+    &:hover {
+      background: $bg-card-hover;
+    }
+  }
+
+  &__grid-layout {
+    margin-bottom: 2rem;
+    display: grid;
+    gap: 1.5rem;
+
+    @media (min-width: 1024px) {
+      grid-template-columns: minmax(0, 1fr) 360px;
+    }
+  }
+}
+
+.filter-panel {
+  border-radius: 16px;
+  border: 1px solid $border-card;
+  background: rgba($bg-card, 0.7);
+  padding: 1rem;
+
+  &__header {
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  &__label {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: $text-muted;
+  }
+
+  &__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  &__count {
+    font-size: 0.75rem;
+    color: $text-muted;
+  }
+
+  &__buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  &__bulk-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid $border-subtle;
+  }
+}
+
+.filter-btn {
+  border-radius: 9999px;
+  border: 1px solid darken($bg-card, 5%);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: transparent;
+  color: $text-secondary;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: $bg-card-hover;
+  }
+
+  &--active {
+    color: $bg-deep;
+    border-color: $gold;
+  }
+
+  &--all {
+    background: $gold;
+  }
+
+  &--owned {
+    background: $text-price;
+  }
+
+  &--active-filter {
+    background: $accent-indigo;
+  }
+
+  &--enable-all {
+    background: rgba($text-price, 0.15);
+    border-color: rgba($text-price, 0.3);
+    color: $text-price;
+
+    &:hover:not(:disabled) {
+      background: rgba($text-price, 0.25);
+    }
+  }
+
+  &--disable-all {
+    background: rgba($text-danger, 0.1);
+    border-color: rgba($text-danger, 0.2);
+    color: $text-danger;
+
+    &:hover:not(:disabled) {
+      background: rgba($text-danger, 0.2);
+    }
+  }
+
+  &--disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.pool-panel {
+  border-radius: 16px;
+  border: 1px solid $border-card;
+  background: rgba($bg-card, 0.7);
+  padding: 1rem;
+
+  &__label {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: $text-muted;
+    margin-bottom: 0.75rem;
+  }
+
+  &__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: $text-primary;
+    margin-bottom: 0.75rem;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+  }
+}
+
+.pool-item {
+  border-radius: 12px;
+  border: 1px solid rgba(lighten($gold, 10%), 0.3);
+  background: rgba($bg-deep, 0.6);
+  padding: 0.5rem;
+  text-align: center;
+
+  &__image {
+    margin-bottom: 0.5rem;
+    display: flex;
+    height: 4rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba($bg-card, 0.8);
+    padding: 0.5rem;
+  }
+
+  &__img {
+    height: 100%;
+    width: 100%;
+    object-fit: contain;
+  }
+
+  &__name {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: lighten($gold, 30%);
+  }
+}
+
+.empty-state {
+  border-radius: 12px;
+  border: 1px dashed darken($bg-card, 5%);
+  background: rgba($bg-deep, 0.4);
+  padding: 1.5rem 1rem;
+  font-size: 0.875rem;
+  color: $text-muted;
+}
+
+.skin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+
+  @media (min-width: 640px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+.skin-card {
+  background: $bg-card;
+  border: 1px solid $border-card;
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+
+  &:hover {
+    background: $bg-card-hover;
+    transform: translateY(-2px);
+  }
+
+  &--enabled {
+    border-color: $gold;
+    box-shadow: 0 0 0 2px rgba($gold, 0.2), 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  }
+
+  &--owned {
+    border-color: $text-price;
+  }
+
+  &--unowned {
+    border-color: $border-card;
+  }
+
+  &--free-disabled {
+    border-color: $accent-indigo;
+  }
+
+  &__image {
+    width: 6rem;
+    height: 6rem;
+    background: rgba(darken($bg-card, 5%), 0.5);
+    border-radius: 8px;
+    padding: 0.5rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+
+    &--premium {
+      width: 6rem;
+      height: 6rem;
+    }
+  }
+
+  &__img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  &__tags {
+    position: absolute;
+    left: 0.5rem;
+    top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  &__tag {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+
+    &--owned {
+      background: rgba($text-price, 0.15);
+      color: lighten($text-price, 15%);
+      border: 1px solid rgba($text-price, 0.3);
+    }
+
+    &--active {
+      background: rgba($gold, 0.15);
+      color: lighten($gold, 20%);
+      border: 1px solid rgba($gold, 0.3);
+    }
+  }
+
+  &__info {
+    text-align: center;
+    width: 100%;
+  }
+
+  &__name {
+    font-family: $font-mono;
+    font-size: 0.875rem;
+    color: $text-secondary;
+    margin-bottom: 0.25rem;
+  }
+
+  &__state {
+    font-size: 0.75rem;
+    margin-bottom: 0.75rem;
+
+    &--enabled {
+      color: lighten($gold, 25%);
+    }
+
+    &--owned {
+      color: lighten($text-price, 15%);
+    }
+
+    &--unowned {
+      color: $text-muted;
+    }
+
+    &--free-disabled {
+      color: lighten($accent-indigo, 15%);
+    }
+  }
+
+  &__toggle-area {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid $border-card;
+    border-radius: 8px;
+
+    &--enabled {
+      border-color: $gold;
+      background: rgba($gold, 0.1);
+    }
+
+    &--owned {
+      border-color: $text-price;
+      background: rgba($text-price, 0.1);
+    }
+
+    &--free-disabled {
+      border-color: $accent-indigo;
+      background: rgba($accent-indigo, 0.1);
+    }
+  }
+
+  &__toggle-label {
+    text-align: left;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__toggle-text {
+    font-size: 0.875rem;
+    font-weight: 600;
+
+    &--enabled {
+      color: lighten($gold, 25%);
+    }
+
+    &--owned {
+      color: lighten($text-price, 15%);
+    }
+
+    &--free-disabled {
+      color: lighten($accent-indigo, 15%);
+    }
+  }
+
+  &__toggle-hint {
+    font-size: 11px;
+    color: $text-muted;
+  }
+
+  &__toggle {
+    position: relative;
+    display: inline-flex;
+    height: 1.75rem;
+    width: 3.5rem;
+    align-items: center;
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+
+    &--on {
+      background: $gold;
+      border-color: lighten($gold, 10%);
+    }
+
+    &--off {
+      background: darken($bg-card, 5%);
+      border-color: darken($bg-card, 10%);
+    }
+  }
+
+  &__toggle-knob {
+    display: inline-block;
+    height: 1.25rem;
+    width: 1.25rem;
+    border-radius: 9999px;
+    background: white;
+    transition: transform 0.2s ease;
+
+    &--on {
+      transform: translateX(1.75rem);
+    }
+
+    &--off {
+      transform: translateX(0.25rem);
+    }
+  }
+
+  &__buy {
+    width: 100%;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    background: darken($text-price, 10%);
+    color: white;
+    font-weight: 500;
+    font-size: 0.875rem;
+    border: 1px solid $text-price;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    transition: all 0.2s ease;
+
+    &:hover:not(:disabled) {
+      background: $text-price;
+    }
+
+    &--disabled {
+      opacity: 0.5;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+}
+
+.no-results {
+  margin-top: 1.5rem;
+  border-radius: 16px;
+  border: 1px dashed darken($bg-card, 5%);
+  background: rgba($bg-card, 0.4);
+  padding: 2rem 1.5rem;
+  text-align: center;
+  color: $text-muted;
+}
+
+.notification {
+  position: fixed;
+  right: 1.5rem;
+  top: 1.5rem;
+  z-index: 50;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+
+  &--success {
+    border-color: $text-price;
+    background: rgba(darken($text-price, 40%), 0.95);
+  }
+
+  &--error {
+    border-color: $text-danger;
+    background: rgba(darken($text-danger, 40%), 0.95);
+  }
+
+  &--info {
+    border-color: lighten($accent-indigo, 10%);
+    background: rgba(darken(lighten($accent-indigo, 10%), 40%), 0.95);
+  }
+
+  &__message {
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+}

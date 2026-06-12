@@ -201,6 +201,35 @@ export class PremiumSkinsService {
     }
   }
  
+  enableAllSkins(): SkinTransactionResult {
+    const allAvailable = this.getAvailableSkins();
+    allAvailable.forEach(skinId => this.enabledSkins.add(skinId));
+    this.saveToStorage();
+    return {
+      success: true,
+      message: `Все скины включены (${allAvailable.length}).`,
+      updatedOwnedList: Array.from(this.ownedSkins),
+      updatedEnabledList: Array.from(this.enabledSkins)
+    };
+  }
+
+  disableAllSkins(): SkinTransactionResult {
+    const standardSkins = this.getStandardGuestSkins();
+    const keepEnabled = standardSkins[0];
+
+    this.enabledSkins.clear();
+    if (keepEnabled) {
+      this.enabledSkins.add(keepEnabled);
+    }
+    this.saveToStorage();
+    return {
+      success: true,
+      message: `Все скины выключены. Оставлен базовый скин.`,
+      updatedOwnedList: Array.from(this.ownedSkins),
+      updatedEnabledList: Array.from(this.enabledSkins)
+    };
+  }
+
   reset(): void {
     this.ownedSkins.clear();
     this.enabledSkins = new Set(this.getDefaultEnabledSkins([]));

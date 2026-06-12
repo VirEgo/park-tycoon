@@ -167,5 +167,221 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
       if (snapshot.lifetimeStats.highestMoneyReached >= 30000) completed++;
       return completed;
     }
+  },
+  {
+    id: 'builder_50',
+    category: 'building',
+    rarity: 'epic',
+    target: 50,
+    reward: { type: 'money', amount: 3000 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalBuildsPlaced
+  },
+  {
+    id: 'path_master',
+    category: 'building',
+    rarity: 'rare',
+    target: 50,
+    reward: { type: 'money', amount: 1000 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalPathsPlaced
+  },
+  {
+    id: 'decoration_king',
+    category: 'building',
+    rarity: 'rare',
+    target: 20,
+    reward: { type: 'money', amount: 1200 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalDecorationsBuilt
+  },
+  {
+    id: 'service_empire',
+    category: 'building',
+    rarity: 'rare',
+    target: 5,
+    reward: { type: 'money', amount: 800 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalServicesBuilt
+  },
+  {
+    id: 'crowd_100',
+    category: 'guests',
+    rarity: 'epic',
+    target: 100,
+    reward: { type: 'money', amount: 2500 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalGuestsSpawned
+  },
+  {
+    id: 'crowd_200',
+    category: 'guests',
+    rarity: 'legendary',
+    target: 200,
+    reward: { type: 'skin', skinId: 'goku' },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalGuestsSpawned
+  },
+  {
+    id: 'reviewer',
+    category: 'guests',
+    rarity: 'rare',
+    target: 5,
+    reward: { type: 'money', amount: 500 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalGuestReviews
+  },
+  {
+    id: 'critic',
+    category: 'guests',
+    rarity: 'epic',
+    target: 20,
+    reward: { type: 'money', amount: 1500 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalGuestReviews
+  },
+  {
+    id: 'month_one',
+    category: 'park',
+    rarity: 'epic',
+    target: 30,
+    reward: { type: 'skin', skinId: 'luffy' },
+    evaluateProgress: (snapshot) => snapshot.dayCount
+  },
+  {
+    id: 'veteran',
+    category: 'park',
+    rarity: 'legendary',
+    target: 50,
+    reward: { type: 'money', amount: 5000 },
+    evaluateProgress: (snapshot) => snapshot.dayCount
+  },
+  {
+    id: 'century',
+    category: 'park',
+    rarity: 'legendary',
+    target: 100,
+    reward: { type: 'skin', skinId: 'kirby' },
+    evaluateProgress: (snapshot) => snapshot.dayCount
+  },
+  {
+    id: 'capital_50000',
+    category: 'economy',
+    rarity: 'legendary',
+    target: 50000,
+    reward: { type: 'money', amount: 5000 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.highestMoneyReached
+  },
+  {
+    id: 'earned_10000',
+    category: 'economy',
+    rarity: 'rare',
+    target: 10000,
+    reward: { type: 'money', amount: 1000 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalEarnedMoney
+  },
+  {
+    id: 'earned_50000',
+    category: 'economy',
+    rarity: 'epic',
+    target: 50000,
+    reward: { type: 'money', amount: 3000 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalEarnedMoney
+  },
+  {
+    id: 'repair_master',
+    category: 'maintenance',
+    rarity: 'rare',
+    target: 10,
+    reward: { type: 'money', amount: 800 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalRepairsCompleted
+  },
+  {
+    id: 'repair_legend',
+    category: 'maintenance',
+    rarity: 'epic',
+    target: 25,
+    reward: { type: 'money', amount: 2000 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalRepairsCompleted
+  },
+  {
+    id: 'demolition_expert',
+    category: 'maintenance',
+    rarity: 'rare',
+    target: 10,
+    reward: { type: 'money', amount: 600 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalDemolitions
+  },
+  {
+    id: 'demolition_pro',
+    category: 'maintenance',
+    rarity: 'epic',
+    target: 25,
+    reward: { type: 'money', amount: 1500 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalDemolitions
+  },
+  {
+    id: 'first_expansion',
+    category: 'expansion',
+    rarity: 'common',
+    target: 1,
+    reward: { type: 'money', amount: 300 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalPlotPurchases
+  },
+  {
+    id: 'land_owner',
+    category: 'expansion',
+    rarity: 'rare',
+    target: 3,
+    reward: { type: 'money', amount: 1000 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalPlotPurchases
+  },
+  {
+    id: 'territory_master',
+    category: 'expansion',
+    rarity: 'epic',
+    target: 5,
+    reward: { type: 'money', amount: 2500 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalPlotPurchases
+  },
+  {
+    id: 'full_park',
+    category: 'expansion',
+    rarity: 'legendary',
+    target: 8,
+    reward: { type: 'skin', skinId: 'megaman' },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalPlotPurchases
+  },
+  {
+    id: 'jackpot_winner',
+    category: 'gambling',
+    rarity: 'rare',
+    target: 1,
+    reward: { type: 'money', amount: 1000 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalCasinoWinnings > 0 ? 1 : 0
+  },
+  {
+    id: 'high_roller',
+    category: 'gambling',
+    rarity: 'epic',
+    target: 500,
+    reward: { type: 'money', amount: 2000 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalCasinoWinnings
+  },
+  {
+    id: 'casino_profit',
+    category: 'gambling',
+    rarity: 'epic',
+    target: 5000,
+    reward: { type: 'money', amount: 3000 },
+    evaluateProgress: (snapshot) => snapshot.lifetimeStats.totalCasinoWinnings
+  },
+  {
+    id: 'skin_collector_5',
+    category: 'collection',
+    rarity: 'rare',
+    target: 5,
+    reward: { type: 'skin', skinId: 'dracula' },
+    evaluateProgress: (snapshot) => snapshot.premiumOwnedSkins.length
+  },
+  {
+    id: 'skin_master',
+    category: 'collection',
+    rarity: 'legendary',
+    target: 10,
+    reward: { type: 'skin', skinId: 'zelda' },
+    evaluateProgress: (snapshot) => snapshot.premiumOwnedSkins.length
   }
 ];

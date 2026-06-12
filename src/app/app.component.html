@@ -26,7 +26,7 @@
         <!-- Mobile Menu Toggle -->
         <button (click)="toggleSidebar()"
           class="md:hidden p-2 text-gray-400 hover:text-white border border-gray-700 rounded bg-gray-800">
-          <span class="text-xl">☰</span>
+          <span class="text-xl">&#9776;</span>
         </button>
 
         <!-- Budget -->
@@ -49,7 +49,7 @@
           </div>
           <div>
             <div class="text-[10px] md:text-xs text-gray-400">Гости</div>
-            <div class="text-sm md:text-xl font-mono font-bold text-white">{{ guests().length }}</div>
+            <div class="text-sm md:text-xl font-mono font-bold text-white">{{ regularGuestCount() }}</div>
           </div>
         </div>
 
@@ -78,28 +78,30 @@
 
         <button (click)="openExpansionPanel()"
           class="shrink-0 px-2 md:px-4 py-1 md:py-2 rounded bg-green-700 hover:bg-green-600 font-medium text-[11px] md:text-sm transition-colors border border-green-600 flex items-center gap-1 md:gap-2">
-          <span class="hidden md:inline">🗺️</span>
           <span class="hidden md:inline">Купить землю</span>
           <span class="md:hidden">Земля</span>
         </button>
 
         <button (click)="openSkinsGallery()"
           class="shrink-0 px-2 md:px-4 py-1 md:py-2 rounded bg-purple-700 hover:bg-purple-600 font-medium text-[11px] md:text-sm transition-colors border border-purple-600 flex items-center gap-1 md:gap-2">
-          <span class="hidden md:inline">🎨</span>
           <span class="hidden md:inline">Скины</span>
           <span class="md:hidden">Скины</span>
         </button>
 
         <button (click)="openParkSettingsModal()"
           class="shrink-0 px-2 md:px-4 py-1 md:py-2 rounded bg-gray-700 hover:bg-gray-600 font-medium text-[11px] md:text-sm transition-colors border border-gray-600 flex items-center gap-1 md:gap-2">
-          <span class="hidden md:inline">⚙️</span>
-          <span class="hidden md:inline">Настройки</span>
-          <span class="md:hidden">⚙️</span>
+          <span class="hidden md:inline">Настройки парка</span>
+          <span class="md:hidden">Настр.</span>
         </button>
+
+        <a routerLink="/settings"
+          class="shrink-0 px-2 md:px-4 py-1 md:py-2 rounded bg-gray-700 hover:bg-gray-600 font-medium text-[11px] md:text-sm transition-colors border border-gray-600 flex items-center gap-1 md:gap-2 no-underline">
+          <span class="hidden md:inline">Настройки игры</span>
+          <span class="md:hidden">Игра</span>
+        </a>
 
         <button (click)="toggleAchievementsPanel()" [class.bg-amber-700]="showAchievementsPanel()"
           class="shrink-0 px-2 md:px-4 py-1 md:py-2 rounded bg-gray-700 hover:bg-amber-700 font-medium text-[11px] md:text-sm transition-colors border border-amber-600 flex items-center gap-1 md:gap-2">
-          <span class="hidden md:inline">🏆</span>
           <span class="hidden md:inline">Ачивки</span>
           <span class="md:hidden">Ачивки</span>
           <span class="rounded-full bg-black/20 px-2 py-0.5 text-[11px] font-bold text-amber-100">
@@ -110,7 +112,6 @@
         @if(false) {
         <button (click)="toggleAiPanel()" [class.bg-cyan-700]="showAiPanel()"
           class="shrink-0 px-2 md:px-4 py-1 md:py-2 rounded bg-gray-700 hover:bg-cyan-700 font-medium text-[11px] md:text-sm transition-colors border border-cyan-600 flex items-center gap-1 md:gap-2">
-          <span class="hidden md:inline">🤖</span>
           <span class="hidden md:inline">AI советник</span>
           <span class="md:hidden">AI</span>
         </button>
@@ -118,14 +119,12 @@
 
         <button (click)="repairAllBroken()"
           class="shrink-0 px-2 md:px-4 py-1 md:py-2 rounded bg-amber-700 hover:bg-amber-600 font-medium text-[11px] md:text-sm transition-colors border border-amber-600 flex items-center gap-1 md:gap-2">
-          <span class="hidden md:inline">🛠️</span>
           <span class="hidden md:inline">Починить все</span>
           <span class="md:hidden">Ремонт</span>
         </button>
 
         <button (click)="toggleGuestStats()" [class.bg-blue-600]="showGuestStats()"
           class="shrink-0 px-2 md:px-4 py-1 md:py-2 rounded bg-gray-700 hover:bg-gray-600 font-medium text-[11px] md:text-sm transition-colors border border-gray-600 flex items-center gap-1 md:gap-2">
-          <span class="hidden md:inline">📊</span>
           <span class="hidden md:inline">Статистика</span>
           <span class="md:hidden">Стат</span>
         </button>
@@ -444,11 +443,11 @@
 
     <!-- Expansion Panel Modal -->
     <app-expansion-panel *ngIf="showExpansionPanel()" [expansionState]="expansionState()" [currentMoney]="money()"
-      (onClose)="closeExpansionPanel()" (onPurchase)="handleLandPurchase($event)" />
+      (onClose)="closeExpansionPanel()" (onPurchase)="handleLandPurchase($event)" (onSell)="handleSellPlot($event)" />
 
     <!-- Park Settings Modal -->
     <app-park-settings-modal *ngIf="showParkSettingsModal()" [money]="money()" [dayCount]="dayCount()"
-      [guestCount]="guests().length" [maxGuests]="getMaxGuests()" [isPaused]="isPaused()"
+      [guestCount]="regularGuestCount()" [maxGuests]="getMaxGuests()" [isPaused]="isPaused()"
       [isParkClosed]="isParkClosed()" [grid]="grid()" [buildingStats]="buildingStats()"
       [brokenBuildings]="brokenBuildingsSet()" (close)="closeParkSettingsModal()" (togglePause)="togglePause()"
       (toggleParkClosed)="toggleParkState()" (toggleBuilding)="handleBuildingToggle($event)" />

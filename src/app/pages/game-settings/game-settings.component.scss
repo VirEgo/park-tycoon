@@ -1,0 +1,302 @@
+$font-heading: 'Outfit', sans-serif;
+$font-mono: 'JetBrains Mono', monospace;
+
+$bg-deep: #0c0f14;
+$bg-surface: #141820;
+$bg-card: #1a1f2b;
+$bg-card-hover: #222838;
+$border-subtle: rgba(255, 255, 255, 0.06);
+$border-card: rgba(255, 255, 255, 0.08);
+$border-active: rgba(251, 191, 36, 0.5);
+
+$gold: #fbbf24;
+$gold-glow: rgba(251, 191, 36, 0.15);
+
+$text-primary: #e8eaed;
+$text-secondary: #8b92a0;
+$text-muted: #5a6170;
+$text-price: #34d399;
+$text-danger: #f87171;
+
+$accent-indigo: #818cf8;
+
+:host {
+  display: block;
+}
+
+.settings-page {
+  min-height: 100vh;
+  background: $bg-deep;
+  color: $text-primary;
+  font-family: $font-heading;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  @media (max-width: 640px) {
+    padding: 1rem;
+  }
+}
+
+// Header
+.settings-header {
+  width: 100%;
+  max-width: 800px;
+  margin-bottom: 2rem;
+
+  &__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: $text-secondary;
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: color 0.2s;
+    margin-bottom: 0.75rem;
+
+    &:hover {
+      color: $gold;
+    }
+  }
+
+  &__title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: $text-primary;
+    margin: 0;
+  }
+}
+
+// Section
+.settings-section {
+  width: 100%;
+  max-width: 800px;
+  margin-bottom: 2rem;
+
+  &__title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: $text-muted;
+    margin: 0 0 0.75rem 0.25rem;
+  }
+}
+
+// Setting Card
+.setting-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  background: $bg-card;
+  border: 1px solid $border-card;
+  border-radius: 10px;
+  transition: background 0.15s;
+
+  & + & {
+    margin-top: 0.5rem;
+  }
+
+  &--actions {
+    @media (max-width: 480px) {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+  }
+
+  &__label {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: $text-primary;
+  }
+
+  &__hint {
+    font-size: 0.75rem;
+    color: $text-muted;
+  }
+}
+
+// Toggle Switch
+.toggle {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  cursor: pointer;
+
+  input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  &__track {
+    display: block;
+    width: 42px;
+    height: 24px;
+    background: $bg-surface;
+    border: 1px solid $border-subtle;
+    border-radius: 12px;
+    position: relative;
+    transition: background 0.2s, border-color 0.2s;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 16px;
+      height: 16px;
+      background: $text-muted;
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+  }
+
+  input:checked + .toggle__track {
+    background: $gold-glow;
+    border-color: $border-active;
+
+    &::after {
+      transform: translateX(18px);
+      background: $gold;
+    }
+  }
+}
+
+// Radio Group
+.radio-group {
+  display: flex;
+  gap: 0.375rem;
+  flex-shrink: 0;
+
+  &__btn {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8125rem;
+    font-family: $font-heading;
+    font-weight: 500;
+    color: $text-secondary;
+    background: $bg-surface;
+    border: 1px solid $border-subtle;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+
+    &:hover {
+      background: $bg-card-hover;
+      color: $text-primary;
+    }
+
+    &--active {
+      background: $gold-glow;
+      border-color: $border-active;
+      color: $gold;
+
+      &:hover {
+        background: $gold-glow;
+      }
+    }
+  }
+}
+
+// Buttons
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-family: $font-heading;
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &--primary {
+    background: rgba($gold, 0.12);
+    color: $gold;
+    border-color: rgba($gold, 0.25);
+
+    &:hover {
+      background: rgba($gold, 0.2);
+      border-color: rgba($gold, 0.4);
+    }
+  }
+
+  &--secondary {
+    background: rgba($accent-indigo, 0.1);
+    color: $accent-indigo;
+    border-color: rgba($accent-indigo, 0.2);
+
+    &:hover {
+      background: rgba($accent-indigo, 0.18);
+      border-color: rgba($accent-indigo, 0.35);
+    }
+  }
+
+  &--danger {
+    background: rgba($text-danger, 0.08);
+    color: $text-danger;
+    border-color: rgba($text-danger, 0.2);
+
+    &:hover {
+      background: rgba($text-danger, 0.15);
+      border-color: rgba($text-danger, 0.35);
+    }
+  }
+}
+
+// Toast Notification
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-family: $font-heading;
+  font-weight: 500;
+  z-index: 1000;
+  animation: toast-in 0.25s ease-out;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  &--success {
+    background: rgba($text-price, 0.12);
+    color: $text-price;
+    border: 1px solid rgba($text-price, 0.25);
+  }
+
+  &--error {
+    background: rgba($text-danger, 0.12);
+    color: $text-danger;
+    border: 1px solid rgba($text-danger, 0.25);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
