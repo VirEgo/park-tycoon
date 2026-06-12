@@ -100,9 +100,9 @@ export class ParkFeedbackService {
                 role: 'system',
                 content: [
                     'You generate one short amusement park guest review in Russian.',
-                    'Return only compact JSON with keys: rating, review.',
+                    'Return only compact JSON with keys: rating, review, userName',
                     'rating must be an integer from 1 to 5.',
-                    'review must be <= 180 characters, no markdown.'
+                    'review must be <= 100 characters, no markdown.'
                 ].join(' ')
             },
             {
@@ -133,6 +133,7 @@ export class ParkFeedbackService {
             guestType: guest.guestType,
             rating,
             text: this.sanitizeReviewText(text),
+            userName: guest.name,
             source: 'template',
             snapshot: {
                 happiness: guest.happiness,
@@ -179,11 +180,12 @@ export class ParkFeedbackService {
             ...fallback,
             rating: parsed.rating,
             text: parsed.review,
+            userName: parsed.userName,
             source: 'lm-studio'
         };
     }
 
-    private parseLmStudioResponse(rawResponse: string): { rating: number; review: string } | null {
+    private parseLmStudioResponse(rawResponse: string): { rating: number; review: string; userName: string } | null {
         const trimmed = (rawResponse ?? '').trim();
         if (!trimmed) {
             return null;
@@ -195,7 +197,7 @@ export class ParkFeedbackService {
         }
 
         try {
-            const parsed = JSON.parse(objectCandidate) as { rating?: unknown; review?: unknown; text?: unknown };
+            const parsed = JSON.parse(objectCandidate) as { rating?: unknown; review?: unknown; text?: unknown; userName?: unknown };
             const rating = this.clampRating(Number(parsed.rating));
             const textCandidate = typeof parsed.review === 'string'
                 ? parsed.review
@@ -203,12 +205,13 @@ export class ParkFeedbackService {
                     ? parsed.text
                     : '';
             const review = this.sanitizeReviewText(textCandidate);
+            const userName = typeof parsed.userName === 'string' ? parsed.userName : '';
 
             if (!review) {
                 return null;
             }
 
-            return { rating, review };
+            return { rating, review, userName };
         } catch {
             return null;
         }
@@ -325,6 +328,7 @@ export class ParkFeedbackService {
             guestType: (value.guestType as GuestTypeId) ?? 'casual',
             rating: this.clampRating(Number(value.rating ?? 3)),
             text: this.sanitizeReviewText(String(value.text)),
+            userName: typeof value.userName === 'string' ? value.userName : '',
             source: value.source === 'lm-studio' ? 'lm-studio' : 'template',
             snapshot: {
                 happiness: Number(value.snapshot.happiness ?? 0),

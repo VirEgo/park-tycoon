@@ -18,6 +18,7 @@ export class BuildingService {
     private upgradeService = inject(AttractionUpgradeService);
     private gamificationService = inject(GamificationService);
     private buildingImages: Map<string, HTMLImageElement> = new Map();
+    private buildingByIdCache: Map<string, BuildingType> = new Map();
     private readonly buildingsByCategory = computed(() => {
         const unlockedAchievementIds = this.gamificationService.unlockedAchievementIds();
         const grouped = new Map<string, BuildingType[]>();
@@ -40,6 +41,7 @@ export class BuildingService {
     });
 
     constructor() {
+        BUILDINGS.forEach(b => this.buildingByIdCache.set(b.id, b));
         this.preloadBuildingImages();
     }
 
@@ -62,7 +64,7 @@ export class BuildingService {
     }
 
     getBuildingById(id: string): BuildingType | undefined {
-        return BUILDINGS.find(b => b.id === id);
+        return this.buildingByIdCache.get(id);
     }
 
     getBuildingColor(id: string): string {

@@ -43,6 +43,7 @@ Thumbs.db
 
 # Project instructions (for AI assistants)
 PROJECT_INSTRUCTIONS.md
+AGENTS.md
 
 # Test files
 *.spec.ts

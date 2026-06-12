@@ -38,6 +38,10 @@ export class GuestService {
     private premiumSkinsService = inject(PremiumSkinsService);
 
     private buildingCache: Map<string, BuildingType> = new Map();
+    private cachedLeaveTargets: Cell[] = [];
+    private cachedHasDedicatedExits = false;
+    private leaveTargetsCacheVersion = -1;
+    private buildingGuestCounts = new Map<string, number>();
 
     constructor() {
         BUILDINGS.forEach(b => this.buildingCache.set(b.id, b));
@@ -46,6 +50,28 @@ export class GuestService {
     // Быстрый поиск здания по ID
     private getBuildingByIdFast(id: string): BuildingType | undefined {
         return this.buildingCache.get(id);
+    }
+
+    private buildLeaveTargets(grid: Cell[]): void {
+        const exits: Cell[] = [];
+        const entrances: Cell[] = [];
+        for (let i = 0; i < grid.length; i++) {
+            const c = grid[i];
+            if (c.type === 'exit') exits.push(c);
+            else if (c.type === 'entrance') entrances.push(c);
+        }
+        this.cachedHasDedicatedExits = exits.length > 0;
+        this.cachedLeaveTargets = this.cachedHasDedicatedExits ? exits : entrances;
+    }
+
+    private rebuildBuildingGuestCounts(guests: Guest[]): void {
+        this.buildingGuestCounts.clear();
+        for (const g of guests) {
+            if (g.visitingBuildingRoot) {
+                const key = g.visitingBuildingRoot;
+                this.buildingGuestCounts.set(key, (this.buildingGuestCounts.get(key) ?? 0) + 1);
+            }
+        }
     }
 
     private parseWorkerHome(homeKey: string | null | undefined): { x: number, y: number } | null {
@@ -231,11 +257,10 @@ export class GuestService {
     }
 
     /**
-     * Get the list of guests currently visiting a specific building
+     * Get the number of guests currently visiting a specific building
      */
-    private getGuestsInBuilding(guests: Guest[], rootX: number, rootY: number): Guest[] {
-        const buildingKey = `${rootX}_${rootY}`;
-        return guests.filter(g => g.visitingBuildingRoot === buildingKey);
+    private getBuildingGuestCount(rootX: number, rootY: number): number {
+        return this.buildingGuestCounts.get(`${rootX}_${rootY}`) ?? 0;
     }
 
     /**
@@ -251,7 +276,7 @@ export class GuestService {
      * Check if a building is at full capacity
      */
     private isBuildingAtCapacity(guests: Guest[], buildingId: string, rootX: number, rootY: number): boolean {
-        const guestCount = this.getGuestsInBuilding(guests, rootX, rootY).length;
+        const guestCount = this.getBuildingGuestCount(rootX, rootY);
         const capacity = this.getBuildingCapacity(buildingId, rootX, rootY);
         return guestCount >= capacity;
     }
@@ -514,10 +539,8 @@ export class GuestService {
         onRepairCostSpent?: (amount: number) => void,
         options?: GuestMovementOptions
     ): GuestMovementResult {
-        const hasDedicatedExits = grid.some(c => c.type === 'exit');
-        const leaveTargets = hasDedicatedExits
-            ? grid.filter(c => c.type === 'exit')
-            : grid.filter(c => c.type === 'entrance');
+        this.buildLeaveTargets(grid);
+        this.rebuildBuildingGuestCounts(guests);
         const updatedGrid = grid;
         const leavingGuests: Guest[] = [];
         const visibleBounds = options?.visibleBounds;
@@ -528,7 +551,7 @@ export class GuestService {
         const processRepair = (x: number, y: number) => {
             this.buildingStatusService.repair(x, y);
             if (onRepairCostSpent) {
-                const cell = grid.find(c => c.x === x && c.y === y);
+                const cell = grid[y * width + x];
                 if (cell?.buildingId) {
                     const building = this.getBuildingByIdFast(cell.buildingId);
                     if (building) {
@@ -715,7 +738,7 @@ export class GuestService {
 
                 // Если гость на входе/выходе и хочет уйти
                 const canLeaveFromCurrentCell = currentCell.type === 'exit'
-                    || (!hasDedicatedExits && currentCell.type === 'entrance');
+                    || (!this.cachedHasDedicatedExits && currentCell.type === 'entrance');
                 if (canLeaveFromCurrentCell && wantsToLeave) {
                     g.state = 'leaving';
                     return g;
@@ -867,7 +890,7 @@ export class GuestService {
                     g.targetY = nextNeedStep.y;
                     g.state = 'walking';
                 } else {
-                    const neighbors = this.getWalkableNeighbors(Math.round(g.x), Math.round(g.y), wantsToLeave, grid, leaveTargets, width, height);
+                    const neighbors = this.getWalkableNeighbors(Math.round(g.x), Math.round(g.y), wantsToLeave, grid, this.cachedLeaveTargets, width, height);
 
                     if (neighbors.length > 0) {
                         const chosenNeighbor = wantsToLeave

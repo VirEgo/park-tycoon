@@ -21,6 +21,7 @@ export interface ParkGuestReview {
     guestType: GuestTypeId;
     rating: number;
     text: string;
+    userName: string;
     source: ParkGuestReviewSource;
     snapshot: ParkGuestReviewSnapshot;
 }

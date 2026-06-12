@@ -15,6 +15,7 @@ export class Guest {
     targetY: number;
     money: number;
     isWorker: boolean = false;
+    name: string;
 
     // Stats (0-100)
     happiness: number = 100;
@@ -70,6 +71,7 @@ export class Guest {
         this.visualType = this.getRandomVisualType(availableSkins);
         this.skin = this.getSkinPath(this.visualType);
         this.isWorker = false;
+        this.name = `Гость #${id}`;
         this.updateHappinessFromNeeds();
     }
 
